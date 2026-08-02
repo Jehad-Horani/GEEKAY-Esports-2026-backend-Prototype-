@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEEKAY Esports | Enter the Arena</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #081B3A;
+            color: #f8fafc;
+            overflow-x: hidden;
+            cursor: none;
+        }
+        .font-syncopate { font-family: 'Syncopate', sans-serif; }
+        
+        /* Tactical Grid Background */
+        .bg-grid {
+            background-image: linear-gradient(to right, rgba(22, 82, 163, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(22, 82, 163, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .bg-scanline {
+            background: linear-gradient(
+                to bottom,
+                transparent,
+                transparent 50%,
+                rgba(0, 0, 0, 0.1) 50%,
+                rgba(0, 0, 0, 0.1)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #081B3A; }
+        ::-webkit-scrollbar-thumb { 
+            background: #FFC400;
+            border-radius: 10px;
+        }
+
+        /* Grain Overlay */
+        .grain-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.04;
+            background-image: url('https://grainy-gradients.vercel.app/noise.svg');
+        }
+
+        /* Selection Style */
+        ::selection {
+            background: #FFC400;
+            color: #000;
+        }
+
+        /* Smooth Scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Crosshair Cursor */
+        .custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(255, 196, 0, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s, background-color 0.3s, border-color 0.3s;
+        }
+        .custom-cursor::before, .custom-cursor::after {
+            content: '';
+            position: absolute;
+            background: #FFC400;
+        }
+        .custom-cursor::before { width: 100%; height: 1px; top: 50%; left: 0; }
+        .custom-cursor::after { height: 100%; width: 1px; left: 50%; top: 0; }
+
+        .custom-cursor-dot {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            width: 4px;
+            height: 4px;
+            background-color: #FFC400;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .cursor-active {
+            width: 16px;
+            height: 16px;
+            border-color: #FFC400;
+            background: rgba(255, 196, 0, 0.2);
+        }
+
+        /* Advanced Glitch Effect */
+        @keyframes glitch-anim {
+          0% { clip: rect(42px, 9999px, 44px, 0); transform: skew(0.5deg); }
+          5% { clip: rect(12px, 9999px, 59px, 0); transform: skew(0.5deg); }
+          10% { clip: rect(48px, 9999px, 29px, 0); transform: skew(0.5deg); }
+          15% { clip: rect(42px, 9999px, 73px, 0); transform: skew(0.5deg); }
+          20% { clip: rect(63px, 9999px, 27px, 0); transform: skew(0.5deg); }
+          25% { clip: rect(34px, 9999px, 55px, 0); transform: skew(0.5deg); }
+          30% { clip: rect(86px, 9999px, 73px, 0); transform: skew(0.5deg); }
+          35% { clip: rect(20px, 9999px, 20px, 0); transform: skew(0.5deg); }
+          40% { clip: rect(26px, 9999px, 60px, 0); transform: skew(0.5deg); }
+          45% { clip: rect(25px, 9999px, 66px, 0); transform: skew(0.5deg); }
+          50% { clip: rect(57px, 9999px, 98px, 0); transform: skew(0.5deg); }
+          55% { clip: rect(5px, 9999px, 46px, 0); transform: skew(0.5deg); }
+          60% { clip: rect(82px, 9999px, 31px, 0); transform: skew(0.5deg); }
+          65% { clip: rect(54px, 9999px, 27px, 0); transform: skew(0.5deg); }
+          70% { clip: rect(28px, 9999px, 99px, 0); transform: skew(0.5deg); }
+          75% { clip: rect(45px, 9999px, 69px, 0); transform: skew(0.5deg); }
+          80% { clip: rect(23px, 9999px, 85px, 0); transform: skew(0.5deg); }
+          85% { clip: rect(54px, 9999px, 84px, 0); transform: skew(0.5deg); }
+          90% { clip: rect(45px, 9999px, 47px, 0); transform: skew(0.5deg); }
+          95% { clip: rect(37px, 9999px, 20px, 0); transform: skew(0.5deg); }
+          100% { clip: rect(4px, 9999px, 91px, 0); transform: skew(0.5deg); }
+        }
+
+        .glitch-text {
+          position: relative;
+        }
+        .glitch-text::before, .glitch-text::after {
+          content: attr(data-text);
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #0B1C2D;
+        }
+        .glitch-text::before {
+          left: 2px;
+          text-shadow: -2px 0 #ff00c1;
+          clip: rect(44px, 450px, 56px, 0);
+          animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+        .glitch-text::after {
+          left: -2px;
+          text-shadow: -2px 0 #00fff9, 2px 2px #ff00c1;
+          animation: glitch-anim 1s infinite linear alternate-reverse;
+        }
+
+        /* Mask Animation */
+        .mask-reveal {
+          clip-path: polygon(0 0, 0 0, 0 100%, 0% 100%);
+          animation: reveal 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+        }
+        @keyframes reveal {
+          to { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain-overlay"></div>
+    <div id="root"></div>
+    <!-- CRITICAL FIX: The entry point script to load the React app -->
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

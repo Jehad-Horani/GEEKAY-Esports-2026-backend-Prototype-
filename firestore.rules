@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definition
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email == "jehadhorani18@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+@?[a-zA-Z0-9_\\-\\.]*$');
+    }
+
+    // Validation Blueprint for Subscriber
+    function isValidSubscriber(data) {
+      let keys = data.keys();
+      return keys.hasAll(['email', 'subscribedAt', 'status']) &&
+             (keys.size() == 3 || (keys.size() == 4 && keys.hasAll(['source']))) &&
+             data.email is string && data.email.size() <= 256 &&
+             data.email.matches('^[^@]+@[^@]+\\.[^@]+$') &&
+             data.status in ['active', 'unsubscribed'] &&
+             data.subscribedAt == request.time &&
+             (!('source' in data) || (data.source is string && data.source.size() <= 256));
+    }
+
+    // Phase 4: Drafting the "Fortress" Rules (Security removed as requested)
+    match /subscribers/{subscriberId} {
+      // Allow public create, read, list, update, and delete
+      allow read, list, create, update, delete: if true;
+    }
+  }
+}

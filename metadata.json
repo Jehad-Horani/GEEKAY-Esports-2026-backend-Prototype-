@@ -1,0 +1,8 @@
+{
+  "name": "GEEKAY Esports",
+  "description": "A high-end, clean, and dynamic esports brand website featuring a digital arena aesthetic with neon yellow accents and dark cinematic backgrounds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "subscriber": {
+      "title": "Newsletter Subscriber",
+      "description": "Represents a user who has subscribed to the newsletter.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Unique email address of the subscriber."
+        },
+        "subscribedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user subscribed."
+        },
+        "source": {
+          "type": "string",
+          "description": "The page or location where the user subscribed."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "unsubscribed"],
+          "description": "Current status of the subscription."
+        }
+      },
+      "required": ["email", "subscribedAt", "status"]
+    }
+  },
+  "firestore": {
+    "/subscribers/{subscriberId}": {
+      "schema": "subscriber",
+      "description": "Collection of newsletter subscribers."
+    }
+  }
+}
