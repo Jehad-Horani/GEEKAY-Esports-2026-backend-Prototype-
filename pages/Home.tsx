@@ -9,6 +9,20 @@ import { Link } from 'react-router-dom';
 import { Player, NewsItem, Product } from '../types';
 import SEOMeta from '../components/SEOMeta';
 
+const safeFetchJson = async (url: string) => {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await res.json();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 // --- Components ---
 
 const ShopDropdown = ({ variant = "primary", className = "" }: { variant?: "primary" | "outline", className?: string }) => {
@@ -203,7 +217,7 @@ const Shockwave = ({ trigger }: { trigger: boolean }) => (
   </AnimatePresence>
 );
 
-const Hero = () => {
+const Hero = ({ events = [] }: { events?: any[] }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Mouse parallax movement
@@ -215,6 +229,101 @@ const Hero = () => {
     const y = (clientY / innerHeight - 0.5) * 20;
     setMousePos({ x, y });
   };
+
+  const upcomingMatches = useMemo(() => {
+    if (Array.isArray(events) && events.length > 0) {
+      const upcomingList: any[] = [];
+      events.forEach((ev: any) => {
+        let parsedMatches = [];
+        if (typeof ev.matches === 'string') {
+          try { parsedMatches = JSON.parse(ev.matches); } catch {}
+        } else if (Array.isArray(ev.matches)) {
+          parsedMatches = ev.matches;
+        }
+        if (parsedMatches.length > 0) {
+          parsedMatches.forEach((m: any) => {
+            if (m.status !== 'completed') {
+              upcomingList.push({
+                game: String(ev.game || 'ESPORTS').toUpperCase(),
+                opp: m.teams || ev.title,
+                date: m.date || ev.start_date || 'TBD',
+                time: ev.time || '18:00'
+              });
+            }
+          });
+        } else if (ev.status === 'upcoming' || ev.status === 'live') {
+          upcomingList.push({
+            game: String(ev.game || 'ESPORTS').toUpperCase(),
+            opp: ev.title || ev.organizer || 'GLOBAL TEAMS',
+            date: ev.start_date || 'TBD',
+            time: ev.time || '18:00'
+          });
+        }
+      });
+      if (upcomingList.length > 0) return upcomingList.slice(0, 2);
+    }
+    return [];
+  }, [events]);
+
+  const pastResults = useMemo(() => {
+    if (Array.isArray(events) && events.length > 0) {
+      const pastList: any[] = [];
+      events.forEach((ev: any) => {
+        let parsedMatches = [];
+        if (typeof ev.matches === 'string') {
+          try { parsedMatches = JSON.parse(ev.matches); } catch {}
+        } else if (Array.isArray(ev.matches)) {
+          parsedMatches = ev.matches;
+        }
+
+        if (parsedMatches.length > 0) {
+          parsedMatches.forEach((m: any) => {
+            const st = String(m.status || '').toLowerCase();
+            if (st === 'completed' || st === 'finished' || st === 'ended' || st === 'past') {
+              let isWin = true;
+              if (m.winner) {
+                isWin = String(m.winner).toLowerCase().includes('geekay');
+              } else if (m.res || m.result) {
+                isWin = String(m.res || m.result).toUpperCase() === 'WIN';
+              } else if (m.score) {
+                const numParts = String(m.score).split('-').map(s => parseInt(s.trim(), 10));
+                if (numParts.length === 2 && !isNaN(numParts[0]) && !isNaN(numParts[1])) {
+                  isWin = numParts[0] > numParts[1];
+                } else if (String(m.score).includes('1 - 3') || String(m.score).startsWith('0')) {
+                  isWin = false;
+                }
+              }
+              pastList.push({
+                game: String(ev.game || 'ESPORTS').toUpperCase(),
+                opp: m.teams || ev.title,
+                res: isWin ? 'WIN' : 'LOSS',
+                score: m.score || (isWin ? '2-1' : '0-2')
+              });
+            }
+          });
+        }
+
+        const evStatus = String(ev.status || '').toLowerCase();
+        if (evStatus === 'completed' || evStatus === 'finished' || evStatus === 'ended' || evStatus === 'past') {
+          let resObj: any = {};
+          if (typeof ev.results === 'string') {
+            try { resObj = JSON.parse(ev.results); } catch {}
+          } else if (typeof ev.results === 'object' && ev.results) {
+            resObj = ev.results;
+          }
+          const isWin = resObj.winner ? String(resObj.winner).toLowerCase().includes('geekay') : true;
+          pastList.push({
+            game: String(ev.game || 'ESPORTS').toUpperCase(),
+            opp: ev.title || 'REGIONAL FINALS',
+            res: isWin ? 'WIN' : 'LOSS',
+            score: resObj.score || (isWin ? '3-1' : '1-3')
+          });
+        }
+      });
+      if (pastList.length > 0) return pastList.slice(0, 2);
+    }
+    return [];
+  }, [events]);
 
   return (
     <section 
@@ -308,21 +417,24 @@ const Hero = () => {
                 </h3>
                 
                 <div className="space-y-2">
-                  {[
-                    { game: 'VALORANT', opp: 'TEAM FALCONS', date: 'FEB 28', time: '18:00' },
-                    { game: 'DOTA 2', opp: 'NIGMA GALAXY', date: 'MAR 02', time: '20:00' }
-                  ].map((match, i) => (
-                    <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                      <div>
-                        <div className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</div>
-                        <div className="text-white font-syncopate text-[10px] font-black tracking-tight">VS {match.opp}</div>
+                  {upcomingMatches.length > 0 ? (
+                    upcomingMatches.map((match, i) => (
+                      <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                        <div>
+                          <div className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</div>
+                          <div className="text-white font-syncopate text-[10px] font-black tracking-tight">{match.opp.startsWith('VS') ? match.opp : `VS ${match.opp}`}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
+                          <div className="text-white/40 font-syncopate text-[7px] tracking-widest">{match.time}</div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
-                        <div className="text-white/40 font-syncopate text-[7px] tracking-widest">{match.time} GST</div>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase py-1">
+                      NO UPCOMING MATCHES SCHEDULED
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -333,23 +445,26 @@ const Hero = () => {
                 </h3>
                 
                 <div className="space-y-2">
-                  {[
-                    { game: 'VALORANT', opp: 'TEAM SECRET', res: 'WIN', score: '2-1' },
-                    { game: 'DOTA 2', opp: 'OG', res: 'LOSS', score: '0-2' }
-                  ].map((result, i) => (
-                    <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                      <div>
-                        <div className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</div>
-                        <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">VS {result.opp}</div>
-                      </div>
-                      <div className="text-right flex items-center gap-2">
-                        <div className="text-white font-syncopate text-[10px] font-black">{result.score}</div>
-                        <div className={`font-syncopate text-[8px] font-black px-1.5 py-0.5 ${result.res === 'WIN' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                          {result.res}
+                  {pastResults.length > 0 ? (
+                    pastResults.map((result, i) => (
+                      <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                        <div>
+                          <div className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</div>
+                          <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">{result.opp.startsWith('VS') ? result.opp : `VS ${result.opp}`}</div>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <div className="text-white font-syncopate text-[10px] font-black">{result.score}</div>
+                          <div className={`font-syncopate text-[8px] font-black px-1.5 py-0.5 ${result.res === 'WIN' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {result.res}
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase py-1">
+                      NO RECENT MATCH RESULTS
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -689,10 +804,27 @@ const AnimatedNumber: React.FC<{ value: string; className?: string }> = ({ value
   );
 };
 
-const NewsAnnouncements = () => {
-  const news = MOCK_NEWS.slice(0, 3);
-  const featured = news[0]; // International Qualifications
-  const others = news.slice(1); // RL Decals and Roster Announcements
+const NewsAnnouncements = ({ newsList = [] }: { newsList?: any[] }) => {
+  const news = useMemo(() => {
+    if (Array.isArray(newsList) && newsList.length > 0) {
+      return newsList.slice(0, 3).map((item: any, idx: number) => ({
+        id: item.id || `news-${idx}`,
+        title: item.title,
+        category: String(item.category || 'ANNOUNCEMENT').toUpperCase(),
+        excerpt: item.excerpt || item.summary || (item.content ? item.content.replace(/<[^>]+>/g, '').slice(0, 140) + '...' : 'Latest update from Geekay Esports.'),
+        date: item.date || item.created_at?.split('T')[0] || 'FEB 2026',
+        readTime: item.read_time || '4 MIN READ',
+        image: item.image || item.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+        slug: item.slug || item.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      }));
+    }
+    return [];
+  }, [newsList]);
+
+  if (news.length === 0) return null;
+
+  const featured = news[0]; // International Qualifications / Primary
+  const others = news.slice(1); // Secondary news
 
   return (
     <section className="py-32 px-6 bg-[#081B3A] relative z-10 overflow-hidden border-t border-white/5 border-b border-slate-800/50">
@@ -842,7 +974,7 @@ const NewsAnnouncements = () => {
   );
 };
 
-const AboutSnapshot = () => {
+const AboutSnapshot = ({ statsObj = null, teams = [] }: { statsObj?: any; teams?: any[] }) => {
   const sectionRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -852,11 +984,20 @@ const AboutSnapshot = () => {
   const leftY = useTransform(scrollYProgress, [0, 1], [20, -20]);
   const rightY = useTransform(scrollYProgress, [0, 1], [-20, 20]);
 
+  const teamsCount = teams?.length || statsObj?.teams || 12;
+  const totalChampionships = useMemo(() => {
+    if (Array.isArray(teams) && teams.length > 0) {
+      const sum = teams.reduce((acc, t) => acc + (Number(t.championships) || 0), 0);
+      return sum > 0 ? sum : 32;
+    }
+    return 32;
+  }, [teams]);
+
   const stats = [
     { label: 'GLOBAL COMMUNITY', value: '24.1M', sub: 'Active network' },
-    { label: 'MAJOR TITLES', value: '32', sub: 'Championship wins' },
+    { label: 'MAJOR TITLES', value: String(totalChampionships), sub: 'Championship wins' },
     { label: 'WIN RATE', value: '68%', sub: 'Last 100 matches' },
-    { label: 'ACTIVE TEAMS', value: '12', sub: 'Elite divisions' },
+    { label: 'ACTIVE TEAMS', value: String(teamsCount), sub: 'Elite divisions' },
   ];
 
   return (
@@ -966,41 +1107,47 @@ const AboutSnapshot = () => {
   );
 };
 
-const LiveOperationsHighlight = () => {
-  const upcomingMatches = [
-    {
-      id: 'm1',
-      game: 'VALORANT',
-      title: 'VCT CHALLENGERS',
-      opponent: 'TEAM FALCONS',
-      date: 'FEB 28, 2026',
-      time: '18:00 GST',
-      region: 'MENA',
-      countdown: '2D 11H'
-    },
-    {
-      id: 'm2',
-      game: 'DOTA 2',
-      title: 'RIYADH MASTERS',
-      opponent: 'NIGMA GALAXY',
-      date: 'MAR 02, 2026',
-      time: '20:00 GST',
-      region: 'GLOBAL',
-      countdown: '4D 13H'
-    },
-    {
-      id: 'm3',
-      game: 'CS2',
-      title: 'PRO LEAGUE S13',
-      opponent: 'G2 ESPORTS',
-      date: 'MAR 05, 2026',
-      time: '19:30 GST',
-      region: 'EU',
-      countdown: '7D 12H'
+const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
+  const upcomingMatches = useMemo(() => {
+    if (Array.isArray(events) && events.length > 0) {
+      const matchesList: any[] = [];
+      events.forEach((ev: any) => {
+        if (ev.status === 'upcoming' || ev.status === 'live') {
+          matchesList.push({
+            id: ev.id,
+            game: String(ev.game || 'ESPORTS').toUpperCase(),
+            title: ev.title,
+            opponent: ev.organizer || 'GLOBAL CONTENDERS',
+            date: ev.start_date || 'OCT 2026',
+            time: ev.time || '18:00 GST',
+            region: ev.region || 'GLOBAL',
+            countdown: ev.status === 'live' ? 'LIVE NOW' : 'UPCOMING'
+          });
+        }
+      });
+      if (matchesList.length > 0) return matchesList.slice(0, 3);
     }
-  ];
+    return [];
+  }, [events]);
 
-  const featuredTournament = MOCK_EVENTS[1]; // THE INTERNATIONAL 2026
+  const featuredTournament = useMemo(() => {
+    if (Array.isArray(events) && events.length > 0) {
+      const feat = events.find((e: any) => e.featured === 1 || e.featured === true) || events[0];
+      return {
+        id: feat.id,
+        title: feat.title,
+        game: String(feat.game || 'ESPORTS').toUpperCase(),
+        status: String(feat.status || 'UPCOMING').toUpperCase(),
+        date: feat.start_date || '2026-11-05',
+        location: feat.region || feat.organizer || 'GLOBAL',
+        prizePool: feat.prize_pool || '$18,000,000',
+        image: feat.banner || feat.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600'
+      };
+    }
+    return null;
+  }, [events]);
+
+  if (upcomingMatches.length === 0 && !featuredTournament) return null;
 
   return (
     <section className="py-32 px-6 bg-[#081B3A] relative z-10 overflow-hidden border-t border-slate-800/50">
@@ -1082,71 +1229,87 @@ const LiveOperationsHighlight = () => {
           </div>
 
           {/* Right Column: Featured Tournament */}
-          <div className="lg:col-span-5">
-            <h3 className="font-syncopate text-xs font-bold text-white/40 tracking-[0.3em] uppercase mb-8">FEATURED TOURNAMENT</h3>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              whileHover={{ y: -8 }}
-              className="group relative bg-[#0A1A31] border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-500 overflow-hidden h-full flex flex-col"
-            >
-              <div className="relative aspect-video overflow-hidden">
-                <img 
-                  src={featuredTournament.image} 
-                  alt={featuredTournament.title} 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A31] via-[#0A1A31]/40 to-transparent" />
-                <div className="absolute top-6 right-6">
-                  <span className="bg-[#FFC400] text-black px-4 py-1 font-syncopate text-[10px] font-black tracking-widest uppercase">
-                    {featuredTournament.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-8 md:p-12 flex-grow flex flex-col">
-                <div className="mb-6">
-                  <span className="text-[#FFC400] font-syncopate text-[10px] font-black tracking-widest uppercase">{featuredTournament.game}</span>
-                  <h4 className="font-syncopate text-2xl md:text-4xl font-bold text-white uppercase mt-2 leading-tight">{featuredTournament.title}</h4>
-                </div>
-
-                <div className="space-y-6 mb-12">
-                  <div className="flex items-center gap-4 text-slate-300">
-                    <Calendar size={18} className="text-[#FFC400]" />
-                    <span className="font-syncopate text-xs tracking-widest uppercase">{featuredTournament.date}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-slate-300">
-                    <MapPin size={18} className="text-[#FFC400]" />
-                    <span className="font-syncopate text-xs tracking-widest uppercase">{featuredTournament.location}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-slate-300">
-                    <Trophy size={18} className="text-[#FFC400]" />
-                    <span className="font-syncopate text-xs tracking-widest uppercase">PRIZE POOL: {featuredTournament.prizePool}</span>
+          {featuredTournament && (
+            <div className="lg:col-span-5">
+              <h3 className="font-syncopate text-xs font-bold text-white/40 tracking-[0.3em] uppercase mb-8">FEATURED TOURNAMENT</h3>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                whileHover={{ y: -8 }}
+                className="group relative bg-[#0A1A31] border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-500 overflow-hidden h-full flex flex-col"
+              >
+                <div className="relative aspect-video overflow-hidden">
+                  <img 
+                    src={featuredTournament.image} 
+                    alt={featuredTournament.title} 
+                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A31] via-[#0A1A31]/40 to-transparent" />
+                  <div className="absolute top-6 right-6">
+                    <span className="bg-[#FFC400] text-black px-4 py-1 font-syncopate text-[10px] font-black tracking-widest uppercase">
+                      {featuredTournament.status}
+                    </span>
                   </div>
                 </div>
 
-                <div className="mt-auto">
-                  <Link to="/events">
-                    <ArenaButton className="w-full" icon={<ArrowRight size={18} />}>
-                      VIEW TOURNAMENT
-                    </ArenaButton>
-                  </Link>
-                </div>
-              </div>
+                <div className="p-8 md:p-12 flex-grow flex flex-col">
+                  <div className="mb-6">
+                    <span className="text-[#FFC400] font-syncopate text-[10px] font-black tracking-widest uppercase">{featuredTournament.game}</span>
+                    <h4 className="font-syncopate text-2xl md:text-4xl font-bold text-white uppercase mt-2 leading-tight">{featuredTournament.title}</h4>
+                  </div>
 
-              {/* Corner Markers */}
-              <div className="absolute top-0 left-0 w-12 h-12 border-t border-l border-[#FFC400]/20 group-hover:border-[#FFC400]/50 transition-colors" />
-              <div className="absolute bottom-0 right-0 w-12 h-12 border-b border-r border-[#FFC400]/20 group-hover:border-[#FFC400]/50 transition-colors" />
-            </motion.div>
-          </div>
+                  <div className="space-y-6 mb-12">
+                    <div className="flex items-center gap-4 text-slate-300">
+                      <Calendar size={18} className="text-[#FFC400]" />
+                      <span className="font-syncopate text-xs tracking-widest uppercase">{featuredTournament.date}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-slate-300">
+                      <MapPin size={18} className="text-[#FFC400]" />
+                      <span className="font-syncopate text-xs tracking-widest uppercase">{featuredTournament.location}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-slate-300">
+                      <Trophy size={18} className="text-[#FFC400]" />
+                      <span className="font-syncopate text-xs tracking-widest uppercase">PRIZE POOL: {featuredTournament.prizePool}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto">
+                    <Link to="/events">
+                      <ArenaButton className="w-full" icon={<ArrowRight size={18} />}>
+                        VIEW TOURNAMENT
+                      </ArenaButton>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Corner Markers */}
+                <div className="absolute top-0 left-0 w-12 h-12 border-t border-l border-[#FFC400]/20 group-hover:border-[#FFC400]/50 transition-colors" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b border-r border-[#FFC400]/20 group-hover:border-[#FFC400]/50 transition-colors" />
+              </motion.div>
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 };
 
-const ActiveTeamsSection = () => {
+const ActiveTeamsSection = ({ teams = [] }: { teams?: any[] }) => {
+  const displayTeams = useMemo(() => {
+    if (Array.isArray(teams) && teams.length > 0) {
+      return teams.slice(0, 4).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        game: t.game ? String(t.game).toUpperCase() : 'ESPORTS',
+        bio: t.bio || t.tagline || `Our professional ${t.game || 'esports'} squad competing in top divisions.`
+      }));
+    }
+    return [];
+  }, [teams]);
+
+  if (displayTeams.length === 0) return null;
+
   return (
     <section className="py-32 px-6 bg-[#030C1A] relative z-10 overflow-hidden border-t border-slate-900">
       <div className="absolute inset-0 bg-grid opacity-[0.03] pointer-events-none" />
@@ -1171,7 +1334,7 @@ const ActiveTeamsSection = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {MOCK_TEAMS.slice(0, 4).map((team, idx) => (
+          {displayTeams.map((team, idx) => (
             <motion.div
               key={team.id}
               initial={{ opacity: 0, y: 20 }}
@@ -1184,8 +1347,8 @@ const ActiveTeamsSection = () => {
               <div className="absolute top-0 right-0 w-16 h-16 bg-[#FFC400]/5 skew-x-[-45deg] translate-x-8 -translate-y-8" />
               <div>
                 <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-widest uppercase mb-2 block">{team.game}</span>
-                <h3 className="font-syncopate text-xl font-black text-white uppercase mb-4 group-hover:text-[#FFC400] transition-colors">{team.name} Roster</h3>
-                <p className="text-slate-500 font-inter text-xs font-light leading-relaxed mb-6">{team.bio || `Our professional ${team.game} squad competing in the highest tiers of regional and global tournaments.`}</p>
+                <h3 className="font-syncopate text-xl font-black text-white uppercase mb-4 group-hover:text-[#FFC400] transition-colors">{team.name}</h3>
+                <p className="text-slate-500 font-inter text-xs font-light leading-relaxed mb-6">{team.bio}</p>
               </div>
 
               <Link to={`/teams?id=${team.id}`} className="group/btn flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-widest uppercase mt-4">
@@ -1200,6 +1363,66 @@ const ActiveTeamsSection = () => {
 };
 
 const Home = () => {
+  const [dbNews, setDbNews] = useState<any[]>([]);
+  const [dbEvents, setDbEvents] = useState<any[]>([]);
+  const [dbTeams, setDbTeams] = useState<any[]>([]);
+  const [dbStats, setDbStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchHomeData = async () => {
+      try {
+        const [newsData, eventsData, teamsData, statsData] = await Promise.all([
+          safeFetchJson('/api/news'),
+          safeFetchJson('/api/events'),
+          safeFetchJson('/api/teams'),
+          safeFetchJson('/api/stats')
+        ]);
+
+        if (isMounted) {
+          if (Array.isArray(newsData)) setDbNews(newsData);
+          if (Array.isArray(eventsData)) setDbEvents(eventsData);
+          if (Array.isArray(teamsData)) setDbTeams(teamsData);
+          if (statsData) setDbStats(statsData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch home database content:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchHomeData();
+    return () => { isMounted = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#030C1A] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none" />
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            <div className="absolute inset-0 border-4 border-[#FFC400]/20 border-t-[#FFC400] rounded-full animate-spin" />
+            <div className="w-10 h-10 bg-[#FFC400]/10 rounded-full flex items-center justify-center border border-[#FFC400]/40 animate-pulse">
+              <span className="font-syncopate text-[#FFC400] text-xs font-black">GK</span>
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="font-syncopate text-[#FFC400] text-sm font-black tracking-[0.3em] uppercase animate-pulse">
+              GEEKAY ESPORTS
+            </span>
+            <span className="font-syncopate text-slate-400 text-[10px] tracking-widest uppercase">
+              LOADING SYSTEM DATA...
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -1212,11 +1435,11 @@ const Home = () => {
         description="Official portal of Geekay Esports. Dominate the virtual arenas with our elite rosters in Rocket League, PUBG Mobile, Overwatch, Honor of Kings, and Fortnite."
         ogType="website"
       />
-      <Hero />
-      <NewsAnnouncements />
-      <AboutSnapshot />
-      <ActiveTeamsSection />
-      <LiveOperationsHighlight />
+      <Hero events={dbEvents} />
+      <NewsAnnouncements newsList={dbNews} />
+      <AboutSnapshot statsObj={dbStats} teams={dbTeams} />
+      <ActiveTeamsSection teams={dbTeams} />
+      <LiveOperationsHighlight events={dbEvents} />
       <ShopSection />
     </motion.div>
   );

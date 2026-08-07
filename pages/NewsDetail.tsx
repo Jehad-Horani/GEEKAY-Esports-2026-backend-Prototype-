@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Clock, Share2, Twitter, Facebook, Link as LinkIcon, User, Tag, ChevronRight, Award } from 'lucide-react';
-import { MOCK_NEWS } from '../constants';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
@@ -14,40 +13,48 @@ const NewsDetail = () => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const fetchNews = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
       try {
         const res = await fetch('/api/news', { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           const data = await res.json();
-          if (Array.isArray(data)) {
+          if (isMounted && Array.isArray(data)) {
             setDbNews(data);
-          } else {
+          } else if (isMounted) {
             console.warn('API returned non-array data for news:', data);
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch news from API (or timed out):', err);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to fetch news from API:', err);
+        }
       } finally {
         clearTimeout(timeoutId);
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchNews();
     window.scrollTo(0, 0);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [slug]);
 
   const article = useMemo(() => {
-    let found = (Array.isArray(dbNews) ? dbNews : []).find(n => n.slug === slug);
-    if (!found) {
-      found = MOCK_NEWS.find(n => n.slug === slug);
-    }
+    const found = (Array.isArray(dbNews) ? dbNews : []).find(n => n.slug === slug);
     return found ? {
       ...found,
       featured: found.featured === 1 || found.featured === true,
       published: found.published === 1 || found.published === true || found.published === undefined,
+      readTime: found.readTime || found.read_time || '4 MIN READ',
     } : null;
   }, [dbNews, slug]);
 
@@ -64,11 +71,6 @@ const NewsDetail = () => {
   const nextBriefings = useMemo(() => {
     if (!article) return [];
     const filtered = (Array.isArray(dbNews) ? dbNews : []).filter(n => n.slug !== article.slug && (n.published === 1 || n.published === true || n.published === undefined));
-    MOCK_NEWS.forEach(mock => {
-      if (filtered.length < 2 && mock.slug !== article.slug && !filtered.some(n => n.slug === mock.slug)) {
-        filtered.push(mock);
-      }
-    });
     return filtered.slice(0, 2);
   }, [dbNews, article]);
 

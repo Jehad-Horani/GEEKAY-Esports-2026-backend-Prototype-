@@ -5,6 +5,7 @@ import { Twitter, Twitch, Instagram, Youtube, Facebook, Heart, MessageCircle, Sh
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
+import { useSettings } from '../src/context/SettingsContext';
 
 // --- Components ---
 
@@ -103,20 +104,15 @@ const StatCard = ({ label, value, suffix = "" }: { label: string, value: number,
   );
 };
 
-const PlatformCard = ({ platform, icon, followers, engagement, growth }: any) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -5 }}
-      className="bg-[#040E1E] border border-slate-800 p-8 relative group transition-all duration-300 hover:border-[#FFC400]/40"
-    >
+const PlatformCard = ({ platform, icon, followers, engagement, growth, url }: any) => {
+  const content = (
+    <>
       <div className="absolute top-0 left-0 w-1 h-0 bg-[#FFC400] group-hover:h-full transition-all duration-500" />
       
       <div className="flex items-center justify-between mb-8">
-        <div className="p-3 bg-white/5 border border-slate-800 text-slate-400 group-hover:text-[#FFC400] group-hover:shadow-[0_0_20px_rgba(255,196,0,0.2)] transition-all duration-300">
+        <div className="p-3 bg-white/5 border border-slate-800 text-slate-400 group-hover:text-[#FFC400] group-hover:shadow-[0_0_20px_rgba(255,196,0,0.2)] transition-all duration-300 flex items-center gap-2">
           {icon}
+          {url && <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
         </div>
         <div className="text-right">
           <span className="font-syncopate text-[8px] text-slate-600 tracking-widest block uppercase mb-1">GROWTH</span>
@@ -126,7 +122,7 @@ const PlatformCard = ({ platform, icon, followers, engagement, growth }: any) =>
 
       <div className="mb-6">
         <h3 className="font-syncopate text-xl font-black text-white uppercase mb-1">{platform}</h3>
-        <p className="font-syncopate text-[10px] text-slate-500 tracking-widest uppercase">{followers}</p>
+        <p className="font-syncopate text-[10px] text-[#FFC400] font-bold tracking-widest uppercase">{followers} FOLLOWERS</p>
       </div>
 
       <div className="pt-6 border-t border-slate-800/50">
@@ -135,6 +131,35 @@ const PlatformCard = ({ platform, icon, followers, engagement, growth }: any) =>
           <span className="font-syncopate text-xs font-bold text-white">{engagement}</span>
         </div>
       </div>
+    </>
+  );
+
+  if (url) {
+    return (
+      <motion.a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        whileHover={{ y: -5 }}
+        className="block bg-[#040E1E] border border-slate-800 p-8 relative group transition-all duration-300 hover:border-[#FFC400]/40"
+      >
+        {content}
+      </motion.a>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -5 }}
+      className="bg-[#040E1E] border border-slate-800 p-8 relative group transition-all duration-300 hover:border-[#FFC400]/40"
+    >
+      {content}
     </motion.div>
   );
 };
@@ -304,7 +329,28 @@ const MarqueeRow = ({ images, direction = "left", speed = 40, onImageClick }: { 
 };
 
 const Media = () => {
+  const { settings } = useSettings();
   const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [galleryImages, setGalleryImages] = useState<any[]>(GALLERY_IMAGES);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/gallery')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          const mapped = data.map((g: any) => ({
+            id: g.id,
+            category: (g.category || 'MEDIA').toUpperCase(),
+            title: (g.title || 'GEEKAY_GALLERY').toUpperCase().replace(/\s+/g, '_'),
+            url: g.url || 'https://picsum.photos/seed/esports1/1200/800'
+          }));
+          setGalleryImages(mapped);
+        }
+      })
+      .catch(err => console.error('Failed to fetch gallery images:', err));
+    return () => { isMounted = false; };
+  }, []);
 
   const socialAccounts = {
     instagram: [
@@ -324,19 +370,19 @@ const Media = () => {
     snapchat: { name: 'GEEKAY ESPORTS', handle: 'geekayesports', url: '#' },
   };
 
-  const row1 = GALLERY_IMAGES.slice(0, 7);
-  const row2 = GALLERY_IMAGES.slice(7, 14);
-  const row3 = GALLERY_IMAGES.slice(14, 20);
+  const row1 = useMemo(() => galleryImages.slice(0, Math.ceil(galleryImages.length / 3)), [galleryImages]);
+  const row2 = useMemo(() => galleryImages.slice(Math.ceil(galleryImages.length / 3), Math.ceil((galleryImages.length / 3) * 2)), [galleryImages]);
+  const row3 = useMemo(() => galleryImages.slice(Math.ceil((galleryImages.length / 3) * 2)), [galleryImages]);
 
   const openLightbox = (img: any) => setSelectedImage(img);
   const closeLightbox = () => setSelectedImage(null);
 
   const navigateLightbox = (direction: 'prev' | 'next') => {
-    const currentIndex = GALLERY_IMAGES.findIndex(img => img.id === selectedImage.id);
+    const currentIndex = galleryImages.findIndex(img => img.id === selectedImage.id);
     let nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    if (nextIndex >= GALLERY_IMAGES.length) nextIndex = 0;
-    if (nextIndex < 0) nextIndex = GALLERY_IMAGES.length - 1;
-    setSelectedImage(GALLERY_IMAGES[nextIndex]);
+    if (nextIndex >= galleryImages.length) nextIndex = 0;
+    if (nextIndex < 0) nextIndex = galleryImages.length - 1;
+    setSelectedImage(galleryImages[nextIndex]);
   };
   return (
     <div className="bg-[#0B1C2D] min-h-screen overflow-x-hidden selection:bg-[#FFC400] selection:text-black">
@@ -560,11 +606,11 @@ const Media = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-            <PlatformCard platform="INSTAGRAM" icon={<Instagram size={24} />} followers="240K" engagement="15.1%" growth="+12%" />
-            <PlatformCard platform="X (TWITTER)" icon={<Twitter size={24} />} followers="399K" engagement="8.2%" growth="+24%" />
-            <PlatformCard platform="TIKTOK" icon={<Zap size={24} />} followers="481K" engagement="18.5%" growth="+45%" />
-            <PlatformCard platform="YOUTUBE" icon={<Youtube size={24} />} followers="523K" engagement="10.8%" growth="+30%" />
-            <PlatformCard platform="TWITCH" icon={<Twitch size={24} />} followers="645K" engagement="12.4%" growth="+18%" />
+            <PlatformCard platform="INSTAGRAM" icon={<Instagram size={24} />} followers={settings.instagram_count || "240K"} engagement="15.1%" growth="+12%" url={settings.instagram_url} />
+            <PlatformCard platform="X (TWITTER)" icon={<Twitter size={24} />} followers={settings.twitter_count || "399K"} engagement="8.2%" growth="+24%" url={settings.twitter_url} />
+            <PlatformCard platform="TIKTOK" icon={<Zap size={24} />} followers={settings.tiktok_count || "481K"} engagement="18.5%" growth="+45%" url={settings.tiktok_url} />
+            <PlatformCard platform="YOUTUBE" icon={<Youtube size={24} />} followers={settings.youtube_count || "523K"} engagement="10.8%" growth="+30%" url={settings.youtube_url} />
+            <PlatformCard platform="TWITCH" icon={<Twitch size={24} />} followers={settings.twitch_count || "645K"} engagement="12.4%" growth="+18%" url={settings.twitch_url} />
           </div>
         </div>
       </section>

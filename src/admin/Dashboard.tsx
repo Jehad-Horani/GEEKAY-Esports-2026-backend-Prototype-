@@ -34,22 +34,28 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      fetchDbStatus();
       try {
-        const [statsRes, activityRes] = await Promise.all([
-          fetch('/api/stats'),
-          fetch('/api/activity'),
-          fetchDbStatus()
-        ]);
-        
-        if (statsRes.ok) setStats(await statsRes.json());
-        if (activityRes.ok) setActivity(await activityRes.json());
+        const statsRes = await fetch('/api/stats').catch(() => null);
+        if (statsRes && statsRes.ok) {
+          const data = await statsRes.json().catch(() => null);
+          if (data) setStats(data);
+        }
       } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
-        setStats({ teams: 0, players: 0, events: 0, gallery: 0, jobs: 0 });
-        setActivity([]);
-      } finally {
-        setLoading(false);
+        console.warn('Failed to fetch stats:', err);
       }
+
+      try {
+        const activityRes = await fetch('/api/activity').catch(() => null);
+        if (activityRes && activityRes.ok) {
+          const data = await activityRes.json().catch(() => null);
+          if (data) setActivity(data);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch activity:', err);
+      }
+
+      setLoading(false);
     };
 
     fetchData();

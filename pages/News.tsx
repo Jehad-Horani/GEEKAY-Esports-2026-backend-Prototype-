@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, Calendar, Clock, Filter, ArrowRight, Newspaper } from 'lucide-react';
-import { MOCK_NEWS } from '../constants';
 import { NewsItem } from '../types';
 import ArenaButton from '../components/ui/ArenaButton';
 import { Link } from 'react-router-dom';
@@ -10,68 +9,97 @@ import SEOMeta, { generateArticleSchema } from '../components/SEOMeta';
 
 const News = () => {
   const [dbNews, setDbNews] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(7); // 1 featured + 6 in grid
 
-  const filterCategories = [
-    { label: 'All', value: 'ALL' },
-    { label: 'Announcements', value: 'ANNOUNCEMENT' },
-    { label: 'Roster Updates', value: 'ROSTER' },
-    { label: 'Tournament News', value: 'TOURNAMENT' },
-    { label: 'Partnerships', value: 'PARTNERSHIP' },
-    { label: 'Community', value: 'COMMUNITY' },
-    { label: 'Media', value: 'MEDIA' }
-  ];
-
   useEffect(() => {
-    const fetchNews = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+    let isMounted = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const fetchNewsData = async () => {
       try {
-        const res = await fetch('/api/news', { signal: controller.signal });
+        const [newsRes, catRes] = await Promise.all([
+          fetch('/api/news', { signal: controller.signal }),
+          fetch('/api/news_categories', { signal: controller.signal })
+        ]);
         clearTimeout(timeoutId);
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
+
+        if (newsRes.ok && newsRes.headers.get('content-type')?.includes('application/json')) {
+          const data = await newsRes.json();
+          if (isMounted && Array.isArray(data)) {
             setDbNews(data);
-          } else {
-            console.warn('API returned non-array data for news:', data);
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch news from API (or timed out):', err);
+
+        if (catRes.ok && catRes.headers.get('content-type')?.includes('application/json')) {
+          const catData = await catRes.json();
+          if (isMounted && Array.isArray(catData)) {
+            setDbCategories(catData);
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to fetch news data from API:', err);
+        }
       } finally {
         clearTimeout(timeoutId);
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    fetchNews();
+    fetchNewsData();
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, []);
 
-  // Merge & normalize database articles and fallback mock articles
+  // Dynamically compute categories from database news_categories + news articles
+  const filterCategories = useMemo(() => {
+    const list: { label: string; value: string }[] = [{ label: 'ALL', value: 'ALL' }];
+    const seen = new Set<string>(['ALL']);
+
+    if (Array.isArray(dbCategories)) {
+      dbCategories.forEach((cat: any) => {
+        if (cat.name) {
+          const val = String(cat.name).toUpperCase().trim();
+          if (val && !seen.has(val)) {
+            seen.add(val);
+            list.push({ label: cat.name.toUpperCase().trim(), value: val });
+          }
+        }
+      });
+    }
+
+    if (Array.isArray(dbNews)) {
+      dbNews.forEach((item: any) => {
+        if (item.category) {
+          const val = String(item.category).toUpperCase().trim();
+          if (val && !seen.has(val)) {
+            seen.add(val);
+            list.push({ label: val, value: val });
+          }
+        }
+      });
+    }
+
+    return list;
+  }, [dbCategories, dbNews]);
+
+  // Only display articles retrieved directly from the database
   const allArticles = useMemo(() => {
     const normalized: any[] = (Array.isArray(dbNews) ? dbNews : []).map(item => ({
       ...item,
       id: String(item.id),
       featured: item.featured === 1 || item.featured === true,
       published: item.published === 1 || item.published === true || item.published === undefined,
+      readTime: item.readTime || item.read_time || '4 MIN READ',
     }));
-
-    // Append MOCK_NEWS items if they don't already exist by slug
-    MOCK_NEWS.forEach(mock => {
-      const exists = normalized.some(
-        item => (item.slug || '').toLowerCase().trim() === (mock.slug || '').toLowerCase().trim()
-      );
-      if (!exists) {
-        normalized.push({
-          ...mock,
-          featured: mock.slug === 'international-qualifications-2026', // Keep qualifiers as featured fallback
-          published: true
-        });
-      }
-    });
 
     // Ensure they are sorted: Featured first, then by date descending
     return normalized
@@ -207,27 +235,31 @@ const News = () => {
         </motion.p>
 
         {/* Filters and Search Input */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-16 pb-8 border-b border-slate-800">
-          <div className="flex flex-wrap gap-2">
-            {filterCategories.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => {
-                  setFilter(cat.value);
-                  setVisibleCount(7); // Reset page size on filter change
-                }}
-                className={`px-5 py-2 font-syncopate text-[9px] font-bold tracking-widest transition-all skew-x-[-15deg] border
-                  ${filter === cat.value 
-                    ? 'bg-[#FFC400] text-black border-[#FFC400]' 
-                    : 'bg-transparent text-slate-400 border-slate-800 hover:border-slate-600 hover:text-white'}`}
-              >
-                <span className="block skew-x-[15deg]">{cat.label.toUpperCase()}</span>
-              </button>
-            ))}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-12 pb-6 border-b border-slate-800/80">
+          <div className="flex flex-wrap gap-2 md:gap-2.5 items-center">
+            {filterCategories.map((cat) => {
+              const isActive = filter === cat.value;
+              return (
+                <button
+                  key={cat.value}
+                  onClick={() => {
+                    setFilter(cat.value);
+                    setVisibleCount(7); // Reset page size on filter change
+                  }}
+                  className={`px-4 py-2 font-syncopate text-[10px] md:text-[11px] font-bold tracking-wider transition-all duration-200 skew-x-[-12deg] border relative group ${
+                    isActive 
+                      ? 'bg-[#FFC400] text-black border-[#FFC400] shadow-[0_0_12px_rgba(255,196,0,0.25)]' 
+                      : 'bg-[#0A1A31]/60 text-slate-400 border-slate-800 hover:border-[#FFC400]/50 hover:text-white hover:bg-[#0A1A31]'
+                  }`}
+                >
+                  <span className="block skew-x-[12deg] whitespace-nowrap uppercase">{cat.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="relative w-full lg:w-96 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#FFC400] transition-colors" size={18} />
+          <div className="relative w-full lg:w-80 group shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#FFC400] transition-colors" size={16} />
             <input
               type="text"
               placeholder="SEARCH NEWS..."
@@ -236,7 +268,7 @@ const News = () => {
                 setSearchQuery(e.target.value);
                 setVisibleCount(7); // Reset pagination count on search
               }}
-              className="w-full bg-slate-900/50 border border-slate-800 py-4 pl-12 pr-6 font-syncopate text-[10px] text-white tracking-widest focus:outline-none focus:border-[#FFC400] transition-all"
+              className="w-full bg-[#0A1A31]/80 border border-slate-800 py-3 pl-11 pr-4 font-syncopate text-[10px] text-white tracking-widest focus:outline-none focus:border-[#FFC400] transition-all"
             />
           </div>
         </div>

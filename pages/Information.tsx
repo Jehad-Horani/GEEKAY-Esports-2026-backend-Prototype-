@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, Mail, Phone, MapPin } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
+import { useSettings } from '../src/context/SettingsContext';
 
 const FAQItem = ({ question, answer }: { question: string, answer: string }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -33,6 +34,8 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
 };
 
 const Information = () => {
+  const { settings } = useSettings();
+
   return (
     <div className="min-h-screen pt-32 pb-24">
       <SEOMeta 
@@ -80,11 +83,15 @@ const Information = () => {
                 <div className="space-y-8">
                    <div>
                       <span className="text-[10px] font-syncopate text-slate-500 block uppercase mb-2">General Inquiries</span>
-                      <a href="mailto:inquiries@geekay.com" className="font-bold text-sm hover:text-yellow-500 transition-colors">inquiries@geekay.com</a>
+                      <a href={`mailto:${settings.general_email || 'inquiries@geekay.com'}`} className="font-bold text-sm hover:text-yellow-500 transition-colors">
+                        {settings.general_email || 'inquiries@geekay.com'}
+                      </a>
                    </div>
                    <div>
                       <span className="text-[10px] font-syncopate text-slate-500 block uppercase mb-2">Partnerships and Business</span>
-                      <a href="mailto:business@geekay.com" className="font-bold text-sm hover:text-yellow-500 transition-colors">business@geekay.com</a>
+                      <a href={`mailto:${settings.business_email || settings.partnerships_email || 'business@geekay.com'}`} className="font-bold text-sm hover:text-yellow-500 transition-colors">
+                        {settings.business_email || settings.partnerships_email || 'business@geekay.com'}
+                      </a>
                    </div>
                    <p className="text-xs text-slate-500 leading-relaxed pt-4 border-t border-slate-800">
                      For general questions, media, or collaborations, reach out via the appropriate email above.
@@ -99,24 +106,30 @@ const Information = () => {
                 <div className="bg-slate-950 border border-slate-900 p-8">
                    <span className="font-syncopate text-[10px] text-yellow-500 font-bold block mb-4">RIYADH (PRIMARY)</span>
                    <p className="text-sm text-slate-400 mb-4 leading-relaxed">
-                     Al Nemer Center, 2nd Tower, 3rd Floor, Office 312<br />
-                     P.O. Box 12214, Riyadh
+                     {settings.riyadh_address || 'Al Nemer Center, 2nd Tower, 3rd Floor, Office 312, P.O. Box 12214, Riyadh'}
                    </p>
                    <div className="space-y-2">
-                      <a href="tel:+966540974261" className="text-xs font-bold block hover:text-yellow-500">+966 54 097 4261</a>
-                      <a href="mailto:esports@geekaygroupmea.com" className="text-xs text-slate-500 hover:text-yellow-500">esports@geekaygroupmea.com</a>
+                      <a href={`tel:${(settings.riyadh_phone || '+966540974261').replace(/\s+/g, '')}`} className="text-xs font-bold block hover:text-yellow-500">
+                        {settings.riyadh_phone || '+966 54 097 4261'}
+                      </a>
+                      <a href={`mailto:${settings.riyadh_email || 'esports@geekaygroupmea.com'}`} className="text-xs text-slate-500 hover:text-yellow-500">
+                        {settings.riyadh_email || 'esports@geekaygroupmea.com'}
+                      </a>
                    </div>
                 </div>
 
                 <div className="bg-slate-950 border border-slate-900 p-8">
                    <span className="font-syncopate text-[10px] text-yellow-500 font-bold block mb-4">UAE</span>
                    <p className="text-sm text-slate-400 mb-4 leading-relaxed">
-                     1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor<br />
-                     P.O. Box 2589, Dubai
+                     {settings.dubai_address || '1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor, P.O. Box 2589, Dubai'}
                    </p>
                    <div className="space-y-2">
-                      <a href="tel:+971525059709" className="text-xs font-bold block hover:text-yellow-500">+971 52 505 9709</a>
-                      <a href="mailto:esports@geekaygroupmea.com" className="text-xs text-slate-500 hover:text-yellow-500">esports@geekaygroupmea.com</a>
+                      <a href={`tel:${(settings.dubai_phone || '+971525059709').replace(/\s+/g, '')}`} className="text-xs font-bold block hover:text-yellow-500">
+                        {settings.dubai_phone || '+971 52 505 9709'}
+                      </a>
+                      <a href={`mailto:${settings.dubai_email || 'esports@geekaygroupmea.com'}`} className="text-xs text-slate-500 hover:text-yellow-500">
+                        {settings.dubai_email || 'esports@geekaygroupmea.com'}
+                      </a>
                    </div>
                 </div>
              </div>

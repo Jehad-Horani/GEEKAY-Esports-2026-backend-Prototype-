@@ -29,16 +29,19 @@ const SoopIcon = ({ size = 20, className = "" }) => (
 );
 
 interface SocialFollowerIconProps {
-  platform: string;
+  platform?: string;
   count?: string;
   size?: number;
   className?: string;
 }
 
-const SocialFollowerIcon: React.FC<SocialFollowerIconProps> = ({ platform, count, size = 18, className = "" }) => {
+const SocialFollowerIcon: React.FC<SocialFollowerIconProps> = ({ platform = '', count, size = 18, className = "" }) => {
+  const safePlatform = (platform || '').toString().toLowerCase();
+
   const getIcon = () => {
-    switch (platform.toLowerCase()) {
-      case 'twitter': return <Twitter size={size} />;
+    switch (safePlatform) {
+      case 'twitter':
+      case 'x': return <Twitter size={size} />;
       case 'twitch': return <Twitch size={size} />;
       case 'instagram': return <Instagram size={size} />;
       case 'youtube': return <Youtube size={size} />;
@@ -53,12 +56,13 @@ const SocialFollowerIcon: React.FC<SocialFollowerIconProps> = ({ platform, count
 
   const getLabel = () => {
     if (!count) return '';
-    if (count.toLowerCase().includes('k') || count.toLowerCase().includes('m')) return count;
-    const num = parseInt(count.replace(/,/g, ''));
-    if (isNaN(num)) return count;
+    const strCount = String(count);
+    if (strCount.toLowerCase().includes('k') || strCount.toLowerCase().includes('m')) return strCount;
+    const num = parseInt(strCount.replace(/,/g, ''));
+    if (isNaN(num)) return strCount;
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return count;
+    return strCount;
   };
 
   return (

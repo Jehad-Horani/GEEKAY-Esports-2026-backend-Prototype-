@@ -3,12 +3,15 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
+import ImageUploader from '../components/ImageUploader';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 const AdminLeadership = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
 
   const fetchItems = async () => {
     try {
@@ -69,10 +72,17 @@ const AdminLeadership = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this leadership member?')) return;
-    await fetch(`/api/leadership/${id}`, { method: 'DELETE' });
-    fetchItems();
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      setItems(prev => prev.filter(item => String(item.id) !== String(id)));
+      await fetch(`/api/leadership/${id}`, { method: 'DELETE' });
+      fetchItems();
+    } catch (err: any) {
+      fetchItems();
+    }
   };
 
   if (loading) return <div>Loading leadership...</div>;
@@ -84,7 +94,7 @@ const AdminLeadership = () => {
           <span className="text-[#FFC400] font-syncopate text-[10px] tracking-[0.6em] font-bold mb-4 block uppercase">COMMAND_STRUCTURE</span>
           <h1 className="font-syncopate text-4xl md:text-6xl font-black text-white uppercase tracking-tighter">LEADERSHIP</h1>
         </div>
-        <ArenaButton onClick={() => setEditingItem({ name: '', role: '', description: '', linkedin: '', image: '', display_order: 0, published: 0 })}>
+        <ArenaButton onClick={() => setEditingItem({ name: '', role: '', description: '', linkedin: '', twitter: '', instagram: '', image: '', display_order: 0, published: 1 })}>
           <Plus size={18} className="mr-2" /> ADD_MEMBER
         </ArenaButton>
       </header>
@@ -109,9 +119,15 @@ const AdminLeadership = () => {
               </div>
             </div>
 
-            <p className="text-slate-500 font-inter text-xs mb-8 line-clamp-3 leading-relaxed">
+            <p className="text-slate-500 font-inter text-xs mb-4 line-clamp-3 leading-relaxed">
               {item.description}
             </p>
+
+            <div className="flex items-center gap-2 mb-6 min-h-[22px]">
+              {item.linkedin && <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[9px] font-mono rounded uppercase">LinkedIn</span>}
+              {(item.twitter || item.x) && <span className="px-2 py-0.5 bg-sky-500/10 text-sky-400 text-[9px] font-mono rounded uppercase">X</span>}
+              {item.instagram && <span className="px-2 py-0.5 bg-pink-500/10 text-pink-400 text-[9px] font-mono rounded uppercase">Instagram</span>}
+            </div>
 
             <div className="flex items-center justify-between pt-8 border-t border-white/5">
               <span className={`px-3 py-1 rounded-full text-[8px] font-black ${item.published ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
@@ -119,12 +135,22 @@ const AdminLeadership = () => {
               </span>
               <div className="flex items-center gap-2">
                 <button onClick={() => setEditingItem(item)} className="p-3 bg-white/5 text-slate-400 hover:text-blue-500 transition-colors"><Edit2 size={18} /></button>
-                <button onClick={() => handleDelete(item.id)} className="p-3 bg-white/5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                <button onClick={() => setDeleteTarget({ id: item.id, name: item.name })} className="p-3 bg-white/5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
+        title="DELETE_LEADERSHIP_MEMBER"
+        itemName={deleteTarget?.name}
+        description="Are you sure you want to delete this executive leadership member? This action cannot be undone."
+      />
 
       {/* Modal */}
       {editingItem && (
@@ -176,23 +202,42 @@ const AdminLeadership = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <ImageUploader 
+                label="Executive Headshot Photo" 
+                value={editingItem.image || ''} 
+                onChange={(url) => setEditingItem({ ...editingItem, image: url })}
+                aspectRatio="square"
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">LinkedIn URL</label>
                   <input 
                     type="text" 
-                    value={editingItem.linkedin}
+                    value={editingItem.linkedin || ''}
                     onChange={e => setEditingItem({...editingItem, linkedin: e.target.value})}
-                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                    className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                    placeholder="https://linkedin.com/in/..."
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Image URL</label>
+                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">X (Twitter) URL</label>
                   <input 
                     type="text" 
-                    value={editingItem.image}
-                    onChange={e => setEditingItem({...editingItem, image: e.target.value})}
-                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                    value={editingItem.twitter || editingItem.x || ''}
+                    onChange={e => setEditingItem({...editingItem, twitter: e.target.value, x: e.target.value})}
+                    className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                    placeholder="https://x.com/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Instagram URL</label>
+                  <input 
+                    type="text" 
+                    value={editingItem.instagram || ''}
+                    onChange={e => setEditingItem({...editingItem, instagram: e.target.value})}
+                    className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                    placeholder="https://instagram.com/..."
                   />
                 </div>
               </div>

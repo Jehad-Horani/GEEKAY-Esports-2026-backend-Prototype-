@@ -3,12 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Search, Filter, X, Eye } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingJob, setEditingJob] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('ALL');
 
@@ -42,10 +44,32 @@ const AdminJobs = () => {
       const method = editingJob.id ? 'PUT' : 'POST';
       const url = editingJob.id ? `/api/jobs/${editingJob.id}` : '/api/jobs';
       
+      const formatArrayField = (val: any) => {
+        if (!val) return JSON.stringify([]);
+        if (Array.isArray(val)) return JSON.stringify(val);
+        if (typeof val === 'string') {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) return val;
+          } catch (e) {}
+          const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
+          return JSON.stringify(lines);
+        }
+        return JSON.stringify([]);
+      };
+
+      const payload = {
+        ...editingJob,
+        responsibilities: formatArrayField(editingJob.responsibilities),
+        requirements: formatArrayField(editingJob.requirements),
+        nice_to_have: formatArrayField(editingJob.nice_to_have || editingJob.niceToHave),
+        benefits: formatArrayField(editingJob.benefits),
+      };
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingJob),
+        body: JSON.stringify(payload),
         signal: controller.signal
       });
       
@@ -71,10 +95,17 @@ const AdminJobs = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete job opening?')) return;
-    await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
-    fetchJobs();
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      setJobs(prev => prev.filter(job => String(job.id) !== String(id)));
+      await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+      fetchJobs();
+    } catch (err: any) {
+      fetchJobs();
+    }
   };
 
   const filteredJobs = jobs.filter(job => {
@@ -153,7 +184,7 @@ const AdminJobs = () => {
                   <div className="flex items-center justify-end gap-3">
                     <a href={`/careers/${job.slug}`} target="_blank" className="p-3 bg-white/5 text-slate-400 hover:text-[#FFC400] transition-colors"><Eye size={18} /></a>
                     <button onClick={() => setEditingJob(job)} className="p-3 bg-white/5 text-slate-400 hover:text-blue-500 transition-colors"><Edit2 size={18} /></button>
-                    <button onClick={() => handleDelete(job.id)} className="p-3 bg-white/5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                    <button onClick={() => setDeleteTarget({ id: job.id, name: job.title })} className="p-3 bg-white/5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
                   </div>
                 </td>
               </tr>
@@ -249,10 +280,78 @@ const AdminJobs = () => {
                 <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Application Email</label>
                 <input 
                   type="email" 
-                  value={editingJob.email}
+                  value={editingJob.email || ''}
                   onChange={e => setEditingJob({...editingJob, email: e.target.value})}
                   className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Responsibilities (One per line)</label>
+                  <textarea 
+                    value={
+                      Array.isArray(editingJob.responsibilities) 
+                        ? editingJob.responsibilities.join('\n') 
+                        : (typeof editingJob.responsibilities === 'string' && editingJob.responsibilities.startsWith('[')
+                            ? JSON.parse(editingJob.responsibilities || '[]').join('\n')
+                            : editingJob.responsibilities || '')
+                    }
+                    onChange={e => setEditingJob({...editingJob, responsibilities: e.target.value})}
+                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-sans text-xs focus:outline-none focus:border-[#FFC400] h-32 resize-none"
+                    placeholder="Enter key responsibilities, one per line..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Requirements (One per line)</label>
+                  <textarea 
+                    value={
+                      Array.isArray(editingJob.requirements) 
+                        ? editingJob.requirements.join('\n') 
+                        : (typeof editingJob.requirements === 'string' && editingJob.requirements.startsWith('[')
+                            ? JSON.parse(editingJob.requirements || '[]').join('\n')
+                            : editingJob.requirements || '')
+                    }
+                    onChange={e => setEditingJob({...editingJob, requirements: e.target.value})}
+                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-sans text-xs focus:outline-none focus:border-[#FFC400] h-32 resize-none"
+                    placeholder="Enter candidate requirements, one per line..."
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Nice To Have (One per line)</label>
+                  <textarea 
+                    value={
+                      Array.isArray(editingJob.nice_to_have || editingJob.niceToHave) 
+                        ? (editingJob.nice_to_have || editingJob.niceToHave).join('\n') 
+                        : (typeof (editingJob.nice_to_have || editingJob.niceToHave) === 'string' && (editingJob.nice_to_have || editingJob.niceToHave).startsWith('[')
+                            ? JSON.parse((editingJob.nice_to_have || editingJob.niceToHave) || '[]').join('\n')
+                            : (editingJob.nice_to_have || editingJob.niceToHave) || '')
+                    }
+                    onChange={e => setEditingJob({...editingJob, nice_to_have: e.target.value, niceToHave: e.target.value})}
+                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-sans text-xs focus:outline-none focus:border-[#FFC400] h-32 resize-none"
+                    placeholder="Bonus qualifications, one per line..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Benefits & Perks (One per line)</label>
+                  <textarea 
+                    value={
+                      Array.isArray(editingJob.benefits) 
+                        ? editingJob.benefits.join('\n') 
+                        : (typeof editingJob.benefits === 'string' && editingJob.benefits.startsWith('[')
+                            ? JSON.parse(editingJob.benefits || '[]').join('\n')
+                            : editingJob.benefits || '')
+                    }
+                    onChange={e => setEditingJob({...editingJob, benefits: e.target.value})}
+                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-sans text-xs focus:outline-none focus:border-[#FFC400] h-32 resize-none"
+                    placeholder="Key benefits and perks, one per line..."
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-8 pt-4">
@@ -277,6 +376,15 @@ const AdminJobs = () => {
           </motion.div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
+        title="DELETE_JOB_OPENING"
+        itemName={deleteTarget?.name}
+        description="Are you sure you want to delete this career opportunity? This action cannot be undone."
+      />
     </div>
   );
 };

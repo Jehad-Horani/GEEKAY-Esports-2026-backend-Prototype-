@@ -20,6 +20,7 @@ import AdminCreators from './src/admin/Creators';
 import AdminSchedule from './src/admin/Schedule';
 import AdminGallery from './src/admin/Gallery';
 import AdminJobs from './src/admin/Jobs';
+import AdminPartners from './src/admin/Partners';
 import AdminLeadership from './src/admin/Leadership';
 import AdminSettings from './src/admin/Settings';
 import AdminUsers from './src/admin/Users';
@@ -34,6 +35,8 @@ import EventDetail from './pages/EventDetail';
 import SocialFollowerIcon from './components/SocialFollowerIcon';
 import NewsletterPopup from './components/NewsletterPopup';
 import GlobalSearch from './components/GlobalSearch';
+import AnnouncementBar from './src/components/AnnouncementBar';
+import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { GEEKAY_LOGO } from './constants';
 
 // Component to handle scroll reset on navigation
@@ -199,110 +202,6 @@ const MobileShopDropdown = () => {
   );
 };
 
-const teamsDropdownLinks = [
-  { name: 'All Teams', path: '/teams' },
-  { name: 'Rocket League', path: '/teams/rocket-league' },
-  { name: 'PUBG Mobile', path: '/teams/pubg-mobile' },
-  { name: 'PUBG PC', path: '/teams/pubg-pc' },
-  { name: 'Overwatch', path: '/teams/overwatch' },
-  { name: 'Honor of Kings', path: '/teams/honor-of-kings' },
-  { name: 'Rainbow Six Siege', path: '/teams/r6-siege-x' },
-  { name: 'Fortnite', path: '/teams/fortnite' },
-  { name: 'Mobile Legends', path: '/teams/mobile-legends' },
-  { name: 'CrossFire', path: '/teams/crossfire' },
-  { name: 'EA Sports FC', path: '/teams/easfc' },
-];
-
-const DesktopTeamsDropdown = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation();
-
-  return (
-    <div 
-      className="relative"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button className={`font-syncopate text-[10px] tracking-[0.25em] font-bold hover:text-[#FFC400] transition-colors relative group flex items-center gap-1 ${location.pathname.startsWith('/teams') ? 'text-[#FFC400]' : 'text-slate-400'}`}>
-        TEAMS
-        <ChevronDown size={10} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-        <span className={`absolute -bottom-2 left-0 h-[2px] bg-[#FFC400] transition-all duration-300 ${location.pathname.startsWith('/teams') ? 'w-full' : 'w-0 group-hover:w-full'}`} />
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-[100] w-[450px]"
-          >
-            <div className="bg-[#040E1E]/95 backdrop-blur-md border border-[#FFC400]/20 shadow-[0_20px_40px_rgba(0,0,0,0.6)] p-4">
-              <div className="px-3 py-2 border-b border-white/5 mb-3">
-                <span className="font-syncopate text-[8px] text-slate-400 tracking-[0.2em] uppercase">Division Selection</span>
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                {teamsDropdownLinks.map((team, i) => (
-                  <Link
-                    key={team.name}
-                    to={team.path}
-                    className="group relative flex items-center justify-between px-3 py-2 hover:bg-[#081B3A] transition-colors overflow-hidden"
-                  >
-                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#FFC400] transform -translate-x-full group-hover:translate-x-0 transition-transform" />
-                    <span className="font-syncopate text-[9px] font-bold text-slate-300 group-hover:text-white transform group-hover:translate-x-1 transition-transform duration-300 tracking-[0.1em]">{team.name.toUpperCase()}</span>
-                    <ArrowRight size={10} className="text-slate-700 group-hover:text-[#FFC400] transform group-hover:translate-x-1 transition-all duration-300" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const MobileTeamsDropdown = ({ onCloseMenu }: { onCloseMenu: () => void }) => {
-  const [isTeamsOpen, setIsTeamsOpen] = useState(false);
-
-  return (
-    <div className="flex flex-col">
-      <button 
-        onClick={() => setIsTeamsOpen(!isTeamsOpen)}
-        className="font-syncopate text-4xl font-bold flex items-center justify-between hover:text-[#FFC400] transition-colors w-full text-left"
-      >
-        TEAMS
-        <ChevronDown size={24} className={`transition-transform duration-300 ${isTeamsOpen ? 'rotate-180 text-[#FFC400]' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {isTeamsOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-1 gap-4 mt-6 pl-4 border-l-2 border-slate-800">
-              {teamsDropdownLinks.map((team, i) => (
-                <Link
-                  key={team.name}
-                  to={team.path}
-                  onClick={onCloseMenu}
-                  className="flex items-center justify-between group"
-                >
-                  <span className="font-syncopate text-2xl font-bold text-slate-300 group-hover:text-[#FFC400] transition-colors">{team.name.toUpperCase()}</span>
-                  <ArrowRight size={20} className="text-slate-600 group-hover:text-[#FFC400] transform group-hover:translate-x-2 transition-all" />
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
 const Navbar = ({ onSearchOpen }: { onSearchOpen: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -318,7 +217,7 @@ const Navbar = ({ onSearchOpen }: { onSearchOpen: () => void }) => {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-[100] px-6 py-4 md:px-12 flex justify-between items-center bg-[#081B3A]/80 backdrop-blur-md border-b border-white/5">
+    <nav className="w-full px-6 py-4 md:px-12 flex justify-between items-center bg-[#081B3A]/80 backdrop-blur-md border-b border-white/5">
       <Link to="/" className="flex items-center gap-3 group">
         <div className="w-10 h-10 group-hover:scale-110 transition-transform">
           <img src={GEEKAY_LOGO} alt="Geekay Esports" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
@@ -328,17 +227,15 @@ const Navbar = ({ onSearchOpen }: { onSearchOpen: () => void }) => {
 
       <div className="hidden lg:flex gap-10 items-center">
         {navLinks.map((link) => {
-          if (link.name === 'TEAMS') {
-            return <DesktopTeamsDropdown key="TEAMS" />;
-          }
+          const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
           return (
             <Link 
               key={link.name} 
               to={link.path}
-              className={`font-syncopate text-[10px] tracking-[0.25em] font-bold hover:text-[#FFC400] transition-colors relative group ${location.pathname === link.path ? 'text-[#FFC400]' : 'text-slate-400'}`}
+              className={`font-syncopate text-[10px] tracking-[0.25em] font-bold hover:text-[#FFC400] transition-colors relative group ${isActive ? 'text-[#FFC400]' : 'text-slate-400'}`}
             >
               {link.name}
-              <span className={`absolute -bottom-2 left-0 h-[2px] bg-[#FFC400] transition-all duration-300 ${location.pathname === link.path ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+              <span className={`absolute -bottom-2 left-0 h-[2px] bg-[#FFC400] transition-all duration-300 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
             </Link>
           );
         })}
@@ -383,15 +280,13 @@ const Navbar = ({ onSearchOpen }: { onSearchOpen: () => void }) => {
              </div>
             <div className="flex flex-col gap-8 pb-10">
               {navLinks.map((link) => {
-                if (link.name === 'TEAMS') {
-                  return <MobileTeamsDropdown key="TEAMS" onCloseMenu={() => setIsOpen(false)} />;
-                }
+                const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
                 return (
                   <Link 
                     key={link.name} 
                     to={link.path} 
                     onClick={() => setIsOpen(false)}
-                    className="font-syncopate text-4xl font-bold flex items-center gap-4 hover:text-[#FFC400] transition-colors"
+                    className={`font-syncopate text-4xl font-bold flex items-center gap-4 hover:text-[#FFC400] transition-colors ${isActive ? 'text-[#FFC400]' : 'text-white'}`}
                   >
                     {link.name}
                   </Link>
@@ -424,7 +319,21 @@ const SnapchatGhost = ({ size = 20, className = "" }) => (
 );
 
 export default function App() {
+  return (
+    <SettingsProvider>
+      <Router>
+        <ScrollToTop />
+        <MainAppLayout />
+      </Router>
+    </SettingsProvider>
+  );
+}
+
+function MainAppLayout() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
+  const { settings } = useSettings();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -438,48 +347,53 @@ export default function App() {
   }, []);
 
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="min-h-screen flex flex-col selection:bg-[#FFC400] selection:text-black bg-grid bg-[#081B3A] overflow-x-hidden">
-        <div className="fixed inset-0 bg-scanline pointer-events-none z-10 opacity-30"></div>
-        <CustomCursor />
-        <Navbar onSearchOpen={() => setIsSearchOpen(true)} />
-        <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-        <NewsletterPopup />
-        <main className="flex-grow relative z-20">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/news" element={<News />} />
-            <Route path="/news/:slug" element={<NewsDetail />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/events" element={<Schedule />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/teams/:teamId" element={<Teams />} />
-            <Route path="/players/:playerName" element={<PlayerProfile />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/careers" element={<Careers />} />
-            <Route path="/careers/:slug" element={<JobDetail />} />
-            <Route path="/info" element={<Information />} />
-            <Route path="/socials" element={<Socials />} />
-            <Route path="/events/:eventName" element={<EventDetail />} />
+    <div className="min-h-screen flex flex-col selection:bg-[#FFC400] selection:text-black bg-grid bg-[#081B3A] overflow-x-hidden">
+      <div className="fixed inset-0 bg-scanline pointer-events-none z-10 opacity-30"></div>
+      <CustomCursor />
+      {!isAdmin && (
+        <header className="fixed top-0 left-0 w-full z-[100]">
+          <Navbar onSearchOpen={() => setIsSearchOpen(true)} />
+        </header>
+      )}
+      {!isAdmin && <AnnouncementBar />}
+      {!isAdmin && <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
+      {!isAdmin && <NewsletterPopup />}
+      <main className="flex-grow relative z-20">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/news" element={<News />} />
+          <Route path="/news/:slug" element={<NewsDetail />} />
+          <Route path="/schedule" element={<Schedule />} />
+          <Route path="/events" element={<Schedule />} />
+          <Route path="/teams" element={<Teams />} />
+          <Route path="/teams/:teamId" element={<Teams />} />
+          <Route path="/players/:playerName" element={<PlayerProfile />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/careers/:slug" element={<JobDetail />} />
+          <Route path="/info" element={<Information />} />
+          <Route path="/socials" element={<Socials />} />
+          <Route path="/events/:eventName" element={<EventDetail />} />
 
-            {/* Admin Routes */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="leadership" element={<AdminLeadership />} />
-              <Route path="teams" element={<AdminTeams />} />
-              <Route path="creators" element={<AdminCreators />} />
-              <Route path="schedule" element={<AdminSchedule />} />
-              <Route path="gallery" element={<AdminGallery />} />
-              <Route path="jobs" element={<AdminJobs />} />
-              <Route path="subscribers" element={<AdminSubscribers />} />
-              <Route path="news" element={<AdminNews />} />
-              <Route path="settings" element={<AdminSettings />} />
-              <Route path="users" element={<AdminUsers />} />
-            </Route>
-          </Routes>
-        </main>
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="leadership" element={<AdminLeadership />} />
+            <Route path="teams" element={<AdminTeams />} />
+            <Route path="creators" element={<AdminCreators />} />
+            <Route path="schedule" element={<AdminSchedule />} />
+            <Route path="gallery" element={<AdminGallery />} />
+            <Route path="jobs" element={<AdminJobs />} />
+            <Route path="partners" element={<AdminPartners />} />
+            <Route path="subscribers" element={<AdminSubscribers />} />
+            <Route path="news" element={<AdminNews />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+        </Routes>
+      </main>
+      {!isAdmin && (
         <footer className="bg-[#040E1E] border-t border-slate-800 py-20 px-6 md:px-12 relative z-20">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16">
             <div className="md:col-span-2">
@@ -490,28 +404,42 @@ export default function App() {
                 <h2 className="font-syncopate text-2xl font-bold uppercase tracking-tighter">GEEKAY <span className="text-[#FFC400]">ESPORTS</span></h2>
               </div>
               <p className="text-slate-500 max-w-sm leading-relaxed text-sm">The dominant force in MENA competitive gaming. Redefining the digital arena through performance and strategy.</p>
-              <div className="flex gap-6 mt-10">
-                <a href="#" className="hover-glitch">
-                  <SocialFollowerIcon platform="twitter" count="20,011" size={20} className="text-slate-400" />
-                </a>
-                <a href="#" className="hover-glitch">
-                  <SocialFollowerIcon platform="twitch" count="9,900" size={20} className="text-slate-400" />
-                </a>
-                <a href="#" className="hover-glitch">
-                  <SocialFollowerIcon platform="instagram" count="15,878" size={20} className="text-slate-400" />
-                </a>
-                <a href="#" className="hover-glitch">
-                  <SocialFollowerIcon platform="youtube" count="8,180" size={20} className="text-slate-400" />
-                </a>
-                <a href="#" className="hover-glitch">
-                  <SocialFollowerIcon platform="tiktok" count="31,800" size={20} className="text-slate-400" />
-                </a>
-                <a href="#" className="hover-glitch">
-                  <SocialFollowerIcon platform="facebook" count="8,700" size={20} className="text-slate-400" />
-                </a>
-                <a href="#" className="hover-glitch text-slate-400 hover:text-[#FFC400] transition-colors">
-                  <SnapchatGhost size={20} />
-                </a>
+              <div className="flex flex-wrap gap-6 mt-10">
+                {settings.twitter_url && (
+                  <a href={settings.twitter_url} target="_blank" rel="noopener noreferrer" className="hover-glitch">
+                    <SocialFollowerIcon platform="twitter" count={settings.twitter_count || '399K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
+                {settings.twitch_url && (
+                  <a href={settings.twitch_url} target="_blank" rel="noopener noreferrer" className="hover-glitch">
+                    <SocialFollowerIcon platform="twitch" count={settings.twitch_count || '645K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
+                {settings.instagram_url && (
+                  <a href={settings.instagram_url} target="_blank" rel="noopener noreferrer" className="hover-glitch">
+                    <SocialFollowerIcon platform="instagram" count={settings.instagram_count || '240K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
+                {settings.youtube_url && (
+                  <a href={settings.youtube_url} target="_blank" rel="noopener noreferrer" className="hover-glitch">
+                    <SocialFollowerIcon platform="youtube" count={settings.youtube_count || '523K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
+                {settings.tiktok_url && (
+                  <a href={settings.tiktok_url} target="_blank" rel="noopener noreferrer" className="hover-glitch">
+                    <SocialFollowerIcon platform="tiktok" count={settings.tiktok_count || '481K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
+                {settings.facebook_url && (
+                  <a href={settings.facebook_url} target="_blank" rel="noopener noreferrer" className="hover-glitch">
+                    <SocialFollowerIcon platform="facebook" count={settings.facebook_count || '8.7K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
+                {settings.snapchat_url && (
+                  <a href={settings.snapchat_url} target="_blank" rel="noopener noreferrer" className="hover-glitch text-slate-400 hover:text-[#FFC400] transition-colors">
+                    <SnapchatGhost size={20} />
+                  </a>
+                )}
               </div>
             </div>
             <div>
@@ -536,7 +464,7 @@ export default function App() {
             <p>DESIGNED FOR THE ARENA</p>
           </div>
         </footer>
-      </div>
-    </Router>
+      )}
+    </div>
   );
 }

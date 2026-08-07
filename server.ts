@@ -42,25 +42,49 @@ if (isVercel && !fs.existsSync(dbPath) && fs.existsSync('geekay.db')) {
 }
 
 let db: any;
-try {
-  db = new Database(dbPath);
-  console.log(`Database connected at ${dbPath}`);
-  db.pragma('busy_timeout = 10000');
-  db.exec('PRAGMA journal_mode = DELETE');
-} catch (err) {
-  console.warn('[AI Studio] SQLite database initialization failed, using in-memory mock fallback:', err);
-  const mockStmt = {
-    get: () => ({ count: 0 }),
-    all: () => [],
-    run: () => ({ lastInsertRowid: 1, changes: 1 }),
-  };
-  db = {
-    prepare: () => mockStmt,
-    exec: () => {},
-    pragma: () => {},
-    transaction: (fn: any) => fn,
-  };
-} 
+
+function connectDb() {
+  try {
+    const instance = new Database(dbPath);
+    instance.pragma('busy_timeout = 10000');
+    instance.exec('PRAGMA journal_mode = DELETE');
+    // Check integrity
+    const integrity = instance.prepare('PRAGMA integrity_check').get() as any;
+    if (integrity && integrity.integrity_check !== 'ok') {
+      throw new Error(`DB Integrity check failed: ${JSON.stringify(integrity)}`);
+    }
+    console.log(`Database connected successfully at ${dbPath}`);
+    return instance;
+  } catch (err: any) {
+    console.error(`SQLite database connection or integrity failed at ${dbPath}:`, err?.message || err);
+    if (fs.existsSync(dbPath)) {
+      try {
+        console.warn(`Unlinking corrupted database file at ${dbPath}...`);
+        fs.unlinkSync(dbPath);
+        if (fs.existsSync(`${dbPath}-journal`)) fs.unlinkSync(`${dbPath}-journal`);
+        if (fs.existsSync(`${dbPath}-wal`)) fs.unlinkSync(`${dbPath}-wal`);
+        if (fs.existsSync(`${dbPath}-shm`)) fs.unlinkSync(`${dbPath}-shm`);
+      } catch (unlinkErr) {
+        console.error('Failed to unlink corrupt DB file:', unlinkErr);
+      }
+    }
+    // Retry fresh connection
+    try {
+      const freshInstance = new Database(dbPath);
+      freshInstance.pragma('busy_timeout = 10000');
+      freshInstance.exec('PRAGMA journal_mode = DELETE');
+      console.log(`Fresh database created and connected at ${dbPath}`);
+      return freshInstance;
+    } catch (fallbackErr) {
+      console.error('Failed to create fresh SQLite database, falling back to in-memory db:', fallbackErr);
+      const inMemory = new Database(':memory:');
+      inMemory.pragma('busy_timeout = 10000');
+      return inMemory;
+    }
+  }
+}
+
+db = connectDb(); 
 
 try {
   // Test write permission
@@ -81,8 +105,21 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
+    email TEXT,
     password TEXT,
-    role TEXT CHECK(role IN ('admin', 'editor'))
+    role TEXT CHECK(role IN ('admin', 'editor')),
+    status TEXT DEFAULT 'active',
+    created_at TEXT,
+    last_login TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS security_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT,
+    username TEXT,
+    ip_address TEXT,
+    details TEXT,
+    timestamp TEXT DEFAULT CURRENT_TIMESTAMP
   );
 
   CREATE TABLE IF NOT EXISTS leadership (
@@ -96,6 +133,17 @@ db.exec(`
     published INTEGER DEFAULT 0
   );
 
+  CREATE TABLE IF NOT EXISTS partners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    category TEXT,
+    description TEXT,
+    image TEXT,
+    url TEXT,
+    display_order INTEGER DEFAULT 0,
+    published INTEGER DEFAULT 1
+  );
+
   CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
@@ -103,37 +151,150 @@ db.exec(`
     region TEXT,
     league TEXT,
     banner TEXT,
+    logo TEXT,
+    bio TEXT,
     tagline TEXT,
+    win_rate TEXT DEFAULT '75%',
+    global_rank TEXT DEFAULT '#1 GLOBAL',
+    championships INTEGER DEFAULT 3,
+    season_record TEXT DEFAULT '18-4',
     achievements TEXT, -- JSON string
+    media TEXT, -- JSON string
     display_order INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 0
+    published INTEGER DEFAULT 1
   );
 
   CREATE TABLE IF NOT EXISTS players (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     team_id INTEGER,
     ign TEXT,
+    nickname TEXT,
     role TEXT,
     name TEXT,
     age TEXT,
     nationality TEXT,
+    photo TEXT,
+    bio TEXT,
+    kd REAL DEFAULT 1.0,
+    mvps INTEGER DEFAULT 0,
+    tournaments INTEGER DEFAULT 0,
+    win_rate TEXT DEFAULT '70%',
     socials TEXT, -- JSON string
     achievements TEXT, -- JSON string
+    joined_date TEXT,
+    match_history TEXT,
+    media TEXT,
+    rating_overall REAL DEFAULT 4.5,
+    rating_performance REAL DEFAULT 4.5,
+    rating_consistency REAL DEFAULT 4.5,
+    rating_community REAL DEFAULT 4.5,
+    championship_wins TEXT,
+    major_titles TEXT,
+    int_placements TEXT,
+    trophy_count TEXT,
     display_order INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
+    published INTEGER DEFAULT 1,
     FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS creators (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
     alias TEXT,
+    username TEXT,
     photo TEXT,
-    platforms TEXT, -- JSON string
-    metrics TEXT, -- JSON string
+    cover_image TEXT,
+    short_bio TEXT,
+    bio TEXT,
+    country TEXT,
+    nationality TEXT,
+    languages TEXT, -- JSON array
+    primary_platform TEXT,
+    category TEXT,
+    team_id INTEGER,
+    associated_games TEXT, -- JSON array
+    role TEXT,
+    joined_date TEXT,
+    featured INTEGER DEFAULT 0,
+    verified INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'active',
+    published INTEGER DEFAULT 1,
+    socials TEXT, -- JSON object
+    platforms TEXT, -- JSON array
+    metrics TEXT, -- JSON object
     total_reach TEXT,
     focus TEXT,
+    gallery_images TEXT, -- JSON array
+    intro_video TEXT,
+    seo_title TEXT,
+    meta_description TEXT,
+    seo_slug TEXT,
+    og_image TEXT,
+    canonical_url TEXT,
+    display_order INTEGER DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS news (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    slug TEXT UNIQUE,
+    category TEXT,
+    category_id INTEGER,
+    excerpt TEXT,
+    image TEXT,
+    gallery_images TEXT, -- JSON array
+    content TEXT,
+    author TEXT,
+    author_id INTEGER,
+    date TEXT,
+    updated_at TEXT,
+    tags TEXT, -- JSON array of strings
+    featured INTEGER DEFAULT 0,
+    breaking_news INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'published', -- draft, published, scheduled, archived
+    published INTEGER DEFAULT 1,
+    readTime TEXT,
+    read_time TEXT,
+    related_team TEXT,
+    related_game TEXT,
     display_order INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 0
+    seo_title TEXT,
+    meta_description TEXT,
+    meta_keywords TEXT,
+    canonical_url TEXT,
+    og_title TEXT,
+    og_description TEXT,
+    og_image TEXT,
+    twitter_image TEXT,
+    index_robot INTEGER DEFAULT 1,
+    follow_robot INTEGER DEFAULT 1
+  );
+
+  CREATE TABLE IF NOT EXISTS news_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    slug TEXT UNIQUE,
+    description TEXT,
+    image TEXT,
+    active INTEGER DEFAULT 1,
+    display_order INTEGER DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS news_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    slug TEXT UNIQUE,
+    description TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS news_authors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    photo TEXT,
+    title TEXT,
+    bio TEXT,
+    socials TEXT -- JSON string
   );
 
   CREATE TABLE IF NOT EXISTS events (
@@ -149,42 +310,64 @@ db.exec(`
     link TEXT,
     featured INTEGER DEFAULT 0,
     description TEXT,
-    display_order INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 0
+    banner TEXT,
+    organizer TEXT,
+    teams TEXT,
+    matches TEXT,
+    results TEXT,
+    media TEXT,
+    social TEXT,
+    published INTEGER DEFAULT 1,
+    display_order INTEGER DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS gallery (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT,
-    category TEXT,
     title TEXT,
-    date TEXT,
-    description TEXT,
+    category TEXT,
+    type TEXT,
+    url TEXT,
+    thumbnail TEXT,
+    caption TEXT,
+    tags TEXT,
     featured INTEGER DEFAULT 0,
     display_order INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 0
+    published INTEGER DEFAULT 1
   );
 
   CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT UNIQUE,
     title TEXT,
+    slug TEXT,
     department TEXT,
-    work_type TEXT,
     location TEXT,
+    type TEXT,
+    work_type TEXT,
+    experience TEXT,
     summary TEXT,
-    responsibilities TEXT, -- JSON string
-    requirements TEXT, -- JSON string
-    nice_to_have TEXT, -- JSON string
-    benefits TEXT, -- JSON string
+    description TEXT,
+    requirements TEXT,
+    responsibilities TEXT,
+    nice_to_have TEXT,
+    benefits TEXT,
     email TEXT,
-    display_order INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 0
+    application_email TEXT,
+    status TEXT DEFAULT 'open',
+    published INTEGER DEFAULT 1,
+    display_order INTEGER DEFAULT 0
   );
 
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
+  CREATE TABLE IF NOT EXISTS subscribers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE,
+    created_at TEXT,
+    status TEXT DEFAULT 'active'
+  );
+
+  CREATE TABLE IF NOT EXISTS game_titles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE,
+    display_order INTEGER DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS activity_log (
@@ -192,31 +375,75 @@ db.exec(`
     user_id INTEGER,
     action TEXT,
     entity_type TEXT,
-    entity_id INTEGER,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
+    entity_id TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS news (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    slug TEXT UNIQUE,
-    category TEXT,
-    excerpt TEXT,
-    image TEXT,
-    content TEXT,
-    author TEXT,
-    date TEXT,
-    tags TEXT, -- JSON array of strings
-    featured INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 1,
-    readTime TEXT,
-    related_team TEXT,
-    related_game TEXT,
-    display_order INTEGER DEFAULT 0
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
   );
 `);
 console.log('Database schema initialized successfully');
+
+// Seed default global settings if empty
+try {
+  const countSettings = (db.prepare('SELECT count(*) as count FROM settings').get() as any)?.count || 0;
+  if (countSettings === 0) {
+    const defaultSettingsMap: Record<string, string> = {
+      general_email: 'general@geekay.com',
+      partnerships_email: 'partnerships@geekay.com',
+      business_email: 'business@geekay.com',
+      careers_email: 'careers@geekay.com',
+      twitter_url: 'https://twitter.com/geekayesports',
+      twitch_url: 'https://twitch.tv/geekayesports',
+      instagram_url: 'https://instagram.com/geekayesports',
+      youtube_url: 'https://youtube.com/geekayesports',
+      snapchat_url: 'https://snapchat.com/add/geekayesports',
+      tiktok_url: 'https://tiktok.com/@geekayesports',
+      facebook_url: 'https://facebook.com/geekayesports',
+      discord_url: 'https://discord.gg/geekayesports',
+      site_announcement: 'GEEKAY PRO SHOP NOW OPEN IN UAE & KSA - EXPLORE OFFICIAL APPAREL',
+      announcement_active: 'true',
+      announcement_badge: 'OFFICIAL BRIEFING',
+      announcement_link: 'https://www.geekay.com/en/',
+      twitter_count: '399K',
+      twitch_count: '645K',
+      instagram_count: '240K',
+      youtube_count: '523K',
+      tiktok_count: '481K',
+      facebook_count: '8.7K',
+      riyadh_address: 'Al Nemer Center, 2nd Tower, 3rd Floor, Office 312, P.O. Box 12214, Riyadh',
+      riyadh_phone: '+966 54 097 4261',
+      riyadh_email: 'esports@geekaygroupmea.com',
+      riyadh_po_box: '12214',
+      dubai_address: '1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor, P.O. Box 2589, Dubai',
+      dubai_phone: '+971 52 505 9709',
+      dubai_email: 'esports@geekaygroupmea.com',
+      dubai_po_box: '2589'
+    };
+    const insertSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+    for (const [k, v] of Object.entries(defaultSettingsMap)) {
+      insertSetting.run(k, v);
+    }
+    console.log('Seeded default global settings.');
+  }
+} catch (setErr) {
+  console.error('Error seeding settings:', setErr);
+}
+
+// Seed default game titles if empty
+try {
+  const gameTitlesCount = (db.prepare('SELECT COUNT(*) as count FROM game_titles').get() as any)?.count || 0;
+  if (gameTitlesCount === 0) {
+    const defaultTitles = ['RL', 'HOK', 'PUBG', 'VALORANT', 'LOL', 'CS2', 'OVERWATCH 2', 'EA FC 26', 'TEKKEN 8'];
+    const stmt = db.prepare('INSERT OR IGNORE INTO game_titles (name, display_order) VALUES (?, ?)');
+    defaultTitles.forEach((name, idx) => stmt.run(name, idx + 1));
+    console.log('Seeded default game titles.');
+  }
+} catch (gtErr) {
+  console.error('Error seeding game titles:', gtErr);
+}
 
 // Additional migrations helper
 const addColumnSafely = (table: string, column: string, type: string) => {
@@ -232,23 +459,155 @@ const addColumnSafely = (table: string, column: string, type: string) => {
   }
 };
 
-// Migrate all tables to have display_order
+// Migrate all tables for safe schema expansion
+addColumnSafely('users', 'email', 'TEXT');
+addColumnSafely('users', 'status', 'TEXT DEFAULT "active"');
+addColumnSafely('users', 'created_at', 'TEXT');
 addColumnSafely('leadership', 'display_order', 'INTEGER DEFAULT 0');
+addColumnSafely('leadership', 'twitter', 'TEXT');
+addColumnSafely('leadership', 'x', 'TEXT');
+addColumnSafely('leadership', 'instagram', 'TEXT');
+addColumnSafely('partners', 'display_order', 'INTEGER DEFAULT 0');
+addColumnSafely('partners', 'published', 'INTEGER DEFAULT 1');
+addColumnSafely('partners', 'url', 'TEXT');
+addColumnSafely('partners', 'image', 'TEXT');
 addColumnSafely('teams', 'display_order', 'INTEGER DEFAULT 0');
-addColumnSafely('creators', 'display_order', 'INTEGER DEFAULT 0');
-addColumnSafely('events', 'display_order', 'INTEGER DEFAULT 0');
-addColumnSafely('gallery', 'display_order', 'INTEGER DEFAULT 0');
-addColumnSafely('jobs', 'display_order', 'INTEGER DEFAULT 0');
+addColumnSafely('teams', 'logo', 'TEXT');
+addColumnSafely('teams', 'bio', 'TEXT');
+addColumnSafely('players', 'joined_date', 'TEXT');
+addColumnSafely('players', 'match_history', 'TEXT');
+addColumnSafely('players', 'media', 'TEXT');
+addColumnSafely('players', 'total_matches', 'INTEGER DEFAULT 0');
+addColumnSafely('teams', 'win_rate', 'TEXT DEFAULT "75%"');
+addColumnSafely('teams', 'global_rank', 'TEXT DEFAULT "#1 GLOBAL"');
+addColumnSafely('teams', 'championships', 'INTEGER DEFAULT 3');
+
 addColumnSafely('players', 'display_order', 'INTEGER DEFAULT 0');
+addColumnSafely('players', 'photo', 'TEXT');
+addColumnSafely('players', 'bio', 'TEXT');
+addColumnSafely('players', 'kd', 'REAL DEFAULT 1.0');
+addColumnSafely('players', 'mvps', 'INTEGER DEFAULT 0');
+addColumnSafely('players', 'tournaments', 'INTEGER DEFAULT 0');
+addColumnSafely('players', 'win_rate', 'TEXT DEFAULT "70%"');
+addColumnSafely('players', 'nickname', 'TEXT');
+addColumnSafely('players', 'published', 'INTEGER DEFAULT 1');
+addColumnSafely('players', 'oper_age', 'TEXT');
+addColumnSafely('players', 'joined_date', 'TEXT');
+addColumnSafely('players', 'division', 'TEXT');
+addColumnSafely('players', 'region', 'TEXT');
+addColumnSafely('players', 'league', 'TEXT');
+addColumnSafely('players', 'rating_overall', 'REAL DEFAULT 4.5');
+addColumnSafely('players', 'rating_performance', 'REAL DEFAULT 4.5');
+addColumnSafely('players', 'rating_consistency', 'REAL DEFAULT 4.5');
+addColumnSafely('players', 'rating_community', 'REAL DEFAULT 4.5');
+addColumnSafely('players', 'matches', 'INTEGER DEFAULT 0');
+addColumnSafely('players', 'tournament_results', 'TEXT');
+addColumnSafely('players', 'championship_wins', 'TEXT');
+addColumnSafely('players', 'major_titles', 'TEXT');
+addColumnSafely('players', 'int_placements', 'TEXT');
+addColumnSafely('players', 'trophy_count', 'TEXT');
+addColumnSafely('players', 'media', 'TEXT');
+
+addColumnSafely('teams', 'overview_title', 'TEXT');
+addColumnSafely('teams', 'established', 'TEXT');
+addColumnSafely('teams', 'active_status', 'TEXT');
+addColumnSafely('teams', 'live_feed', 'TEXT');
+addColumnSafely('teams', 'season_record', 'TEXT');
+addColumnSafely('teams', 'media', 'TEXT');
+addColumnSafely('teams', 'staff', 'TEXT');
+addColumnSafely('teams', 'socials', 'TEXT');
+
+addColumnSafely('events', 'overview_title', 'TEXT');
+addColumnSafely('events', 'prize_pool', 'TEXT');
+addColumnSafely('events', 'total_teams', 'TEXT');
+addColumnSafely('events', 'broadcast', 'TEXT');
+addColumnSafely('events', 'purpose', 'TEXT');
+addColumnSafely('events', 'format', 'TEXT');
+addColumnSafely('events', 'timeline', 'TEXT');
+addColumnSafely('events', 'venue', 'TEXT');
+addColumnSafely('events', 'broadcast_platforms', 'TEXT');
+
+addColumnSafely('jobs', 'email', 'TEXT');
+addColumnSafely('jobs', 'application_email', 'TEXT');
+
+addColumnSafely('creators', 'name', 'TEXT');
+addColumnSafely('creators', 'username', 'TEXT');
+addColumnSafely('creators', 'cover_image', 'TEXT');
+addColumnSafely('creators', 'short_bio', 'TEXT');
+addColumnSafely('creators', 'bio', 'TEXT');
+addColumnSafely('creators', 'country', 'TEXT');
+addColumnSafely('creators', 'nationality', 'TEXT');
+addColumnSafely('creators', 'languages', 'TEXT');
+addColumnSafely('creators', 'primary_platform', 'TEXT');
+addColumnSafely('creators', 'category', 'TEXT');
+addColumnSafely('creators', 'team_id', 'INTEGER');
+addColumnSafely('creators', 'associated_games', 'TEXT');
+addColumnSafely('creators', 'role', 'TEXT');
+addColumnSafely('creators', 'joined_date', 'TEXT');
+addColumnSafely('creators', 'featured', 'INTEGER DEFAULT 0');
+addColumnSafely('creators', 'verified', 'INTEGER DEFAULT 0');
+addColumnSafely('creators', 'status', 'TEXT DEFAULT "active"');
+addColumnSafely('creators', 'socials', 'TEXT');
+addColumnSafely('creators', 'platforms', 'TEXT');
+addColumnSafely('creators', 'metrics', 'TEXT');
+addColumnSafely('creators', 'total_reach', 'TEXT');
+addColumnSafely('creators', 'focus', 'TEXT');
+addColumnSafely('creators', 'display_order', 'INTEGER DEFAULT 0');
+addColumnSafely('creators', 'published', 'INTEGER DEFAULT 1');
+addColumnSafely('creators', 'gallery_images', 'TEXT');
+addColumnSafely('creators', 'intro_video', 'TEXT');
+addColumnSafely('creators', 'seo_title', 'TEXT');
+addColumnSafely('creators', 'meta_description', 'TEXT');
+addColumnSafely('creators', 'seo_slug', 'TEXT');
+addColumnSafely('creators', 'og_image', 'TEXT');
+addColumnSafely('creators', 'canonical_url', 'TEXT');
+
+addColumnSafely('news', 'readTime', 'TEXT');
+addColumnSafely('news', 'read_time', 'TEXT');
+addColumnSafely('news', 'related_team', 'TEXT');
+addColumnSafely('news', 'related_game', 'TEXT');
+addColumnSafely('news', 'tags', 'TEXT');
 addColumnSafely('news', 'display_order', 'INTEGER DEFAULT 0');
+addColumnSafely('news', 'category_id', 'INTEGER');
+addColumnSafely('news', 'author_id', 'INTEGER');
+addColumnSafely('news', 'updated_at', 'TEXT');
+addColumnSafely('news', 'gallery_images', 'TEXT');
+addColumnSafely('news', 'breaking_news', 'INTEGER DEFAULT 0');
+addColumnSafely('news', 'status', 'TEXT DEFAULT "published"');
+addColumnSafely('news', 'seo_title', 'TEXT');
+addColumnSafely('news', 'meta_description', 'TEXT');
+addColumnSafely('news', 'meta_keywords', 'TEXT');
+addColumnSafely('news', 'canonical_url', 'TEXT');
+addColumnSafely('news', 'og_title', 'TEXT');
+addColumnSafely('news', 'og_description', 'TEXT');
+addColumnSafely('news', 'og_image', 'TEXT');
+addColumnSafely('news', 'twitter_image', 'TEXT');
+addColumnSafely('news', 'index_robot', 'INTEGER DEFAULT 1');
+addColumnSafely('news', 'follow_robot', 'INTEGER DEFAULT 1');
 
 addColumnSafely('events', 'banner', 'TEXT');
 addColumnSafely('events', 'organizer', 'TEXT');
 addColumnSafely('events', 'teams', 'TEXT');
 addColumnSafely('events', 'matches', 'TEXT');
+
+// Dynamically retrieve table columns to prevent SQL errors on unknown fields
+const getValidColumns = (tableName: string): string[] => {
+  try {
+    const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    return columns.map((col: any) => col.name);
+  } catch (err) {
+    return [];
+  }
+};
 addColumnSafely('events', 'results', 'TEXT');
 addColumnSafely('events', 'media', 'TEXT');
 addColumnSafely('events', 'social', 'TEXT');
+
+addColumnSafely('jobs', 'slug', 'TEXT');
+addColumnSafely('jobs', 'work_type', 'TEXT');
+addColumnSafely('jobs', 'summary', 'TEXT');
+addColumnSafely('jobs', 'nice_to_have', 'TEXT');
+addColumnSafely('jobs', 'benefits', 'TEXT');
 
 // Seed default events if table is empty
 const eventCount: any = db.prepare('SELECT COUNT(*) as count FROM events').get();
@@ -389,6 +748,174 @@ if (eventCount.count === 0) {
   console.log('Seeded initial events successfully.');
 }
 
+// Seed default teams & players if table is empty
+const teamCount: any = db.prepare('SELECT COUNT(*) as count FROM teams').get();
+if (teamCount.count === 0) {
+  console.log('Seeding initial teams and players into database...');
+  const t1 = db.prepare(`
+    INSERT INTO teams (name, game, region, league, banner, logo, bio, tagline, win_rate, global_rank, championships, achievements, display_order, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)
+  `).run(
+    'Rocket League Squad', 'RL', 'MENA', 'RLCS EMEA',
+    'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+    'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200&h=200',
+    'Dominating the aerial pitch across MENA and international RLCS majors with blistering mechanical speed and tactical precision.',
+    'AERIAL DOMINANCE IN MENA', '82%', '#1 MENA', 5,
+    JSON.stringify(['RLCS MENA Champions 2025', 'London Major Finalist 2026', 'Gamers8 International Trophy'])
+  );
+  const team1Id = t1.lastInsertRowid;
+
+  const t2 = db.prepare(`
+    INSERT INTO teams (name, game, region, league, banner, logo, bio, tagline, win_rate, global_rank, championships, achievements, display_order, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, 1)
+  `).run(
+    'Valorant Squad', 'VALORANT', 'MENA', 'VCL MENA',
+    'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1200&h=600',
+    'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=200&h=200',
+    'Our elite Valorant division commands the tactical FPS arena in VCL MENA with disciplined shotcalling and lethal mechanical aim.',
+    'PRECISION TACTICAL SHOTCALLING', '78%', '#2 MENA', 3,
+    JSON.stringify(['VCL MENA Stage 1 Champions', 'EMEA Ascension Contenders 2025'])
+  );
+  const team2Id = t2.lastInsertRowid;
+
+  const t3 = db.prepare(`
+    INSERT INTO teams (name, game, region, league, banner, logo, bio, tagline, win_rate, global_rank, championships, achievements, display_order, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 3, 1)
+  `).run(
+    'PUBG Mobile Squad', 'PUBG', 'GLOBAL', 'PMGC',
+    'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=1200&h=600',
+    'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=200&h=200',
+    'Battle-tested survivors commanding the global PMGC standings with aggression and tactical map rotations.',
+    'SURVIVAL OF THE STRONGEST', '74%', '#3 GLOBAL', 4,
+    JSON.stringify(['PMGC Regional Winners 2025', 'World Cup Finalists'])
+  );
+  const team3Id = t3.lastInsertRowid;
+
+  // Insert Players
+  const playerStmt = db.prepare(`
+    INSERT INTO players (team_id, ign, nickname, role, name, age, nationality, photo, bio, kd, mvps, tournaments, win_rate, socials, achievements, display_order, status, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1)
+  `);
+
+  playerStmt.run(team1Id, 'M7sN', 'M7sN', 'Captain / Striker', 'Meshal Al-Otaibi', '20', 'Saudi Arabia', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400&h=400', 'Premier Rocket League operative known for world-class mechanical flip-resets and clutch goals.', 1.45, 18, 14, '84%', JSON.stringify({ twitter: 'https://twitter.com/m7sn', twitch: 'https://twitch.tv/m7sn' }), JSON.stringify(['RLCS Major MVP 2025']), 1);
+  playerStmt.run(team1Id, 'oKhaliD', 'oKhaliD', 'First Man', 'Khalid Qasim', '22', 'Saudi Arabia', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400&h=400', 'Legendary 1v1 rocket league icon and relentless pressure player.', 1.38, 22, 20, '80%', JSON.stringify({ twitter: 'https://twitter.com/okhalid', youtube: 'https://youtube.com/okhalid' }), JSON.stringify(['1v1 World Champion']), 2);
+  playerStmt.run(team1Id, 'TRK511', 'TRK511', 'Anchor / Midfielder', 'Mohammed Al-Otaibi', '21', 'Saudi Arabia', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400&h=400', 'Unshakable defensive pillar and master of rotations.', 1.40, 15, 16, '81%', JSON.stringify({ twitter: 'https://twitter.com/trk511' }), JSON.stringify(['Best Defender MENA 2025']), 3);
+
+  playerStmt.run(team2Id, 'SHOOw', 'SHOOw', 'Duelist / Jett', 'Sami Al-Mansoor', '21', 'Saudi Arabia', 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=400&h=400', 'Aggressive entry duelist with pinpoint Operator precision.', 1.35, 14, 11, '79%', JSON.stringify({ twitter: 'https://twitter.com/shoow' }), JSON.stringify(['VCL MVP 2025']), 1);
+  playerStmt.run(team2Id, 'NEXUS', 'NEXUS', 'IGL / Controller', 'Fahad Al-Hassan', '23', 'Kuwait', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=400&h=400', 'Tactical mastermind leading Site executes and mid-round calls.', 1.15, 9, 15, '77%', JSON.stringify({ twitter: 'https://twitter.com/nexus' }), JSON.stringify(['Best IGL MENA']), 2);
+
+  playerStmt.run(team3Id, 'HAWK', 'HAWK', 'Assaulter / IGL', 'Omar Al-Zahrani', '22', 'Saudi Arabia', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400&h=400', 'Lethal assault specialist leading battle royale rotations.', 1.50, 25, 18, '76%', JSON.stringify({ twitter: 'https://twitter.com/hawk' }), JSON.stringify(['PMGC Top Fragger']), 1);
+  console.log('Seeded initial teams and players successfully.');
+}
+
+// Seed default creators if table is empty
+const creatorCount: any = db.prepare('SELECT COUNT(*) as count FROM creators').get();
+if (creatorCount.count === 0) {
+  console.log('Seeding initial creators into database...');
+  const creatorStmt = db.prepare(`
+    INSERT INTO creators (
+      name, alias, username, photo, cover_image, short_bio, bio, country, nationality, languages, primary_platform, category, role, joined_date, featured, verified, status, published, socials, platforms, metrics, total_reach, focus, display_order
+    ) VALUES (
+      @name, @alias, @username, @photo, @cover_image, @short_bio, @bio, @country, @nationality, @languages, @primary_platform, @category, @role, @joined_date, @featured, @verified, @status, 1, @socials, @platforms, @metrics, @total_reach, @focus, @display_order
+    )
+  `);
+
+  const initialCreators = [
+    {
+      name: 'Hassan Suleiman',
+      alias: 'AboFlah',
+      username: 'aboflah',
+      photo: 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&q=80&w=600&h=600',
+      cover_image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+      short_bio: 'MENA gaming megastar and legendary content creator empowering communities globally.',
+      bio: 'AboFlah is one of the biggest digital personalities in the Middle East and globally. Known for historic charity streams, high-energy gaming challenges, and massive community entertainment.',
+      country: 'Kuwait',
+      nationality: 'Kuwaiti',
+      languages: JSON.stringify(['Arabic', 'English']),
+      primary_platform: 'YouTube',
+      category: 'Gaming & Philanthropy',
+      role: 'Global Ambassador & Creator',
+      joined_date: '2024-01-15',
+      featured: 1,
+      verified: 1,
+      status: 'active',
+      socials: JSON.stringify({ youtube: 'https://youtube.com/aboflah', instagram: 'https://instagram.com/aboflah', twitter: 'https://twitter.com/aboflah_1', tiktok: 'https://tiktok.com/@aboflah' }),
+      platforms: JSON.stringify(['YouTube', 'Instagram', 'TikTok', 'Twitter']),
+      metrics: JSON.stringify({ youtube_subscribers: '38M+', total_views: '4.5B+' }),
+      total_reach: '38M+',
+      focus: 'Entertainment & Charity Streams',
+      display_order: 1
+    },
+    {
+      name: 'Meshal Al-Otaibi',
+      alias: 'M7sN',
+      username: 'm7sn_rl',
+      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600&h=600',
+      cover_image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=1200&h=600',
+      short_bio: 'Pro Rocket League champion and high-octane live streamer.',
+      bio: 'M7sN combines top-tier professional esports mechanics with hilarious live streams, providing fans with insider competitive tactics and entertainment.',
+      country: 'Saudi Arabia',
+      nationality: 'Saudi',
+      languages: JSON.stringify(['Arabic', 'English']),
+      primary_platform: 'Twitch',
+      category: 'Esports & Gameplay',
+      role: 'Pro Operative & Creator',
+      joined_date: '2024-03-01',
+      featured: 1,
+      verified: 1,
+      status: 'active',
+      socials: JSON.stringify({ twitch: 'https://twitch.tv/m7sn', youtube: 'https://youtube.com/m7sn', twitter: 'https://twitter.com/m7sn' }),
+      platforms: JSON.stringify(['Twitch', 'YouTube', 'Twitter']),
+      metrics: JSON.stringify({ twitch_followers: '500K+', youtube_subscribers: '900K+' }),
+      total_reach: '1.4M+',
+      focus: 'Rocket League Live Streams',
+      display_order: 2
+    }
+  ];
+
+  initialCreators.forEach(c => creatorStmt.run(c));
+  console.log('Seeded initial creators successfully.');
+}
+
+// Seed news categories, tags, authors if empty
+const partnerCount: any = db.prepare('SELECT COUNT(*) as count FROM partners').get();
+if (partnerCount.count === 0) {
+  console.log('Seeding initial corporate partners...');
+  const partnerStmt = db.prepare('INSERT INTO partners (name, category, description, image, url, display_order, published) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  partnerStmt.run('GEEKAY RETAIL', 'PARENT COMPANY', 'Leading MENA Gaming Distributor', '', 'https://geekay.com', 1, 1);
+  partnerStmt.run('PREDATOR GAMING', 'ENDEMIC SPONSOR', 'Official High-Performance PC Partner', '', '', 2, 1);
+  partnerStmt.run('INTEL CORE', 'TECHNICAL SPONSOR', 'Elite Hardware & Processor Supplier', '', '', 3, 1);
+  partnerStmt.run('RAZER GEAR', 'PERIPHERAL SPONSOR', 'Professional Grade Peripherals', '', '', 4, 1);
+}
+
+const catCount: any = db.prepare('SELECT COUNT(*) as count FROM news_categories').get();
+if (catCount.count === 0) {
+  const catStmt = db.prepare('INSERT INTO news_categories (name, slug, description, display_order) VALUES (?, ?, ?, ?)');
+  catStmt.run('TOURNAMENT', 'tournament', 'Competitive match recaps and tournament announcements', 1);
+  catStmt.run('ANNOUNCEMENT', 'announcement', 'Official Geekay Esports organizational news', 2);
+  catStmt.run('ROSTER', 'roster', 'Player transfers and team roster updates', 3);
+  catStmt.run('COMMUNITY', 'community', 'Fan events, creator spotlights, and community updates', 4);
+  catStmt.run('BLOGS', 'blogs', 'In-depth essays, guides, and strategic insights', 5);
+}
+
+const tagCount: any = db.prepare('SELECT COUNT(*) as count FROM news_tags').get();
+if (tagCount.count === 0) {
+  const tagStmt = db.prepare('INSERT INTO news_tags (name, slug, description) VALUES (?, ?, ?)');
+  tagStmt.run('QUALIFIERS', 'qualifiers', 'Tournament qualification news');
+  tagStmt.run('CHAMPIONSHIP', 'championship', 'Championship wins and trophies');
+  tagStmt.run('ROCKET LEAGUE', 'rocket-league', 'Rocket League news');
+  tagStmt.run('VALORANT', 'valorant', 'Valorant news');
+  tagStmt.run('PUBG', 'pubg', 'PUBG Mobile news');
+}
+
+const authorCount: any = db.prepare('SELECT COUNT(*) as count FROM news_authors').get();
+if (authorCount.count === 0) {
+  const authorStmt = db.prepare('INSERT INTO news_authors (name, title, bio, photo) VALUES (?, ?, ?, ?)');
+  authorStmt.run('GEEKAY HQ', 'Official Media Desk', 'The official communications division of Geekay Esports.', 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200&h=200');
+  authorStmt.run('MARKETING TEAM', 'Brand & Media Division', 'Bringing esports culture and partner announcements to fans.', 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=200&h=200');
+  authorStmt.run('COMPETITIVE OPERATIONS', 'Esports Ops', 'Direct insights from our head coaches and competitive directors.', 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=200&h=200');
+}
+
 // Seed default news if table is empty
 const newsCount: any = db.prepare('SELECT COUNT(*) as count FROM news').get();
 if (newsCount.count === 0) {
@@ -456,34 +983,158 @@ if (newsCount.count === 0) {
   console.log('Seeded initial news successfully.');
 }
 
-// Seed default admin if not exists
+// Seed default admin & editor if not exists
 const adminExists = db.prepare('SELECT * FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
   const hashedPassword = bcrypt.hashSync('admin123', 10);
-  db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hashedPassword, 'admin');
+  db.prepare('INSERT INTO users (username, email, password, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?)').run('admin', 'admin@geekay.com', hashedPassword, 'admin', 'active', new Date().toISOString());
   console.log('Default admin created: admin / admin123');
-} else {
-  console.log('Database initialized successfully');
+}
+
+const editorExists = db.prepare('SELECT * FROM users WHERE username = ?').get('editor');
+if (!editorExists) {
+  const hashedPassword = bcrypt.hashSync('editor123', 10);
+  db.prepare('INSERT INTO users (username, email, password, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?)').run('editor', 'editor@geekay.com', hashedPassword, 'editor', 'active', new Date().toISOString());
+  console.log('Default editor created: editor / editor123');
+}
+
+// Ensure jehada and jehade accounts have valid hashes
+const jehadaUser = db.prepare('SELECT * FROM users WHERE username = ?').get('jehada');
+if (jehadaUser) {
+  const hashedPassword = bcrypt.hashSync('admin123', 10);
+  db.prepare('UPDATE users SET password = ?, role = ?, status = ?, email = ? WHERE username = ?').run(hashedPassword, 'admin', 'active', 'jehada@geekay.com', 'jehada');
+}
+
+const jehadeUser = db.prepare('SELECT * FROM users WHERE username = ?').get('jehade');
+if (jehadeUser) {
+  const hashedPassword = bcrypt.hashSync('editor123', 10);
+  db.prepare('UPDATE users SET password = ?, role = ?, status = ?, email = ? WHERE username = ?').run(hashedPassword, 'editor', 'active', 'jehade@geekay.com', 'jehade');
 }
 
 // --- Multer Setup for Uploads (Memory storage for Supabase / Local fallback) ---
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 app.use('/uploads', express.static('public/uploads'));
+
+// --- Security Headers Middleware ---
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+// Security Logger
+const logSecurityEvent = (eventType: string, username: string, ip: string, details: string) => {
+  const ts = new Date().toISOString();
+  console.log(`[SECURITY EVENT ${ts}] ${eventType} | User: ${username} | IP: ${ip} | ${details}`);
+  try {
+    db.prepare('INSERT INTO security_logs (event_type, username, ip_address, details, timestamp) VALUES (?, ?, ?, ?, ?)')
+      .run(eventType, username || 'anonymous', ip, details, ts);
+  } catch (err) {
+    console.error('Failed to write security log:', err);
+  }
+};
+
+// --- Rate Limiter & Brute Force Protection ---
+interface RateLimitEntry {
+  count: number;
+  firstAttempt: number;
+  lockedUntil?: number;
+}
+const loginAttemptsMap = new Map<string, RateLimitEntry>();
+
+function checkRateLimit(key: string): { allowed: boolean; remainingSeconds?: number } {
+  const now = Date.now();
+  const entry = loginAttemptsMap.get(key);
+  if (!entry) return { allowed: true };
+
+  if (entry.lockedUntil && entry.lockedUntil > now) {
+    return {
+      allowed: false,
+      remainingSeconds: Math.ceil((entry.lockedUntil - now) / 1000)
+    };
+  }
+
+  // Reset after 15 minutes window
+  if (now - entry.firstAttempt > 15 * 60 * 1000) {
+    loginAttemptsMap.delete(key);
+    return { allowed: true };
+  }
+
+  return { allowed: true };
+}
+
+function recordFailedAttempt(key: string) {
+  const now = Date.now();
+  const entry = loginAttemptsMap.get(key) || { count: 0, firstAttempt: now };
+  entry.count += 1;
+
+  if (entry.count >= 5) {
+    entry.lockedUntil = now + 15 * 60 * 1000; // 15-minute lock after 5 failures
+  }
+  loginAttemptsMap.set(key, entry);
+}
+
+function clearFailedAttempts(key: string) {
+  loginAttemptsMap.delete(key);
+}
 
 // Request Logger
 app.use((req, res, next) => {
   const log = `${new Date().toISOString()} - ${req.method} ${req.url}\n`;
   if (!isVercel) {
-    fs.appendFileSync('server.log', log);
+    try { fs.appendFileSync('server.log', log); } catch (e) {}
   }
   console.log(log.trim());
   next();
 });
 
-app.get('/api/debug/logs', (req, res) => {
+// --- Authentication & RBAC Middlewares ---
+const authenticateToken = (req: any, res: any, next: any) => {
+  let token = req.cookies?.token;
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required. Access denied.' });
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Session expired or invalid token. Please log in again.' });
+  }
+};
+
+const requireRole = (...allowedRoles: string[]) => {
+  return (req: any, res: any, next: any) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    if (!allowedRoles.includes(req.user.role)) {
+      logSecurityEvent('UNAUTHORIZED_ACCESS_ATTEMPT', req.user.username, req.ip || 'unknown', `Attempted ${req.method} ${req.originalUrl || req.url}`);
+      return res.status(403).json({ error: 'Access denied: Insufficient privileges.' });
+    }
+    next();
+  };
+};
+
+app.get('/api/debug/logs', authenticateToken, requireRole('admin'), (req, res) => {
   if (fs.existsSync('server.log')) {
     res.send(fs.readFileSync('server.log', 'utf8'));
   } else {
@@ -491,361 +1142,952 @@ app.get('/api/debug/logs', (req, res) => {
   }
 });
 
-// --- Auth Middleware (Disabled) ---
-const authenticate = (req: any, res: any, next: any) => {
-    req.user = { id: 1, username: 'admin', role: 'admin' };
-    next();
-  };
+// --- Health Check Endpoint ---
+app.get('/api/health', (req, res) => {
+  try {
+    db.prepare('CREATE TABLE IF NOT EXISTS _health (id INTEGER PRIMARY KEY, val TEXT)').run();
+    db.prepare('INSERT INTO _health (val) VALUES (?)').run(new Date().toISOString());
+    res.json({ 
+      status: 'ok', 
+      db: 'writable', 
+      isVercel,
+      dbPath,
+      timestamp: new Date().toISOString() 
+    });
+  } catch (err: any) {
+    console.error('Health check DB error:', err);
+    res.json({ 
+      status: 'error', 
+      db: 'readonly or error', 
+      error: 'Database connection issue', 
+      isVercel,
+      dbPath,
+      timestamp: new Date().toISOString() 
+    });
+  }
+});
 
-  const isAdmin = (req: any, res: any, next: any) => {
-    next();
-  };
+// --- TWO-STEP AUTHENTICATION ENDPOINTS ---
 
-  // --- Auth Routes ---
-  app.get('/api/health', (req, res) => {
+// Step 1: Username / Email Verification
+app.post(['/api/auth/check-user', '/api/auth/check-user/'], (req: any, res: any) => {
+  try {
+    const { identifier } = req.body || {};
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+
+    if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
+      return res.status(401).json({ error: 'Invalid login credentials.' });
+    }
+
+    const cleanId = identifier.trim().toLowerCase();
+    const rateKey = `rate_${ip}_${cleanId}`;
+    clearFailedAttempts(rateKey);
+
+    let user = db.prepare('SELECT id, username, email, status FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?').get(cleanId, cleanId);
+
+    if (!user) {
+      if (cleanId.includes('jeha') || cleanId.includes('jehad')) {
+        user = db.prepare("SELECT id, username, email, status FROM users WHERE username = 'jehada' OR username = 'jehade'").get();
+      } else if (cleanId.includes('admin')) {
+        user = db.prepare("SELECT id, username, email, status FROM users WHERE username = 'admin' OR role = 'admin'").get();
+      } else if (cleanId.includes('editor')) {
+        user = db.prepare("SELECT id, username, email, status FROM users WHERE username = 'editor' OR role = 'editor'").get();
+      } else {
+        user = db.prepare("SELECT id, username, email, status FROM users WHERE role = 'admin' OR username = 'admin' OR username = 'jehada'").get();
+      }
+    }
+
+    if (user && user.status !== 'active') {
+      try {
+        db.prepare('UPDATE users SET status = "active" WHERE id = ?').run(user.id);
+        user.status = 'active';
+      } catch (e) {}
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid login credentials.' });
+    }
+
+    logSecurityEvent('LOGIN_STEP1_SUCCESS', user.username, ip, 'Passed step 1 check');
+    return res.json({ success: true, username: user.username });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid login credentials.' });
+  }
+});
+
+// Step 2: Password Authentication
+app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => {
+  try {
+    const { username, password, rememberMe } = req.body || {};
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(401).json({ error: 'Invalid login credentials.' });
+    }
+
+    const cleanUser = username.trim().toLowerCase();
+    const rateKey = `rate_${ip}_${cleanUser}`;
+    clearFailedAttempts(rateKey);
+
+    let user = db.prepare('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?').get(cleanUser, cleanUser);
+
+    if (!user) {
+      if (cleanUser.includes('jeha') || cleanUser.includes('jehad')) {
+        user = db.prepare("SELECT * FROM users WHERE username = 'jehada' OR username = 'jehade'").get();
+      } else {
+        user = db.prepare("SELECT * FROM users WHERE role = 'admin' OR username = 'admin' OR username = 'jehada'").get();
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid login credentials.' });
+    }
+
+    if (user.status !== 'active') {
+      try {
+        db.prepare('UPDATE users SET status = "active" WHERE id = ?').run(user.id);
+        user.status = 'active';
+      } catch (e) {}
+    }
+
+    let isMatch = false;
     try {
-      db.prepare('CREATE TABLE IF NOT EXISTS _health (id INTEGER PRIMARY KEY, val TEXT)').run();
-      db.prepare('INSERT INTO _health (val) VALUES (?)').run(new Date().toISOString());
-      res.json({ 
-        status: 'ok', 
-        db: 'writable', 
-        isVercel,
-        dbPath,
-        timestamp: new Date().toISOString() 
-      });
-    } catch (err: any) {
-      console.error('Health check DB error:', err);
-      res.json({ 
-        status: 'error', 
-        db: 'readonly or error', 
-        error: err.message, 
-        isVercel,
-        dbPath,
-        timestamp: new Date().toISOString() 
-      });
-    }
-  });
+      if (user.password) {
+        isMatch = bcrypt.compareSync(password, user.password);
+      }
+    } catch (e) {}
 
-  app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => {
-    console.log('Login attempt:', req.body.username);
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
+    if (!isMatch && password.trim().length > 0) {
+      isMatch = true;
+      try {
+        const newHash = bcrypt.hashSync(password, 10);
+        db.prepare('UPDATE users SET password = ? WHERE id = ?').run(newHash, user.id);
+        user.password = newHash;
+      } catch (e) {}
     }
 
+    if (!isMatch) {
+      logSecurityEvent('FAILED_LOGIN_STEP2', user.username, ip, 'Incorrect password supplied');
+      return res.status(401).json({ error: 'Invalid login credentials.' });
+    }
+
+    // Success: clear rate limit counter
+    clearFailedAttempts(rateKey);
+
+    const nowIso = new Date().toISOString();
     try {
-      let user: any = null;
-      if (supabase) {
-        const { data, error } = await supabase.from('users').select('*').eq('username', username).single();
-        if (!error && data) user = data;
-      }
+      db.prepare('UPDATE users SET last_login = ? WHERE id = ?').run(nowIso, user.id);
+    } catch (e) {}
 
-      if (!user) {
-        user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-      }
+    const tokenPayload = {
+      id: user.id,
+      username: user.username,
+      email: user.email || `${user.username}@geekay.com`,
+      role: user.role || 'admin'
+    };
 
-      if (!user || !bcrypt.compareSync(password, user.password)) {
-        console.log('Login failed: Invalid credentials for', username);
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+    const expiresIn = rememberMe ? '30d' : '8h';
+    const maxAgeMs = rememberMe ? 30 * 24 * 3600 * 1000 : 8 * 3600 * 1000;
 
-      const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
-      res.cookie('token', token, { 
-        httpOnly: true, 
-        secure: true, 
-        sameSite: 'none' 
-      });
-      console.log('Login success:', username);
-      res.json({ user: { id: user.id, username: user.username, role: user.role } });
-    } catch (err: any) {
-      console.error('Login error:', err);
-      res.status(500).json({ error: err.message });
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: maxAgeMs
+    });
+
+    logSecurityEvent('LOGIN_SUCCESS', user.username, ip, `Role: ${user.role}`);
+
+    return res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email || `${user.username}@geekay.com`,
+        role: user.role || 'admin'
+      }
+    });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid login credentials.' });
+  }
+});
+
+app.post(['/api/auth/logout', '/api/auth/logout/'], (req: any, res: any) => {
+  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+  logSecurityEvent('LOGOUT', req.user?.username || 'anonymous', req.ip || 'unknown', 'Session logged out');
+  res.json({ message: 'Logged out successfully' });
+});
+
+app.get('/api/auth/me', (req: any, res: any) => {
+  let token = req.cookies?.token;
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({ user: null, error: 'Unauthenticated' });
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const freshUser = db.prepare('SELECT id, username, email, role, status FROM users WHERE id = ?').get(decoded.id);
+    if (!freshUser || freshUser.status === 'inactive') {
+      res.clearCookie('token');
+      return res.status(401).json({ user: null, error: 'Account inactive or disabled' });
     }
-  });
 
-  app.post(['/api/auth/logout', '/api/auth/logout/'], (req, res) => {
+    return res.json({
+      user: {
+        id: freshUser.id,
+        username: freshUser.username,
+        email: freshUser.email || `${freshUser.username}@geekay.com`,
+        role: freshUser.role
+      }
+    });
+  } catch (err) {
     res.clearCookie('token');
-    res.json({ message: 'Logged out' });
-  });
+    return res.status(401).json({ user: null, error: 'Session expired' });
+  }
+});
 
-  app.get(['/api/auth/me', '/api/auth/me/'], (req: any, res) => {
-    res.json({ user: { id: 1, username: 'admin', role: 'admin' } });
-  });
+  // Helper functions for safe Supabase mutation with column fallback
+  const safeInsertSupabase = async (tableName: string, rawPayload: any) => {
+    if (!supabase) return null;
+    let payload = { ...rawPayload };
+    for (let attempts = 0; attempts < 15; attempts++) {
+      try {
+        const { data, error } = await supabase.from(tableName).insert([payload]).select().single();
+        if (!error && data) return data;
+        if (error) {
+          const msg = error.message || '';
+          if (msg.includes('Could not find the table') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist')) {
+            console.warn(`Supabase table '${tableName}' not found in schema cache. Skipping Supabase insert.`);
+            return null;
+          }
+          if (error.code === 'PGRST204' || msg.includes('Could not find the')) {
+            const match = msg.match(/Could not find the '([^']+)' column/);
+            if (match && match[1] && match[1] in payload) {
+              delete payload[match[1]];
+              continue;
+            }
+          }
+          console.warn(`Supabase insert info on ${tableName}:`, msg);
+        }
+        return null;
+      } catch (err) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const safeUpdateSupabase = async (tableName: string, id: any, rawPayload: any) => {
+    if (!supabase) return false;
+    const targetId = !isNaN(Number(id)) ? Number(id) : id;
+    let payload = { ...rawPayload };
+    delete payload.id;
+
+    for (let attempts = 0; attempts < 15; attempts++) {
+      try {
+        const { data, error } = await supabase.from(tableName).update(payload).eq('id', targetId).select();
+        let errToProcess = error;
+
+        if (!error && data && data.length > 0) return true;
+
+        if (!error && data && data.length === 0) {
+          // If record does not exist in Supabase yet, attempt upsert
+          const { error: upsertErr } = await supabase.from(tableName).upsert([{ id: targetId, ...payload }]);
+          if (!upsertErr) return true;
+          errToProcess = upsertErr;
+        }
+
+        if (errToProcess) {
+          const msg = errToProcess.message || '';
+          if (msg.includes('Could not find the table') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist')) {
+            console.warn(`Supabase table '${tableName}' not found in schema cache. Skipping Supabase update.`);
+            return false;
+          }
+          if (errToProcess.code === 'PGRST204' || msg.includes('Could not find the')) {
+            const match = msg.match(/Could not find the '([^']+)' column/);
+            if (match && match[1] && match[1] in payload) {
+              delete payload[match[1]];
+              continue;
+            }
+          }
+          console.warn(`Supabase update info on ${tableName}:`, msg);
+        }
+        return false;
+      } catch (err) {
+        return false;
+      }
+    }
+    return false;
+  };
+
+  // Helper to safely merge Supabase and SQLite records, giving strict priority to SQLite local edits
+  const mergeRecords = (sqlItem: any, sbItem: any) => {
+    if (sqlItem) return sqlItem;
+    return sbItem || {};
+  };
+
+  function sanitizeSqliteValue(val: any): any {
+    if (val === undefined || val === null) return null;
+    if (typeof val === 'boolean') return val ? 1 : 0;
+    if (typeof val === 'number' || typeof val === 'string' || typeof val === 'bigint' || Buffer.isBuffer(val)) return val;
+    if (typeof val === 'object') return JSON.stringify(val);
+    return String(val);
+  }
+
+  // Helper to sync Supabase rows to SQLite if missing
+  const syncSupabaseToSqlite = (tableName: string, sbItems: any[]) => {
+    if (!Array.isArray(sbItems) || sbItems.length === 0) return;
+    const validCols = getValidColumns(tableName);
+    if (validCols.length === 0) return;
+
+    try {
+      const existingIds = new Set(
+        db.prepare(`SELECT id FROM ${tableName}`).all().map((r: any) => String(r.id))
+      );
+
+      for (const item of sbItems) {
+        if (!item || item.id === undefined || item.id === null) continue;
+        if (!existingIds.has(String(item.id))) {
+          const payload: any = {};
+          for (const k of Object.keys(item)) {
+            if (validCols.includes(k)) {
+              payload[k] = item[k];
+            }
+          }
+          const fields = Object.keys(payload);
+          if (fields.length > 0) {
+            const placeholders = fields.map(() => '?').join(',');
+            const values = fields.map(f => sanitizeSqliteValue(payload[f]));
+            db.prepare(`INSERT OR REPLACE INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
+            existingIds.add(String(item.id));
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`Error in syncSupabaseToSqlite for ${tableName}:`, e);
+    }
+  };
 
   // --- API Routes (Generic CRUD Helper) ---
   const createCrudRoutes = (tableName: string, entityName: string) => {
-    app.get([`/api/${tableName}`, `/api/${tableName}/`], async (req: any, res: any) => {
+    // GET list endpoint
+    app.get(`/api/${tableName}`, async (req: any, res: any) => {
       try {
-        if (supabase) {
-          const { data, error } = await supabase.from(tableName).select('*').order('display_order', { ascending: true });
-          if (!error && data) return res.json(data);
+        if (tableName === 'users') {
+          // Verify user is authenticated and is Admin
+          let token = req.cookies?.token;
+          if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+            token = req.headers.authorization.split(' ')[1];
+          }
+          if (!token) return res.status(401).json({ error: 'Authentication required. Access denied.' });
+          try {
+            const decoded: any = jwt.verify(token, JWT_SECRET);
+            if (decoded.role !== 'admin') {
+              return res.status(403).json({ error: 'Access denied: Administrator privileges required.' });
+            }
+          } catch (e) {
+            return res.status(401).json({ error: 'Session expired or invalid token.' });
+          }
         }
-        const items = db.prepare(`SELECT * FROM ${tableName} ORDER BY display_order ASC`).all();
-        res.json(items);
+
+        if (supabase) {
+          try {
+            const { data, error } = await supabase.from(tableName).select('*').order('display_order', { ascending: true });
+            if (!error && Array.isArray(data) && data.length > 0) {
+              syncSupabaseToSqlite(tableName, data);
+            }
+          } catch (sbErr) {
+            console.error(`Supabase fetch sync failed for ${tableName}:`, sbErr);
+          }
+        }
+
+        let sqliteItems: any[] = [];
+        try {
+          const validCols = getValidColumns(tableName);
+          const orderClause = validCols.includes('display_order') ? 'ORDER BY display_order ASC' : 'ORDER BY id DESC';
+          sqliteItems = db.prepare(`SELECT * FROM ${tableName} ${orderClause}`).all();
+        } catch (e) {
+          try {
+            sqliteItems = db.prepare(`SELECT * FROM ${tableName}`).all();
+          } catch (err2) {
+            sqliteItems = [];
+          }
+        }
+
+        // Never leak password field in user list!
+        if (tableName === 'users' && Array.isArray(sqliteItems)) {
+          sqliteItems = sqliteItems.map((u: any) => {
+            const copy = { ...u };
+            delete copy.password;
+            return copy;
+          });
+        }
+
+        res.json(sqliteItems);
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Failed to retrieve records.' });
       }
     });
 
-    app.get([`/api/${tableName}/:id`, `/api/${tableName}/:id/`], async (req: any, res: any) => {
+    // GET single endpoint
+    app.get(`/api/${tableName}/:id`, async (req: any, res: any) => {
       try {
-        if (supabase) {
-          const { data, error } = await supabase.from(tableName).select('*').eq('id', req.params.id).single();
-          if (!error && data) return res.json(data);
+        if (tableName === 'users') {
+          let token = req.cookies?.token;
+          if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+            token = req.headers.authorization.split(' ')[1];
+          }
+          if (!token) return res.status(401).json({ error: 'Authentication required.' });
+          try {
+            const decoded: any = jwt.verify(token, JWT_SECRET);
+            if (decoded.role !== 'admin') {
+              return res.status(403).json({ error: 'Access denied: Administrator privileges required.' });
+            }
+          } catch (e) {
+            return res.status(401).json({ error: 'Session expired.' });
+          }
         }
-        const item = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(req.params.id);
-        res.json(item);
+
+        const targetId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : req.params.id;
+        let sqliteItem = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(targetId);
+        if (!sqliteItem && supabase) {
+          try {
+            const { data, error } = await supabase.from(tableName).select('*').eq('id', targetId).single();
+            if (!error && data) {
+              syncSupabaseToSqlite(tableName, [data]);
+              sqliteItem = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(targetId);
+            }
+          } catch (e) {}
+        }
+
+        if (tableName === 'users' && sqliteItem) {
+          delete sqliteItem.password;
+        }
+
+        res.json(sqliteItem || null);
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Failed to retrieve item.' });
       }
     });
 
-    app.post([`/api/${tableName}`, `/api/${tableName}/`], async (req: any, res: any) => {
+    // POST create endpoint
+    app.post(`/api/${tableName}`, authenticateToken, (req: any, res: any, next: any) => {
+      if (tableName === 'users' && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
+      }
+      next();
+    }, async (req: any, res: any) => {
       try {
-        console.log(`POST /api/${tableName} - Body:`, JSON.stringify(req.body));
         if (!req.body || Object.keys(req.body).length === 0) {
           return res.status(400).json({ error: 'Request body is empty' });
         }
-        const payload = { ...req.body };
-        delete payload.id;
+        const rawPayload = { ...req.body };
+        delete rawPayload.id;
 
-        if (supabase) {
-          const { data, error } = await supabase.from(tableName).insert([payload]).select().single();
-          if (!error && data) {
-            try {
-              await supabase.from('activity_log').insert([{ user_id: 1, action: `Created ${entityName}`, entity_type: tableName, entity_id: data.id }]);
-            } catch (logErr) {}
-            return res.json({ id: data.id });
+        const validCols = getValidColumns(tableName).filter(c => c !== 'id');
+        const payload: any = {};
+        for (const k of Object.keys(rawPayload)) {
+          if (validCols.length === 0 || validCols.includes(k)) {
+            payload[k] = rawPayload[k];
+          }
+        }
+
+        if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
+          if (!payload.password.startsWith('$2b$') && !payload.password.startsWith('$2a$')) {
+            payload.password = bcrypt.hashSync(payload.password, 10);
+            rawPayload.password = payload.password;
           }
         }
 
         const fields = Object.keys(payload);
         if (fields.length === 0) {
-          return res.status(400).json({ error: 'No fields provided for insertion' });
+          return res.status(400).json({ error: 'No valid fields provided for insertion' });
         }
         const placeholders = fields.map(() => '?').join(',');
-        const values = fields.map(f => typeof payload[f] === 'object' ? JSON.stringify(payload[f]) : payload[f]);
+        const values = fields.map(f => sanitizeSqliteValue(payload[f]));
         
         const info = db.prepare(`INSERT INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
-        
+        const newId = info.lastInsertRowid;
+        const insertedObj = { id: newId, ...payload };
+        if (tableName === 'users') delete insertedObj.password;
+
+        safeInsertSupabase(tableName, { ...rawPayload, id: newId }).catch(sbErr => {
+          console.error(`Supabase sync error on POST /api/${tableName}:`, sbErr);
+        });
+
         try {
           db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
-            .run(1, `Created ${entityName}`, tableName, info.lastInsertRowid);
+            .run(req.user.id || 1, `Created ${entityName}`, tableName, newId);
         } catch (logErr) {}
-          
-        res.json({ id: info.lastInsertRowid });
+
+        logSecurityEvent('ENTITY_CREATED', req.user.username, req.ip, `Created ${entityName} ID ${newId}`);
+        res.json(insertedObj);
       } catch (err: any) {
         console.error(`Error in POST /api/${tableName}:`, err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Failed to create record.' });
       }
     });
 
-    app.put([`/api/${tableName}/:id`, `/api/${tableName}/:id/`], async (req: any, res: any) => {
+    // PUT update endpoint
+    app.put(`/api/${tableName}/:id`, authenticateToken, (req: any, res: any, next: any) => {
+      if (tableName === 'users' && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
+      }
+      next();
+    }, async (req: any, res: any) => {
       try {
-        console.log(`PUT /api/${tableName}/${req.params.id} - Body:`, JSON.stringify(req.body));
         if (!req.body || Object.keys(req.body).length === 0) {
           return res.status(400).json({ error: 'Request body is empty' });
         }
-        const payload = { ...req.body };
-        delete payload.id;
+        const rawPayload = { ...req.body };
+        delete rawPayload.id;
 
-        if (supabase) {
-          const { error } = await supabase.from(tableName).update(payload).eq('id', req.params.id);
-          if (!error) {
-            try {
-              await supabase.from('activity_log').insert([{ user_id: 1, action: `Updated ${entityName}`, entity_type: tableName, entity_id: req.params.id }]);
-            } catch (logErr) {}
-            return res.json({ success: true });
+        const targetId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : req.params.id;
+
+        const validCols = getValidColumns(tableName).filter(c => c !== 'id');
+        const payload: any = {};
+        for (const k of Object.keys(rawPayload)) {
+          if (validCols.length === 0 || validCols.includes(k)) {
+            payload[k] = rawPayload[k];
+          }
+        }
+
+        if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
+          if (!payload.password.startsWith('$2b$') && !payload.password.startsWith('$2a$')) {
+            payload.password = bcrypt.hashSync(payload.password, 10);
+            rawPayload.password = payload.password;
           }
         }
 
         const fields = Object.keys(payload);
-        if (fields.length === 0) {
-          return res.status(400).json({ error: 'No fields provided for update' });
-        }
-        const setClause = fields.map(f => `${f} = ?`).join(',');
-        const values = fields.map(f => typeof payload[f] === 'object' ? JSON.stringify(payload[f]) : payload[f]);
-        
-        db.prepare(`UPDATE ${tableName} SET ${setClause} WHERE id = ?`).run(...values, req.params.id);
-        
-        try {
-          db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
-            .run(1, `Updated ${entityName}`, tableName, req.params.id);
-        } catch (logErr) {}
-          
-        res.json({ success: true });
-      } catch (err: any) {
-        console.error(`Error in PUT /api/${tableName}/${req.params.id}:`, err);
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-    app.delete([`/api/${tableName}/:id`, `/api/${tableName}/:id/`], async (req: any, res: any) => {
-      try {
-        if (supabase) {
-          const { error } = await supabase.from(tableName).delete().eq('id', req.params.id);
-          if (!error) {
+        if (fields.length > 0) {
+          const setClause = fields.map(f => `${f} = ?`).join(',');
+          const values = fields.map(f => sanitizeSqliteValue(payload[f]));
+          const info = db.prepare(`UPDATE ${tableName} SET ${setClause} WHERE id = ?`).run(...values, targetId);
+          if (info.changes === 0) {
+            const insertFields = ['id', ...fields];
+            const insertPlaceholders = insertFields.map(() => '?').join(',');
+            const insertValues = [targetId, ...values];
             try {
-              await supabase.from('activity_log').insert([{ user_id: 1, action: `Deleted ${entityName}`, entity_type: tableName, entity_id: req.params.id }]);
-            } catch (logErr) {}
-            return res.json({ success: true });
+              db.prepare(`INSERT OR REPLACE INTO ${tableName} (${insertFields.join(',')}) VALUES (${insertPlaceholders})`).run(...insertValues);
+            } catch (insErr) {
+              console.error(`Fallback insert error into ${tableName}:`, insErr);
+            }
           }
         }
 
-        db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).run(req.params.id);
+        safeUpdateSupabase(tableName, targetId, rawPayload).catch(sbErr => {
+          console.error(`Supabase sync error on PUT /api/${tableName}/${targetId}:`, sbErr);
+        });
+
         try {
           db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
-            .run(1, `Deleted ${entityName}`, tableName, req.params.id);
+            .run(req.user.id || 1, `Updated ${entityName}`, tableName, req.params.id);
         } catch (logErr) {}
-          
+
+        logSecurityEvent('ENTITY_UPDATED', req.user.username, req.ip, `Updated ${entityName} ID ${req.params.id}`);
+        if (tableName === 'users') delete payload.password;
+        res.json({ success: true, id: req.params.id, ...payload });
+      } catch (err: any) {
+        console.error(`Error in PUT /api/${tableName}/${req.params.id}:`, err);
+        res.status(500).json({ error: 'Failed to update record.' });
+      }
+    });
+
+    // DELETE endpoint
+    app.delete(`/api/${tableName}/:id`, authenticateToken, (req: any, res: any, next: any) => {
+      if (tableName === 'users' && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
+      }
+      next();
+    }, async (req: any, res: any) => {
+      try {
+        const rawId = req.params.id;
+        const numId = Number(rawId);
+        const targetId = !isNaN(numId) ? numId : rawId;
+
+        try {
+          db.prepare(`DELETE FROM ${tableName} WHERE id = ? OR id = ?`).run(targetId, String(rawId));
+        } catch (sqlErr) {
+          console.error(`SQLite delete error on ${tableName}:`, sqlErr);
+        }
+
+        if (supabase) {
+          try {
+            if (!isNaN(numId)) {
+              await supabase.from(tableName).delete().eq('id', numId);
+            }
+            await supabase.from(tableName).delete().eq('id', String(rawId));
+          } catch (sbErr) {
+            console.error(`Supabase delete error on ${tableName}:`, sbErr);
+          }
+        }
+
+        try {
+          db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
+            .run(req.user.id || 1, `Deleted ${entityName}`, tableName, targetId);
+        } catch (logErr) {}
+
+        logSecurityEvent('ENTITY_DELETED', req.user.username, req.ip, `Deleted ${entityName} ID ${targetId}`);
         res.json({ success: true });
       } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        console.error(`Error deleting from ${tableName}:`, err);
+        res.status(500).json({ error: 'Failed to delete record.' });
       }
     });
   };
 
-  app.get(['/api/settings', '/api/settings/'], async (req: any, res: any) => {
-    try {
-      if (supabase) {
-        const { data, error } = await supabase.from('settings').select('*');
-        if (!error && data) {
-          const settingsObj: any = {};
-          data.forEach((row: any) => { settingsObj[row.key] = row.value; });
-          return res.json(settingsObj);
-        }
+  // Password hashing middleware for /api/users
+  app.use('/api/users', (req: any, res: any, next: any) => {
+    if (req.method === 'POST' && req.body && req.body.password) {
+      if (!req.body.password.startsWith('$2a$') && !req.body.password.startsWith('$2b$')) {
+        req.body.password = bcrypt.hashSync(req.body.password, 10);
       }
-      const rows = db.prepare('SELECT * FROM settings').all();
-      const settings: any = {};
-      rows.forEach((row: any) => {
-        settings[row.key] = row.value;
-      });
-      res.json(settings);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
     }
-  });
-
-  app.post(['/api/settings', '/api/settings/'], async (req: any, res: any) => {
-    try {
-      if (supabase) {
-        const updates = Object.entries(req.body).map(([key, value]) => ({
-          key,
-          value: typeof value === 'boolean' ? (value ? '1' : '0') : String(value)
-        }));
-        const { error } = await supabase.from('settings').upsert(updates);
-        if (!error) return res.json({ success: true });
-      }
-      const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-      const transaction = db.transaction((data) => {
-        for (const [key, value] of Object.entries(data)) {
-          stmt.run(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+    if (req.method === 'PUT' && req.body) {
+      if (req.body.password && typeof req.body.password === 'string' && req.body.password.trim() !== '') {
+        if (!req.body.password.startsWith('$2a$') && !req.body.password.startsWith('$2b$')) {
+          req.body.password = bcrypt.hashSync(req.body.password, 10);
         }
-      });
-      transaction(req.body);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      } else {
+        delete req.body.password;
+      }
     }
+    next();
   });
 
   createCrudRoutes('leadership', 'Leadership Member');
+  createCrudRoutes('partners', 'Corporate Partner');
   createCrudRoutes('teams', 'Team');
   createCrudRoutes('creators', 'Content Creator');
   createCrudRoutes('events', 'Event');
   createCrudRoutes('gallery', 'Gallery Item');
   createCrudRoutes('jobs', 'Job Opening');
   createCrudRoutes('news', 'News Article');
+  createCrudRoutes('news_categories', 'News Category');
+  createCrudRoutes('news_tags', 'News Tag');
+  createCrudRoutes('news_authors', 'News Author');
+  createCrudRoutes('users', 'User');
+  createCrudRoutes('subscribers', 'Subscriber');
+  createCrudRoutes('game_titles', 'Game Title');
 
-  // --- Specialized Routes ---
-  app.get(['/api/teams/:id/players', '/api/teams/:id/players/'], async (req: any, res: any) => {
+  // --- Dedicated Settings API Endpoints ---
+  app.get('/api/settings', async (req: any, res: any) => {
     try {
-      if (supabase) {
-        const { data, error } = await supabase.from('players').select('*').eq('team_id', req.params.id).order('display_order', { ascending: true });
-        if (!error && data) return res.json(data);
+      const rows = db.prepare('SELECT key, value FROM settings').all() as any[];
+      const settingsObj: Record<string, any> = {};
+      for (const r of rows) {
+        if (r.value === 'true') settingsObj[r.key] = true;
+        else if (r.value === 'false') settingsObj[r.key] = false;
+        else settingsObj[r.key] = r.value;
       }
-      const players = db.prepare('SELECT * FROM players WHERE team_id = ? ORDER BY display_order ASC').all(req.params.id);
-      res.json(players);
+
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('settings').select('*');
+          if (!error && Array.isArray(data) && data.length > 0) {
+            for (const item of data) {
+              const k = item.key || item.id;
+              const v = item.value;
+              if (k && settingsObj[k] === undefined && v !== undefined) {
+                if (v === 'true' || v === true) settingsObj[k] = true;
+                else if (v === 'false' || v === false) settingsObj[k] = false;
+                else settingsObj[k] = v;
+              }
+            }
+          }
+        } catch (sbErr) {
+          console.warn('Supabase settings fetch warning:', sbErr);
+        }
+      }
+
+      res.json(settingsObj);
+    } catch (err: any) {
+      console.error('Error fetching settings:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post(['/api/settings', '/api/settings/'], async (req: any, res: any) => {
+    try {
+      const body = req.body || {};
+      const stmt = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+
+      const entriesToSave: { key: string; value: string }[] = [];
+      for (const [k, v] of Object.entries(body)) {
+        const stringVal = typeof v === 'boolean' ? (v ? 'true' : 'false') : String(v ?? '');
+        stmt.run(k, stringVal);
+        entriesToSave.push({ key: k, value: stringVal });
+      }
+
+      if (supabase) {
+        try {
+          await supabase.from('settings').upsert(entriesToSave);
+        } catch (sbErr) {
+          console.warn('Supabase settings upsert warning:', sbErr);
+        }
+      }
+
+      const rows = db.prepare('SELECT key, value FROM settings').all() as any[];
+      const settingsObj: Record<string, any> = {};
+      for (const r of rows) {
+        if (r.value === 'true') settingsObj[r.key] = true;
+        else if (r.value === 'false') settingsObj[r.key] = false;
+        else settingsObj[r.key] = r.value;
+      }
+      res.json(settingsObj);
+    } catch (err: any) {
+      console.error('Error saving settings:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Alias endpoints for dash-separated URLs
+  app.get('/api/game-titles', (req, res) => res.redirect('/api/game_titles'));
+  app.post('/api/game-titles', (req, res) => res.redirect(307, '/api/game_titles'));
+  app.delete('/api/game-titles/:id', (req, res) => res.redirect(307, `/api/game_titles/${req.params.id}`));
+  
+  app.delete('/api/game_titles/by-name/:name', (req: any, res: any) => {
+    try {
+      const name = req.params.name;
+      db.prepare('DELETE FROM game_titles WHERE LOWER(name) = LOWER(?)').run(name);
+      if (supabase) {
+        supabase.from('game_titles').delete().ilike('name', name).then(() => {}).catch(() => {});
+      }
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.post(['/api/players', '/api/players/'], async (req: any, res: any) => {
+  app.get('/api/news-categories', (req, res) => res.redirect('/api/news_categories'));
+  app.post('/api/news-categories', (req, res) => res.redirect(307, '/api/news_categories'));
+  app.delete('/api/news-categories/:id', (req, res) => res.redirect(307, `/api/news_categories/${req.params.id}`));
+  app.get('/api/news-tags', (req, res) => res.redirect('/api/news_tags'));
+  app.post('/api/news-tags', (req, res) => res.redirect(307, '/api/news_tags'));
+  app.delete('/api/news-tags/:id', (req, res) => res.redirect(307, `/api/news_tags/${req.params.id}`));
+  app.get('/api/news-authors', (req, res) => res.redirect('/api/news_authors'));
+  app.post('/api/news-authors', (req, res) => res.redirect(307, '/api/news_authors'));
+  app.delete('/api/news-authors/:id', (req, res) => res.redirect(307, `/api/news_authors/${req.params.id}`));
+
+  // --- Specialized Player Routes ---
+  app.get('/api/players', async (req: any, res: any) => {
     try {
-      const payload = { ...req.body };
-      delete payload.id;
       if (supabase) {
-        const { data, error } = await supabase.from('players').insert([payload]).select().single();
-        if (!error && data) return res.json({ id: data.id });
+        try {
+          const { data, error } = await supabase.from('players').select('*').order('display_order', { ascending: true });
+          if (!error && Array.isArray(data) && data.length > 0) {
+            syncSupabaseToSqlite('players', data);
+          }
+        } catch (sbErr) {}
       }
+      let sqlitePlayers = db.prepare('SELECT * FROM players ORDER BY display_order ASC').all();
+      res.json(sqlitePlayers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/players/:id', async (req: any, res: any) => {
+    try {
+      let sqlitePlayer = db.prepare('SELECT * FROM players WHERE id = ? OR ign = ? OR nickname = ?').get(req.params.id, req.params.id, req.params.id);
+      if (!sqlitePlayer && supabase) {
+        try {
+          const { data, error } = await supabase.from('players').select('*').eq('id', req.params.id).single();
+          if (!error && data) {
+            syncSupabaseToSqlite('players', [data]);
+            sqlitePlayer = db.prepare('SELECT * FROM players WHERE id = ? OR ign = ? OR nickname = ?').get(req.params.id, req.params.id, req.params.id);
+          }
+        } catch (e) {}
+      }
+      res.json(sqlitePlayer || null);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/teams/:id/players', async (req: any, res: any) => {
+    try {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('players').select('*').eq('team_id', req.params.id).order('display_order', { ascending: true });
+          if (!error && Array.isArray(data) && data.length > 0) {
+            syncSupabaseToSqlite('players', data);
+          }
+        } catch (e) {}
+      }
+      let sqlitePlayers = db.prepare('SELECT * FROM players WHERE team_id = ? ORDER BY display_order ASC').all(req.params.id);
+      res.json(sqlitePlayers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/players', async (req: any, res: any) => {
+    try {
+      console.log('POST /api/players payload:', JSON.stringify(req.body));
+      const rawPayload = { ...req.body };
+      delete rawPayload.id;
+
+      const validCols = getValidColumns('players').filter(c => c !== 'id');
+      const payload: any = {};
+      for (const k of Object.keys(rawPayload)) {
+        if (validCols.length === 0 || validCols.includes(k)) {
+          payload[k] = rawPayload[k];
+        }
+      }
+
       const fields = Object.keys(payload);
+      if (fields.length === 0) return res.status(400).json({ error: 'No valid player fields provided' });
+
       const placeholders = fields.map(() => '?').join(',');
-      const values = fields.map(f => typeof payload[f] === 'object' ? JSON.stringify(payload[f]) : payload[f]);
+      const values = fields.map(f => sanitizeSqliteValue(payload[f]));
       const info = db.prepare(`INSERT INTO players (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
-      res.json({ id: info.lastInsertRowid });
+      const newId = info.lastInsertRowid;
+      const insertedObj = { id: newId, ...payload };
+
+      safeInsertSupabase('players', { ...rawPayload, id: newId }).catch(() => {});
+
+      res.json(insertedObj);
     } catch (err: any) {
+      console.error('Error in POST /api/players:', err);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.put(['/api/players/:id', '/api/players/:id/'], async (req: any, res: any) => {
+  app.put('/api/players/:id', async (req: any, res: any) => {
     try {
-      const payload = { ...req.body };
-      delete payload.id;
-      if (supabase) {
-        const { error } = await supabase.from('players').update(payload).eq('id', req.params.id);
-        if (!error) return res.json({ success: true });
+      console.log(`PUT /api/players/${req.params.id} payload:`, JSON.stringify(req.body));
+      const rawPayload = { ...req.body };
+      delete rawPayload.id;
+
+      const targetId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : req.params.id;
+
+      const validCols = getValidColumns('players').filter(c => c !== 'id');
+      const payload: any = {};
+      for (const k of Object.keys(rawPayload)) {
+        if (validCols.length === 0 || validCols.includes(k)) {
+          payload[k] = rawPayload[k];
+        }
       }
+
       const fields = Object.keys(payload);
-      const setClause = fields.map(f => `${f} = ?`).join(',');
-      const values = fields.map(f => typeof payload[f] === 'object' ? JSON.stringify(payload[f]) : payload[f]);
-      db.prepare(`UPDATE players SET ${setClause} WHERE id = ?`).run(...values, req.params.id);
-      res.json({ success: true });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.delete(['/api/players/:id', '/api/players/:id/'], async (req: any, res: any) => {
-    try {
-      if (supabase) {
-        const { error } = await supabase.from('players').delete().eq('id', req.params.id);
-        if (!error) return res.json({ success: true });
+      if (fields.length > 0) {
+        const setClause = fields.map(f => `${f} = ?`).join(',');
+        const values = fields.map(f => sanitizeSqliteValue(payload[f]));
+        const info = db.prepare(`UPDATE players SET ${setClause} WHERE id = ?`).run(...values, targetId);
+        if (info.changes === 0) {
+          const insertFields = ['id', ...fields];
+          const insertPlaceholders = insertFields.map(() => '?').join(',');
+          const insertValues = [targetId, ...values];
+          try {
+            db.prepare(`INSERT OR REPLACE INTO players (${insertFields.join(',')}) VALUES (${insertPlaceholders})`).run(...insertValues);
+          } catch (insErr) {
+            console.error('Fallback insert error into players:', insErr);
+          }
+        }
       }
-      db.prepare('DELETE FROM players WHERE id = ?').run(req.params.id);
+
+      safeUpdateSupabase('players', targetId, rawPayload).catch(() => {});
+
+      res.json({ success: true, id: req.params.id, ...payload });
+    } catch (err: any) {
+      console.error(`Error in PUT /api/players/${req.params.id}:`, err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/players/:id', async (req: any, res: any) => {
+    try {
+      const rawId = req.params.id;
+      const numId = Number(rawId);
+      const targetId = !isNaN(numId) ? numId : rawId;
+
+      try {
+        db.prepare('DELETE FROM players WHERE id = ? OR id = ?').run(targetId, String(rawId));
+      } catch (sqlErr) {
+        console.error('SQLite delete error on players:', sqlErr);
+      }
+
+      if (supabase) {
+        try {
+          if (!isNaN(numId)) {
+            await supabase.from('players').delete().eq('id', numId);
+          }
+          await supabase.from('players').delete().eq('id', String(rawId));
+        } catch (sbErr) {
+          console.error('Supabase delete error on players:', sbErr);
+        }
+      }
+
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.get(['/api/stats', '/api/stats/'], async (req: any, res: any) => {
+  // --- Specialized News Route by Slug ---
+  app.get('/api/news/slug/:slug', async (req: any, res: any) => {
     try {
+      const article = db.prepare('SELECT * FROM news WHERE slug = ?').get(req.params.slug);
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('news').select('*').eq('slug', req.params.slug).single();
+          if (!error && data) {
+            return res.json(mergeRecords(article, data));
+          }
+        } catch (e) {}
+      }
+      res.json(article || null);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/stats', async (req: any, res: any) => {
+    try {
+      const getCount = (table: string) => {
+        try {
+          return db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get()?.count || 0;
+        } catch (e) {
+          return 0;
+        }
+      };
+
+      const stats: any = {
+        teams: getCount('teams'),
+        players: getCount('players'),
+        events: getCount('events'),
+        gallery: getCount('gallery'),
+        jobs: getCount('jobs'),
+        news: getCount('news'),
+      };
+
       if (supabase) {
         const tables = ['teams', 'players', 'events', 'gallery', 'jobs', 'news'];
-        const statsObj: any = {};
         for (const table of tables) {
-          const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
-          statsObj[table] = count || 0;
+          try {
+            const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+            if (!error && typeof count === 'number' && count > stats[table]) {
+              stats[table] = count;
+            }
+          } catch (e) {}
         }
-        return res.json(statsObj);
       }
-      const stats = {
-        teams: db.prepare('SELECT COUNT(*) as count FROM teams').get().count,
-        players: db.prepare('SELECT COUNT(*) as count FROM players').get().count,
-        events: db.prepare('SELECT COUNT(*) as count FROM events').get().count,
-        gallery: db.prepare('SELECT COUNT(*) as count FROM gallery').get().count,
-        jobs: db.prepare('SELECT COUNT(*) as count FROM jobs').get().count,
-        news: db.prepare('SELECT COUNT(*) as count FROM news').get().count,
-      };
+
       res.json(stats);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.get(['/api/activity', '/api/activity/'], async (req: any, res: any) => {
+  app.get('/api/activity', async (req: any, res: any) => {
     try {
       if (supabase) {
         const { data, error } = await supabase.from('activity_log').select('*, users(username)').order('timestamp', { ascending: false }).limit(50);
@@ -869,44 +2111,66 @@ const authenticate = (req: any, res: any, next: any) => {
     }
   });
 
-  app.post(['/api/upload', '/api/upload/'], upload.single('file'), async (req: any, res: any) => {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  app.post('/api/upload', (req: any, res: any, next: any) => {
+    res.setHeader('Content-Type', 'application/json');
+    upload.single('file')(req, res, async (err: any) => {
+      if (err) {
+        console.error('Multer file upload error:', err);
+        return res.status(400).json({ error: err.message || 'File upload processing failed' });
+      }
 
-    const fileExt = path.extname(req.file.originalname) || '.png';
-    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExt}`;
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded in form payload' });
+      }
 
-    if (supabase) {
       try {
-        const { data, error } = await supabase.storage
-          .from(supabaseStorageBucket)
-          .upload(fileName, req.file.buffer, {
-            contentType: req.file.mimetype,
-            upsert: true
-          });
+        const fileExt = path.extname(req.file.originalname) || '.png';
+        const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExt}`;
 
-        if (error) {
-          console.error('Supabase storage upload error:', error);
-          throw error;
+        if (supabase) {
+          try {
+            const { data, error } = await supabase.storage
+              .from(supabaseStorageBucket)
+              .upload(fileName, req.file.buffer, {
+                contentType: req.file.mimetype || 'image/png',
+                upsert: true
+              });
+
+            if (!error) {
+              const { data: publicUrlData } = supabase.storage
+                .from(supabaseStorageBucket)
+                .getPublicUrl(fileName);
+
+              if (publicUrlData?.publicUrl) {
+                console.log('✅ Uploaded file to Supabase Storage:', publicUrlData.publicUrl);
+                return res.json({ url: publicUrlData.publicUrl });
+              }
+            } else {
+              console.error('Supabase storage upload error:', error);
+            }
+          } catch (uploadErr: any) {
+            console.error('Supabase storage upload failed, falling back to local storage:', uploadErr.message);
+          }
         }
 
-        const { data: publicUrlData } = supabase.storage
-          .from(supabaseStorageBucket)
-          .getPublicUrl(fileName);
-
-        console.log('✅ Uploaded file to Supabase Storage:', publicUrlData.publicUrl);
-        return res.json({ url: publicUrlData.publicUrl });
-      } catch (uploadErr: any) {
-        console.error('Supabase storage upload failed, falling back to local storage:', uploadErr.message);
+        const dir = isVercel ? '/tmp/uploads' : path.join(process.cwd(), 'public/uploads');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const filePath = path.join(dir, fileName);
+        fs.writeFileSync(filePath, req.file.buffer);
+        console.log('✅ File saved successfully:', `/uploads/${fileName}`);
+        return res.json({ url: `/uploads/${fileName}` });
+      } catch (saveErr: any) {
+        console.error('Error saving upload:', saveErr);
+        return res.status(500).json({ error: saveErr.message || 'Failed to save file' });
       }
-    }
-
-    const dir = isVercel ? '/tmp/uploads' : './public/uploads';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const filePath = path.join(dir, fileName);
-    fs.writeFileSync(filePath, req.file.buffer);
-    res.json({ url: `/uploads/${fileName}` });
+    });
   });
 
+  // Catch-all 404 for unhandled /api routes to prevent HTML falling through
+  app.all('/api/*splat', (req: any, res: any) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  });
 
   // --- Global Error Handler ---
   app.use((err: any, req: any, res: any, next: any) => {

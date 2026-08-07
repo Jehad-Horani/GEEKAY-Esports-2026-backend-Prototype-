@@ -16,7 +16,8 @@ import {
   X,
   ChevronRight,
   Mail,
-  Newspaper
+  Newspaper,
+  Building2
 } from 'lucide-react';
 
 import { auth } from '../lib/firebase';
@@ -24,24 +25,92 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { GEEKAY_LOGO } from '../../constants';
 
 const AdminLayout = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => {
+    const saved = localStorage.getItem('geekay_user');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return {
+      username: 'OPERATIVE_ADMIN',
+      email: 'admin@geekay.com',
+      role: 'admin'
+    };
+  });
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // Security removed: Admin panel is now public
-    setUser({
-      username: 'GUEST_ADMIN',
-      email: 'guest@geekay.com',
-      role: 'admin'
-    });
-    setLoading(false);
-  }, []);
+    const checkSession = async () => {
+      try {
+        const token = localStorage.getItem('geekay_token');
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const res = await fetch('/api/auth/me', {
+          headers,
+          credentials: 'include'
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user) {
+            setUser(data.user);
+            localStorage.setItem('geekay_user', JSON.stringify(data.user));
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Fallback: check if we have a locally stored user
+        const savedUser = localStorage.getItem('geekay_user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed && (parsed.username || parsed.email)) {
+              setUser(parsed);
+              setLoading(false);
+              return;
+            }
+          } catch (e) {}
+        }
+
+        // Redirect to login if unauthenticated
+        localStorage.removeItem('geekay_token');
+        localStorage.removeItem('geekay_user');
+        navigate('/admin/login');
+      } catch (e) {
+        const savedUser = localStorage.getItem('geekay_user');
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed && (parsed.username || parsed.email)) {
+              setUser(parsed);
+              setLoading(false);
+              return;
+            }
+          } catch (err) {}
+        }
+        navigate('/admin/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkSession();
+  }, [navigate]);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      const token = localStorage.getItem('geekay_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await fetch('/api/auth/logout', { method: 'POST', headers, credentials: 'include' });
+    } catch (e) {}
+    localStorage.removeItem('geekay_user');
+    localStorage.removeItem('geekay_token');
     navigate('/admin/login');
   };
 
@@ -59,6 +128,7 @@ const AdminLayout = () => {
     { name: 'Schedule', path: '/admin/schedule', icon: <Calendar size={20} /> },
     { name: 'Gallery', path: '/admin/gallery', icon: <ImageIcon size={20} /> },
     { name: 'Jobs', path: '/admin/jobs', icon: <Briefcase size={20} /> },
+    { name: 'Partners', path: '/admin/partners', icon: <Building2 size={20} /> },
     { name: 'News', path: '/admin/news', icon: <Newspaper size={20} /> },
     { name: 'Subscribers', path: '/admin/subscribers', icon: <Mail size={20} /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
@@ -102,10 +172,23 @@ const AdminLayout = () => {
             })}
           </nav>
 
-          <div className="p-4 border-t border-white/5">
-            <div className="flex items-center gap-4 px-4 py-3">
+          <div className="p-4 border-t border-white/5 space-y-3">
+            {isSidebarOpen && (
+              <div 
+                className="w-full py-2.5 px-3 bg-white/5 border border-white/10 rounded flex items-center justify-between text-left"
+              >
+                <div>
+                  <span className="block text-[8px] font-syncopate text-slate-400 font-bold tracking-widest uppercase">ACTIVE ROLE</span>
+                  <span className={`font-syncopate text-[10px] font-bold uppercase tracking-wider ${user.role === 'admin' ? 'text-[#FFC400]' : 'text-blue-400'}`}>
+                    {user.role === 'admin' ? '👑 ADMIN' : '✏️ EDITOR'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 px-4 py-2">
               <div className="w-8 h-8 rounded-full bg-[#FFC400]/20 flex items-center justify-center text-[#FFC400] font-bold">
-                {user.username[0].toUpperCase()}
+                {user.username ? user.username[0].toUpperCase() : 'U'}
               </div>
               {isSidebarOpen && (
                 <div className="flex-grow overflow-hidden">

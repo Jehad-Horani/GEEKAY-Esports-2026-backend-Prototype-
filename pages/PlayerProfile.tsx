@@ -18,7 +18,8 @@ import {
   ArrowRight,
   User,
   ExternalLink,
-  Briefcase
+  Briefcase,
+  Medal
 } from 'lucide-react';
 
 import { MOCK_TEAMS } from '../constants';
@@ -29,22 +30,46 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta, { generatePlayerRatingSchema, generateSportsTeamSchema } from '../components/SEOMeta';
 
 // Deterministic player rating generator based on stats and nickname
+import { safeJsonParse } from '../src/utils/json';
+
 const getPlayerRatings = (player: Player) => {
-  const hash = player.nickname.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const tournamentPerformance = parseFloat((4.4 + (hash % 7) * 0.1).toFixed(1));
-  const consistency = parseFloat((4.3 + ((hash + 2) % 8) * 0.1).toFixed(1));
-  const communityRating = parseFloat((4.5 + ((hash + 5) % 6) * 0.1).toFixed(1));
+  const tournamentPerformance = parseFloat((Number(player.rating_performance) || 4.4).toFixed(1));
+  const consistency = parseFloat((Number(player.rating_consistency) || 4.6).toFixed(1));
+  const communityRating = parseFloat((Number(player.rating_community) || 4.7).toFixed(1));
+  
+  // Calculate overall rating automatically as the exact average of the 3 sub-ratings
   const overall = parseFloat(((tournamentPerformance + consistency + communityRating) / 3).toFixed(1));
+  
+  const matchesCount = (player.stats as any)?.totalMatches || player.stats?.matches || player.stats?.tournaments || 12;
+  const reviewCount = Math.max(15, matchesCount * 5 + 29);
+
   return {
     tournamentPerformance,
     consistency,
     communityRating,
     overall,
-    reviewCount: (hash % 80) + 40
+    reviewCount
   };
 };
 
 // Nationalities mapping helper with flags and clean names
+const normalizeSocials = (rawSocials: any): Record<string, string> => {
+  const parsed = safeJsonParse(rawSocials, rawSocials || {});
+  if (Array.isArray(parsed)) {
+    const res: Record<string, string> = {};
+    parsed.forEach((item: any) => {
+      if (item && item.platform) {
+        res[item.platform] = item.handle || item.url || '#';
+      }
+    });
+    return res;
+  }
+  if (parsed && typeof parsed === 'object') {
+    return parsed;
+  }
+  return {};
+};
+
 const getNationalityDetails = (nationality?: string) => {
   const nat = (nationality || 'Saudi Arabia').trim().toLowerCase();
   if (nat.includes('saudi') || nat.includes('ksa') || nat === 'sa') return { flag: '🇸🇦', name: 'Saudi Arabia' };
@@ -92,18 +117,93 @@ export default function PlayerProfile() {
   const { playerName } = useParams<{ playerName: string }>();
   const navigate = useNavigate();
 
+  const [dbTeams, setDbTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/teams')
+      .then(res => res.ok ? res.json() : [])
+      .then(async (data) => {
+        if (isMounted && Array.isArray(data)) {
+          const loadedTeams: Team[] = await Promise.all(
+            data.map(async (t: any) => {
+              let playersData: any[] = [];
+              try {
+                const pRes = await fetch(`/api/teams/${t.id}/players`);
+                if (pRes.ok) playersData = await pRes.json();
+              } catch (e) {}
+
+              const mappedPlayers: Player[] = playersData.map((p: any) => ({
+                id: String(p.id),
+                nickname: p.ign || p.nickname || 'PLAYER',
+                role: p.role || 'ROSTER',
+                name: p.name || '',
+                photo: p.photo || 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&q=80&w=500&h=600',
+                bio: p.bio || '',
+                age: p.age || '20',
+                nationality: p.nationality || 'Saudi Arabia',
+                joined_date: p.joined_date || p.joinedDate || '',
+                socials: normalizeSocials(p.socials),
+                achievements: safeJsonParse(p.achievements, []),
+                media: safeJsonParse(p.media, []),
+                rating_performance: p.rating_performance ?? p.ratingPerformance,
+                rating_consistency: p.rating_consistency ?? p.ratingConsistency,
+                rating_community: p.rating_community ?? p.ratingCommunity,
+                rating_overall: p.rating_overall ?? p.ratingOverall ?? p.rating,
+                championship_wins: p.championship_wins ?? p.championshipWins,
+                major_titles: p.major_titles ?? p.majorTitles,
+                int_placements: p.int_placements ?? p.intPlacements,
+                trophy_count: p.trophy_count ?? p.trophyCount,
+                stats: {
+                  kd: p.kd !== undefined && p.kd !== null ? Number(p.kd) : (p.stats?.kd ?? 1.2),
+                  mvps: p.mvps !== undefined && p.mvps !== null ? Number(p.mvps) : (p.stats?.mvps ?? 0),
+                  tournaments: p.tournaments !== undefined && p.tournaments !== null ? Number(p.tournaments) : (p.stats?.tournaments ?? 0),
+                  matches: p.matches ?? p.total_matches ?? p.tournaments ?? (p.stats?.matches ?? 0),
+                  winRate: p.win_rate || p.winRate || p.stats?.winRate || '70%'
+                }
+              }));
+
+              return {
+                id: String(t.id),
+                name: t.name,
+                game: t.game,
+                region: t.region || 'MENA',
+                league: t.league || '',
+                banner: t.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+                logo: t.logo || '',
+                bio: t.bio || '',
+                tagline: t.tagline || '',
+                players: mappedPlayers,
+                achievements: safeJsonParse(t.achievements, []),
+                winRate: t.win_rate || t.winRate || '75%',
+                globalRank: t.global_rank || t.globalRank || '#1 GLOBAL',
+                championships: t.championships || 3
+              };
+            })
+          );
+          setDbTeams(loadedTeams);
+        }
+      })
+      .catch(err => console.error('Failed to fetch teams for player profile:', err))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
   // Flatten and cache all players for global navigation & lookups
   const allPlayersWithTeams = useMemo(() => {
     const list: { player: Player; team: Team }[] = [];
-    MOCK_TEAMS.forEach(team => {
-      team.players.forEach(p => {
+    dbTeams.forEach(team => {
+      (team.players || []).forEach(p => {
         if (!list.some(item => item.player.id === p.id)) {
           list.push({ player: p, team });
         }
       });
     });
     return list;
-  }, []);
+  }, [dbTeams]);
 
   // Find the current player by slug matching nickname
   const currentData = useMemo(() => {
@@ -135,7 +235,38 @@ export default function PlayerProfile() {
     setImgError(false);
   }, [playerName]);
 
-  if (!currentData) {
+  const player = currentData?.player;
+  const team = currentData?.team;
+
+  const ratings = useMemo(() => {
+    if (!player) return { overall: 4.5, reviewCount: 50, tournamentPerformance: 4.5, consistency: 4.5, communityRating: 4.5 };
+    return getPlayerRatings(player);
+  }, [player]);
+
+  const seoSchemas = useMemo(() => {
+    if (!player || !team) return [];
+    const pRatingSchema = generatePlayerRatingSchema(player.nickname, ratings.overall, ratings.reviewCount, team.name);
+    const teamPlayers = (team.players || []).map(p => ({
+      nickname: p.nickname,
+      role: p.role,
+      url: `https://geekayesports.com/players/${p.nickname.toLowerCase()}`
+    }));
+    const pTeamSchema = generateSportsTeamSchema(team.name, teamPlayers, team.region, team.logo, team.achievements);
+    return [pRatingSchema, pTeamSchema];
+  }, [player, team, ratings]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#081B3A] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#FFC400]/20 border-t-[#FFC400] rounded-full animate-spin mb-4" />
+        <span className="font-syncopate text-[#FFC400] text-xs font-bold tracking-widest uppercase animate-pulse">
+          LOADING PLAYER PROFILE...
+        </span>
+      </div>
+    );
+  }
+
+  if (!currentData || !player || !team) {
     return (
       <div className="bg-[#081B3A] min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <motion.div
@@ -151,7 +282,6 @@ export default function PlayerProfile() {
     );
   }
 
-  const { player, team } = currentData;
   const natDetails = getNationalityDetails(player.nationality);
   const joinDate = getJoinDate(player.id);
 
@@ -164,16 +294,22 @@ export default function PlayerProfile() {
   const nextPlayer = team.players[rosterIndex === team.players.length - 1 ? 0 : rosterIndex + 1];
 
   // Map achievements to dynamic chronological timeline results
-  const timelineResults = player.achievements && player.achievements.length > 0 
-    ? player.achievements.map((ach) => {
-        // Parse placement (e.g. "1st", "2nd", etc.) from text or title
-        const match = ach.title.match(/\((\d+(?:st|nd|rd|th))\)/i);
-        const placement = match ? match[1] : 'Qualified';
-        const cleanTitle = ach.title.replace(/\s*\(\d+(?:st|nd|rd|th)\)\s*$/i, '');
+  const timelineResults = player.achievements && Array.isArray(player.achievements) && player.achievements.length > 0 
+    ? player.achievements.map((ach: any) => {
+        if (typeof ach === 'string') {
+          const match = ach.match(/\((\d+(?:st|nd|rd|th))\)/i);
+          const placement = match ? match[1] : 'Qualified';
+          const cleanTitle = ach.replace(/\s*\(\d+(?:st|nd|rd|th)\)\s*$/i, '');
+          return { placement, tournamentName: cleanTitle, year: '2025' };
+        }
+        const rawTitle = ach?.title || ach?.tournament || ach?.name || '';
+        const match = rawTitle ? String(rawTitle).match(/\((\d+(?:st|nd|rd|th))\)/i) : null;
+        const placement = ach?.placement || (match ? match[1] : 'Qualified');
+        const cleanTitle = rawTitle ? String(rawTitle).replace(/\s*\(\d+(?:st|nd|rd|th)\)\s*$/i, '') : 'Tournament Achievement';
         return {
           placement,
           tournamentName: cleanTitle,
-          year: ach.year
+          year: ach?.year || ach?.date || '2025'
         };
       })
     : [
@@ -183,20 +319,7 @@ export default function PlayerProfile() {
       ];
 
   // Matches played procedural calculation
-  const calculatedMatches = player.stats.tournaments ? player.stats.tournaments * 8 + 32 : 124;
-
-  const ratings = useMemo(() => getPlayerRatings(player), [player]);
-
-  const seoSchemas = useMemo(() => {
-    const pRatingSchema = generatePlayerRatingSchema(player.nickname, ratings.overall, ratings.reviewCount, team.name);
-    const teamPlayers = team.players.map(p => ({
-      nickname: p.nickname,
-      role: p.role,
-      url: `https://geekayesports.com/players/${p.nickname.toLowerCase()}`
-    }));
-    const pTeamSchema = generateSportsTeamSchema(team.name, teamPlayers, team.region, team.logo, team.achievements);
-    return [pRatingSchema, pTeamSchema];
-  }, [player, team, ratings]);
+  const calculatedMatches = player.stats?.tournaments ? player.stats.tournaments * 8 + 32 : 124;
 
   return (
     <div className="bg-[#081B3A] min-h-screen selection:bg-[#FFC400] selection:text-black pt-32 pb-40">
@@ -296,12 +419,13 @@ export default function PlayerProfile() {
             <div className="border-t border-slate-800/80 pt-8 mt-4">
               <p className="text-slate-500 font-syncopate text-[9px] tracking-[0.3em] uppercase mb-4">CONNECT WITH OPERATIVE</p>
               <div className="flex flex-wrap gap-5">
-                {Object.entries(player.socials).map(([platform, value]) => {
+                {Object.entries(normalizeSocials(player.socials)).map(([platform, value]) => {
                   if (!value || value === '#') return null;
+                  const href = typeof value === 'string' && value.startsWith('http') ? value : `https://${platform}.com`;
                   return (
                     <a 
                       key={platform}
-                      href={`https://${platform}.com`}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-2 bg-slate-900/60 hover:bg-[#FFC400]/10 border border-slate-800 hover:border-[#FFC400]/40 transition-all group"
@@ -315,7 +439,7 @@ export default function PlayerProfile() {
                         {platform}
                       </span>
                       <span className="font-mono text-[9px] text-slate-600 group-hover:text-[#FFC400]">
-                        {value}
+                        {typeof value === 'string' ? value : ''}
                       </span>
                     </a>
                   );
@@ -372,7 +496,7 @@ export default function PlayerProfile() {
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">JOINED GEEKAY</span>
-                    <span className="font-syncopate text-[11px] font-bold text-white uppercase">{joinDate}</span>
+                    <span className="font-syncopate text-[11px] font-bold text-white uppercase">{player.joined_date || joinDate}</span>
                   </div>
                 </div>
 
@@ -479,7 +603,9 @@ export default function PlayerProfile() {
                   <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">MATCHES</span>
                   <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-white block">{calculatedMatches}</span>
+                    <span className="font-syncopate text-4xl md:text-5xl font-black text-white block">
+                      {player.stats?.matches || player.stats?.tournaments || calculatedMatches}
+                    </span>
                   </div>
                   <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
                     <TrendingUp size={10} /> Active Season
@@ -491,7 +617,9 @@ export default function PlayerProfile() {
                   <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">WIN RATE</span>
                   <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-[#FFC400] block">{player.stats.winRate || '68%'}</span>
+                    <span className="font-syncopate text-4xl md:text-5xl font-black text-[#FFC400] block">
+                      {player.stats?.winRate || '68%'}
+                    </span>
                   </div>
                   <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
                     <Shield size={10} /> High Standard
@@ -502,11 +630,11 @@ export default function PlayerProfile() {
                 <div className="bg-[#05142B] border border-slate-800 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300 overflow-hidden">
                   <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">
-                    {player.stats.kd > 0 ? 'K/D RATIO' : 'EFFICIENCY'}
+                    K/D RATIO
                   </span>
                   <div className="my-6">
                     <span className="font-syncopate text-4xl md:text-5xl font-black text-white block">
-                      {player.stats.kd > 0 ? player.stats.kd : '96.4%'}
+                      {player.stats?.kd !== undefined && player.stats?.kd !== null ? player.stats.kd : 1.2}
                     </span>
                   </div>
                   <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
@@ -519,7 +647,9 @@ export default function PlayerProfile() {
                   <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">MVPS</span>
                   <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-[#FFC400] block">{player.stats.mvps || '12'}</span>
+                    <span className="font-syncopate text-4xl md:text-5xl font-black text-[#FFC400] block">
+                      {player.stats?.mvps !== undefined && player.stats?.mvps !== null ? player.stats.mvps : 0}
+                    </span>
                   </div>
                   <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
                     <Flame size={10} /> MVP Level
@@ -550,7 +680,9 @@ export default function PlayerProfile() {
                         <h4 className="font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors uppercase tracking-widest">
                           {res.tournamentName}
                         </h4>
-                        <span className="text-slate-500 font-inter text-xs font-light">{res.placement} Finish</span>
+                        <span className="text-slate-500 font-inter text-xs font-light">
+                          {res.placement.toLowerCase().includes('finish') || res.placement.toLowerCase().includes('place') || res.placement.toLowerCase().includes('award') ? res.placement : `${res.placement} Finish`}
+                        </span>
                       </div>
                       <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right">{res.year}</span>
                     </div>
@@ -564,11 +696,48 @@ export default function PlayerProfile() {
                 ==================================================== */}
             <section className="scroll-mt-32">
               <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                <span className="text-[#FFC400] font-mono">//</span> ACHIEVEMENTS
+                <span className="text-[#FFC400] font-mono">//</span> ACHIEVEMENTS & ACCOLADES
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {TROPHY_PRESETS.map((trophy, i) => (
+                {[
+                  { 
+                    title: 'Championship Wins', 
+                    desc: 'S-Tier international gold medals', 
+                    icon: <TrophyIcon className="text-[#FFC400]" size={36} />, 
+                    count: (player.championship_wins !== undefined && player.championship_wins !== null && String(player.championship_wins).trim() !== '')
+                      ? player.championship_wins
+                      : (player.achievements && player.achievements.length > 0 
+                          ? player.achievements.filter((a: any) => String(a.placement || a.tournament || a.title || '').match(/1st|gold|winner|champion|mvp/i)).length || 1
+                          : (player.stats?.mvps || 5))
+                  },
+                  { 
+                    title: 'Major Titles', 
+                    desc: 'Regional division final trophies', 
+                    icon: <Award className="text-yellow-400" size={36} />, 
+                    count: (player.major_titles !== undefined && player.major_titles !== null && String(player.major_titles).trim() !== '')
+                      ? player.major_titles
+                      : (player.stats?.mvps !== undefined ? player.stats.mvps : (player.achievements?.length || 5))
+                  },
+                  { 
+                    title: 'Int. Placements', 
+                    desc: 'Global stage top 3 finishes', 
+                    icon: <Medal className="text-yellow-500" size={36} />, 
+                    count: (player.int_placements !== undefined && player.int_placements !== null && String(player.int_placements).trim() !== '')
+                      ? player.int_placements
+                      : (player.achievements && player.achievements.length > 0 ? player.achievements.length : 12)
+                  },
+                  { 
+                    title: 'Trophy Count', 
+                    desc: 'Total registered organization cups', 
+                    icon: <Shield className="text-yellow-300" size={36} />, 
+                    count: (player.trophy_count !== undefined && player.trophy_count !== null && String(player.trophy_count).trim() !== '')
+                      ? player.trophy_count
+                      : (player.achievements && player.achievements.length > 0 
+                          ? player.achievements.length 
+                          : (player.stats?.tournaments || 12))
+                  }
+                ].map((trophy, i) => (
                   <div key={i} className="flex gap-6 items-center p-6 bg-[#040E1E]/40 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-300 relative group">
                     <div className="absolute top-0 right-0 w-16 h-16 bg-[#FFC400]/5 skew-x-[-45deg] translate-x-8 -translate-y-8" />
                     
@@ -593,7 +762,7 @@ export default function PlayerProfile() {
             </section>
 
             {/* ====================================================
-                PLAYER GALLERY
+                PLAYER GALLERY & MEDIA
                 ==================================================== */}
             <section className="scroll-mt-32">
               <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
@@ -601,19 +770,78 @@ export default function PlayerProfile() {
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {GALLERY_PHOTOS.map((photo, i) => (
-                  <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
-                    <img 
-                      src={photo} 
-                      alt={`${player.nickname} Match Gallery Photo ${i + 1}`} 
-                      className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                      LIVE ARENA // PIC_{i + 1}
+                {(player.media && Array.isArray(player.media) && player.media.length > 0) ? (
+                  player.media.map((item: any, i: number) => {
+                    const fallback = GALLERY_PHOTOS[i % GALLERY_PHOTOS.length];
+                    const isVideo = item.type === 'video' || (item.url && (item.url.includes('youtube.com') || item.url.includes('youtu.be') || item.url.includes('twitch.tv') || item.url.endsWith('.mp4')));
+                    
+                    if (isVideo) {
+                      return (
+                        <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                          {item.url && (item.url.includes('youtube.com') || item.url.includes('youtu.be')) ? (
+                            <iframe 
+                              src={item.url.replace('watch?v=', 'embed/')} 
+                              title={item.title || `Media Video ${i + 1}`}
+                              className="w-full h-full border-0"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <a href={item.url || '#'} target="_blank" rel="noopener noreferrer" className="block w-full h-full relative">
+                              <img 
+                                src={fallback} 
+                                alt={item.title || `Player Media ${i + 1}`} 
+                                className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                              />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-[#FFC400] text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                  ▶
+                                </div>
+                              </div>
+                            </a>
+                          )}
+                          <div className="absolute bottom-2 left-2 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase bg-black/80 px-2 py-1">
+                            VIDEO // {item.title || `CLIP_${i + 1}`}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                        <img 
+                          src={item.url || fallback} 
+                          alt={item.title || `${player.nickname} Gallery Photo ${i + 1}`} 
+                          onError={(e) => {
+                            // Fallback gracefully on broken image URL
+                            (e.target as HTMLImageElement).src = fallback;
+                          }}
+                          className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
+                          {item.title || `GALLERY // PIC_${i + 1}`}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  GALLERY_PHOTOS.map((photo, i) => (
+                    <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                      <img 
+                        src={photo} 
+                        alt={`${player.nickname} Match Gallery Photo ${i + 1}`} 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500';
+                        }}
+                        className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
+                        LIVE ARENA // PIC_{i + 1}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
           </div>

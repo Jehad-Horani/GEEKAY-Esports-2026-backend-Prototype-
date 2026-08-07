@@ -3,12 +3,17 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, Filter, Search, Share2, Download, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
+import ImageUploader from '../components/ImageUploader';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { ToastNotification } from './components/Toast';
 
 const AdminGallery = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState('ALL');
 
   // Google Drive Import State
@@ -63,6 +68,7 @@ const AdminGallery = () => {
       }
       
       setEditingItem(null);
+      setToastMsg('تم حفظ وتحديث عنصر المعرض بنجاح! / Gallery item saved successfully!');
       fetchItems();
     } catch (err: any) {
       console.error('Save gallery error:', err);
@@ -77,10 +83,17 @@ const AdminGallery = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this gallery item?')) return;
-    await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
-    fetchItems();
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      setItems(prev => prev.filter(item => String(item.id) !== String(id)));
+      await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
+      fetchItems();
+    } catch (err: any) {
+      fetchItems();
+    }
   };
 
   const handleDriveImport = async () => {
@@ -187,7 +200,7 @@ const AdminGallery = () => {
               
               <div className="flex items-center gap-2 mt-4">
                 <button onClick={() => setEditingItem(item)} className="p-3 bg-white/10 text-white hover:bg-[#FFC400] hover:text-black transition-all"><Edit2 size={16} /></button>
-                <button onClick={() => handleDelete(item.id)} className="p-3 bg-white/10 text-white hover:bg-red-500 transition-all"><Trash2 size={16} /></button>
+                <button onClick={() => setDeleteTarget({ id: item.id, name: item.title || item.category })} className="p-3 bg-white/10 text-white hover:bg-red-500 transition-all"><Trash2 size={16} /></button>
               </div>
             </div>
 
@@ -279,16 +292,12 @@ const AdminGallery = () => {
             </div>
             
             <form onSubmit={handleSave} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Image URL</label>
-                <input 
-                  type="text" 
-                  value={editingItem.url}
-                  onChange={e => setEditingItem({...editingItem, url: e.target.value})}
-                  className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                  required
-                />
-              </div>
+              <ImageUploader 
+                label="Gallery Photo File" 
+                value={editingItem.url || ''} 
+                onChange={(url) => setEditingItem({ ...editingItem, url })}
+                aspectRatio="square"
+              />
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -347,6 +356,17 @@ const AdminGallery = () => {
           </motion.div>
         </div>
       )}
+
+      <ToastNotification message={toastMsg} onClose={() => setToastMsg(null)} />
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
+        title="DELETE_GALLERY_ITEM"
+        itemName={deleteTarget?.name}
+        description="Are you sure you want to delete this media item from the gallery? This action cannot be undone."
+      />
     </div>
   );
 };

@@ -1,20 +1,67 @@
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Briefcase, ChevronLeft, Mail, CheckCircle2, ArrowRight } from 'lucide-react';
 import { MOCK_JOBS } from '../constants';
+import { Job } from '../types';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
 
+import { safeJsonParse } from '../src/utils/json';
+
 const JobDetail = () => {
   const { slug } = useParams<{ slug: string }>();
-  const job = MOCK_JOBS.find(j => j.slug === slug);
+  const [dbJobs, setDbJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/jobs')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (isMounted && Array.isArray(data)) {
+          const mapped: Job[] = data.map((j: any) => ({
+            id: String(j.id),
+            slug: j.slug || String(j.id),
+            title: j.title,
+            department: j.department || 'OPERATIONS',
+            location: j.location || 'RIYADH, SAUDI ARABIA',
+            type: j.work_type || j.type || 'FULL-TIME',
+            summary: j.summary || '',
+            responsibilities: safeJsonParse(j.responsibilities, []),
+            requirements: safeJsonParse(j.requirements, []),
+            niceToHave: safeJsonParse(j.nice_to_have || j.niceToHave, []),
+            benefits: safeJsonParse(j.benefits, []),
+            email: j.email || j.application_email || ''
+          }));
+          setDbJobs(mapped);
+        }
+      })
+      .catch(err => console.error('Failed to fetch jobs in JobDetail:', err))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#081B3A] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#FFC400]/20 border-t-[#FFC400] rounded-full animate-spin mb-4" />
+        <span className="font-syncopate text-[#FFC400] text-xs font-bold tracking-widest uppercase animate-pulse">
+          LOADING JOB DETAILS...
+        </span>
+      </div>
+    );
+  }
+
+  const job = dbJobs.find(j => j.slug === slug || j.id === slug);
 
   if (!job) {
     return (
@@ -29,8 +76,9 @@ const JobDetail = () => {
     );
   }
 
+  const targetEmail = job.email || 'careers@geekay.com';
   const mailtoSubject = `Application – ${job.title}`;
-  const mailtoLink = `mailto:inquiries@geekay.com?subject=${encodeURIComponent(mailtoSubject)}`;
+  const mailtoLink = `mailto:${targetEmail}?subject=${encodeURIComponent(mailtoSubject)}`;
 
   return (
     <div className="bg-[#081B3A] min-h-screen selection:bg-[#FFC400] selection:text-black pt-32 pb-60">
@@ -98,7 +146,7 @@ const JobDetail = () => {
                     RESPONSIBILITIES
                   </h2>
                   <ul className="space-y-6">
-                    {job.responsibilities.map((item, i) => (
+                    {job.responsibilities.map((item: string, i: number) => (
                       <li key={i} className="flex gap-6 group">
                         <div className="mt-1.5 w-1.5 h-1.5 bg-[#FFC400] shrink-0 group-hover:scale-150 transition-transform" />
                         <p className="text-slate-400 font-inter text-lg leading-relaxed group-hover:text-white transition-colors">{item}</p>
@@ -113,7 +161,7 @@ const JobDetail = () => {
                     REQUIREMENTS
                   </h2>
                   <ul className="space-y-6">
-                    {job.requirements.map((item, i) => (
+                    {job.requirements.map((item: string, i: number) => (
                       <li key={i} className="flex gap-6 group">
                         <div className="mt-1.5 w-1.5 h-1.5 bg-[#FFC400] shrink-0 group-hover:scale-150 transition-transform" />
                         <p className="text-slate-400 font-inter text-lg leading-relaxed group-hover:text-white transition-colors">{item}</p>
@@ -129,7 +177,7 @@ const JobDetail = () => {
                       NICE TO HAVE
                     </h2>
                     <ul className="space-y-6">
-                      {job.niceToHave.map((item, i) => (
+                      {job.niceToHave.map((item: string, i: number) => (
                         <li key={i} className="flex gap-6 group">
                           <div className="mt-1.5 w-1.5 h-1.5 bg-slate-700 shrink-0 group-hover:bg-[#FFC400] transition-colors" />
                           <p className="text-slate-500 font-inter text-lg leading-relaxed group-hover:text-slate-300 transition-colors">{item}</p>
@@ -145,20 +193,12 @@ const JobDetail = () => {
                     BENEFITS
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {job.benefits.map((item, i) => (
+                    {job.benefits.map((item: string, i: number) => (
                       <div key={i} className="p-6 bg-[#0A254D]/20 border border-slate-800/50 flex items-center gap-4 group hover:border-[#FFC400]/30 transition-all">
                         <CheckCircle2 size={20} className="text-[#FFC400] opacity-40 group-hover:opacity-100 transition-opacity" />
                         <span className="text-slate-300 font-syncopate text-[10px] font-bold tracking-[0.2em] uppercase">{item}</span>
                       </div>
                     ))}
-                    <div className="p-6 bg-[#0A254D]/20 border border-slate-800/50 flex items-center gap-4 group hover:border-[#FFC400]/30 transition-all">
-                      <CheckCircle2 size={20} className="text-[#FFC400] opacity-40 group-hover:opacity-100 transition-opacity" />
-                      <span className="text-slate-300 font-syncopate text-[10px] font-bold tracking-[0.2em] uppercase">Exposure to esports industry</span>
-                    </div>
-                    <div className="p-6 bg-[#0A254D]/20 border border-slate-800/50 flex items-center gap-4 group hover:border-[#FFC400]/30 transition-all">
-                      <CheckCircle2 size={20} className="text-[#FFC400] opacity-40 group-hover:opacity-100 transition-opacity" />
-                      <span className="text-slate-300 font-syncopate text-[10px] font-bold tracking-[0.2em] uppercase">High-performance team culture</span>
-                    </div>
                   </div>
                 </section>
               </div>
@@ -180,9 +220,14 @@ const JobDetail = () => {
                   APPLY NOW
                 </h3>
                 
-                <p className="text-slate-400 font-inter text-sm leading-relaxed mb-10">
+                <p className="text-slate-400 font-inter text-sm leading-relaxed mb-6">
                   Ready to join the elite? Send your CV and portfolio to our recruitment team.
                 </p>
+
+                <div className="p-4 bg-[#040E1E] border border-slate-800/80 mb-8 flex items-center gap-3">
+                  <Mail size={16} className="text-[#FFC400] shrink-0" />
+                  <span className="text-xs text-white font-mono lowercase tracking-wide select-all">{targetEmail}</span>
+                </div>
 
                 <a href={mailtoLink} className="block w-full mb-8">
                   <ArenaButton 

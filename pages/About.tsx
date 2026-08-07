@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { Play, ArrowRight, Activity, ChevronRight, ChevronLeft, Zap, Target, Shield, Cpu, X, Mail, Globe, Trophy, MapPin, Award } from 'lucide-react';
+import { Play, ArrowRight, Activity, ChevronRight, ChevronLeft, Zap, Target, Shield, Cpu, X, Mail, Globe, Trophy, MapPin, Award, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -13,10 +13,11 @@ const Counter = ({ value, duration = 2 }: { value: string; duration?: number }) 
   const ref = React.useRef(null);
   const isInView = useInView(ref, { once: true });
   
-  const match = value.match(/(\d+)/);
+  const strValue = String(value || '');
+  const match = strValue.match(/(\d+)/);
   const numericValue = match ? parseInt(match[0]) : 0;
-  const prefix = value.split(/\d+/)[0] || '';
-  const suffix = value.split(/\d+/)[1] || '';
+  const prefix = strValue.split(/\d+/)[0] || '';
+  const suffix = strValue.split(/\d+/)[1] || '';
 
   useEffect(() => {
     if (isInView && numericValue > 0) {
@@ -96,7 +97,7 @@ const HUDStatCard = ({ label, value, index, isPriority = false }: { label: strin
 );
 
 const About = () => {
-  const leadershipData = [
+  const DEFAULT_LEADERSHIP = [
     { 
       name: "KISHAN", 
       role: "CEO , FOUNDER", 
@@ -154,6 +155,56 @@ const About = () => {
       linkedin: "#"
     }
   ];
+
+  const [leadershipData, setLeadershipData] = useState<any[]>(DEFAULT_LEADERSHIP);
+
+  const DEFAULT_PARTNERS = [
+    { name: "GEEKAY RETAIL", desc: "Leading MENA Gaming Distributor", category: "PARENT COMPANY", url: "https://geekay.com", image: "" },
+    { name: "PREDATOR GAMING", desc: "Official High-Performance PC Partner", category: "ENDEMIC SPONSOR", url: "", image: "" },
+    { name: "INTEL CORE", desc: "Elite Hardware & Processor Supplier", category: "TECHNICAL SPONSOR", url: "", image: "" },
+    { name: "RAZER GEAR", desc: "Professional Grade Peripherals", category: "PERIPHERAL SPONSOR", url: "", image: "" }
+  ];
+
+  const [partnersData, setPartnersData] = useState<any[]>(DEFAULT_PARTNERS);
+
+  useEffect(() => {
+    fetch('/api/leadership')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map((item: any) => ({
+            name: item.name,
+            role: item.role,
+            photo: item.image || item.photo || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=500&h=600",
+            desc: item.description || item.desc || "",
+            linkedin: item.linkedin || "",
+            x: item.x || item.twitter || "",
+            instagram: item.instagram || ""
+          }));
+          setLeadershipData(mapped);
+        }
+      })
+      .catch(err => console.error('Failed to fetch leadership data:', err));
+
+    fetch('/api/partners')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const active = data.filter((p: any) => p.published === 1 || p.published === true || p.published === undefined);
+          if (active.length > 0) {
+            const mapped = active.map((item: any) => ({
+              name: item.name,
+              category: item.category,
+              desc: item.description || item.desc || "",
+              url: item.url || "",
+              image: item.image || ""
+            }));
+            setPartnersData(mapped);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to fetch partners data:', err));
+  }, []);
 
   return (
     <div className="bg-[#081B3A] overflow-x-hidden selection:bg-[#FFC400] selection:text-black pt-32">
@@ -293,17 +344,46 @@ const About = () => {
                         {leader.desc}
                       </p>
                       
-                      {leader.linkedin && (
-                        <a 
-                          href={leader.linkedin} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"
-                        >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                          LINKEDIN
-                        </a>
-                      )}
+                      <div className="flex flex-wrap items-center gap-3">
+                        {leader.linkedin && leader.linkedin !== '#' && (
+                          <a 
+                            href={leader.linkedin.startsWith('http') ? leader.linkedin : `https://${leader.linkedin}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"
+                            title="LinkedIn"
+                          >
+                            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                            <span>LINKEDIN</span>
+                          </a>
+                        )}
+
+                        {leader.x && leader.x !== '#' && (
+                          <a 
+                            href={leader.x.startsWith('http') ? leader.x : `https://${leader.x}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"
+                            title="X (Twitter)"
+                          >
+                            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            <span>X</span>
+                          </a>
+                        )}
+
+                        {leader.instagram && leader.instagram !== '#' && (
+                          <a 
+                            href={leader.instagram.startsWith('http') ? leader.instagram : `https://${leader.instagram}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"
+                            title="Instagram"
+                          >
+                            <Instagram className="w-3.5 h-3.5 text-current" />
+                            <span>INSTA</span>
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -320,28 +400,36 @@ const About = () => {
           <SectionTitle title="CORPORATE" titleAccent="PARTNERS" />
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16">
-            {[
-              { name: "GEEKAY RETAIL", desc: "Leading MENA Gaming Distributor", category: "PARENT COMPANY" },
-              { name: "PREDATOR GAMING", desc: "Official High-Performance PC Partner", category: "ENDEMIC SPONSOR" },
-              { name: "INTEL CORE", desc: "Elite Hardware & Processor Supplier", category: "TECHNICAL SPONSOR" },
-              { name: "RAZER GEAR", desc: "Professional Grade Peripherals", category: "PERIPHERAL SPONSOR" }
-            ].map((partner, i) => (
+            {partnersData.map((partner, i) => (
               <motion.div 
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 viewport={{ once: true }}
-                className="group p-8 bg-[#081B3A]/40 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-300 relative overflow-hidden flex flex-col justify-between h-[180px]"
+                className="group p-8 bg-[#081B3A]/40 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[180px]"
               >
                 <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-[#FFC400]/5 to-transparent rounded-bl-sm" />
                 <div>
                   <span className="text-slate-500 font-syncopate text-[8px] tracking-[0.3em] uppercase block mb-2">{partner.category}</span>
+                  {partner.image && (
+                    <img src={partner.image} alt={partner.name} className="h-8 object-contain mb-3" />
+                  )}
                   <h3 className="text-white font-syncopate text-base font-black tracking-wider uppercase group-hover:text-[#FFC400] transition-colors">{partner.name}</h3>
                 </div>
                 <p className="text-slate-400 font-inter text-xs font-light leading-relaxed mt-4">
                   {partner.desc}
                 </p>
+                {partner.url && (
+                  <a 
+                    href={partner.url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="inline-flex items-center gap-1 text-[10px] text-[#FFC400] hover:underline mt-3 font-mono tracking-wider uppercase"
+                  >
+                    VISIT SITE <ChevronRight size={12} />
+                  </a>
+                )}
                 
                 {/* Subtle visual accent */}
                 <div className="absolute bottom-0 left-0 w-full h-[1px] bg-slate-800 group-hover:bg-[#FFC400]/30 transition-colors" />

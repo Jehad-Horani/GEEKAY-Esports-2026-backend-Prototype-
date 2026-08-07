@@ -81,15 +81,16 @@ const TrophyCard: React.FC<{ trophy: Trophy, index: number }> = ({ trophy, index
 );
 
 // --- Upgraded Team Detail Component ---
-const TeamDetail: React.FC<{ team: Team, onBack: () => void, onSwitchTeam: (id: string) => void }> = ({ team, onBack, onSwitchTeam }) => {
+const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, onSwitchTeam: (id: string) => void }> = ({ team, allTeams = [], onBack, onSwitchTeam }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [team.id]);
 
   // Find other teams for "More Teams" section
   const moreTeams = useMemo(() => {
-    return MOCK_TEAMS.filter(t => t.id !== team.id);
-  }, [team.id]);
+    const list = (allTeams && allTeams.length > 0) ? allTeams : MOCK_TEAMS;
+    return list.filter(t => String(t.id) !== String(team.id));
+  }, [team.id, allTeams]);
 
   const teamSchema = useMemo(() => {
     const teamPlayers = team.players.map(p => ({
@@ -233,7 +234,7 @@ const TeamDetail: React.FC<{ team: Team, onBack: () => void, onSwitchTeam: (id: 
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {team.players.map(player => {
+            {team.players.map((player, pIdx) => {
               const flag = getFlagEmoji(player.nationality);
               const topAchievement = player.achievements && player.achievements.length > 0
                 ? player.achievements[0].title
@@ -241,7 +242,7 @@ const TeamDetail: React.FC<{ team: Team, onBack: () => void, onSwitchTeam: (id: 
 
               return (
                 <Link 
-                  key={player.id}
+                  key={player.id || `player-${pIdx}-${player.nickname}`}
                   to={`/players/${player.nickname.toLowerCase()}`}
                   className="group relative aspect-[3/4] overflow-hidden bg-slate-900 border border-slate-800/80 transition-all duration-300 hover:border-[#FFC400] hover:shadow-[0_0_30px_rgba(255,196,0,0.15)] flex flex-col justify-end"
                 >
@@ -318,7 +319,7 @@ const TeamDetail: React.FC<{ team: Team, onBack: () => void, onSwitchTeam: (id: 
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {team.trophies?.map((trophy, idx) => (
-              <TrophyCard key={trophy.id} trophy={trophy} index={idx} />
+              <TrophyCard key={trophy.id || `trophy-${idx}-${trophy.title}`} trophy={trophy} index={idx} />
             )) || (
               <div className="col-span-full py-16 text-center border border-dashed border-slate-800 text-slate-500 font-syncopate text-xs tracking-widest">
                 NO REGISTERED TROPHIES FOR THIS UNIT
@@ -341,19 +342,25 @@ const TeamDetail: React.FC<{ team: Team, onBack: () => void, onSwitchTeam: (id: 
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {TEAM_MEDIA_PHOTOS.map((photo, i) => (
-              <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
-                <img 
-                  src={photo} 
-                  alt={`${team.name} Team Media Photo ${i + 1}`} 
-                  className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                  MEDIA ARCHIVE // UNIT_{team.name.toUpperCase()}
+            {(team.media && Array.isArray(team.media) && team.media.length > 0 ? team.media : TEAM_MEDIA_PHOTOS.map(url => ({ type: 'photo', url }))).map((item: any, i: number) => {
+              const photo = typeof item === 'string' ? item : (item.url || TEAM_MEDIA_PHOTOS[i % TEAM_MEDIA_PHOTOS.length]);
+              return (
+                <div key={`media-${i}`} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                  <img 
+                    src={photo} 
+                    alt={`${team.name} Team Media Photo ${i + 1}`} 
+                    className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = TEAM_MEDIA_PHOTOS[i % TEAM_MEDIA_PHOTOS.length];
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
+                    MEDIA ARCHIVE // UNIT_{team.name.toUpperCase()}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -372,7 +379,7 @@ const TeamDetail: React.FC<{ team: Team, onBack: () => void, onSwitchTeam: (id: 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {moreTeams.map((otherTeam, idx) => (
               <div
-                key={otherTeam.id}
+                key={otherTeam.id || `more-team-${idx}`}
                 onClick={() => onSwitchTeam(otherTeam.id)}
                 className="group relative aspect-[4/3] bg-slate-900 border border-slate-800/80 overflow-hidden cursor-pointer transition-all duration-300 hover:border-[#FFC400] hover:shadow-[0_0_20px_rgba(255,196,0,0.1)] flex flex-col justify-end p-6"
               >
@@ -470,53 +477,85 @@ const DivisionCard: React.FC<{ team: Team; onClick: () => void; index: number }>
 };
 
 const CreatorCard: React.FC<{ creator: Creator; index: number }> = ({ creator, index }) => {
+  const followersStr = creator.metrics?.followers || '500K';
+  const displayFollowers = followersStr.toLowerCase().includes('followers') 
+    ? followersStr.toUpperCase() 
+    : `${followersStr.toUpperCase()} FOLLOWERS`;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.05, duration: 0.5 }}
-      className="group relative aspect-[2/3] bg-slate-900 border border-slate-800 overflow-hidden cursor-pointer rounded-none transition-all duration-300 hover:border-[#FFC400] hover:shadow-[0_0_30px_rgba(255,196,0,0.15)]"
+      className="group relative aspect-[2/3] bg-[#040E1E] border border-slate-800 overflow-hidden rounded-none transition-all duration-300 hover:border-[#FFC400] hover:shadow-[0_0_30px_rgba(255,196,0,0.2)]"
     >
+      {/* Top Left Target Reticle in Gold */}
+      <div className="absolute top-4 left-4 z-30 pointer-events-none">
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="text-[#FFC400]">
+          <circle cx="14" cy="14" r="10" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="14" y1="0" x2="14" y2="28" stroke="currentColor" strokeWidth="1.2" />
+          <line x1="0" y1="14" x2="28" y2="14" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </div>
+
       <img
-        src={creator.photo}
+        src={creator.photo || '/assets/NO PHOTO.png'}
         alt={creator.nickname}
-        className="absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:grayscale group-hover:scale-[1.04]"
+        className="absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-in-out group-hover:scale-[1.04]"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/40 to-transparent opacity-90 group-hover:opacity-95 transition-opacity duration-300" />
       
-      <div className="absolute bottom-0 left-0 right-0 p-8">
-        <h3 className="font-syncopate text-3xl font-black text-white uppercase mb-2 tracking-tighter">{creator.nickname}</h3>
-        <p className="text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-6">{creator.metrics.followers} FOLLOWERS</p>
+      {/* Dark Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/50 to-transparent opacity-90 transition-opacity duration-300" />
+      
+      {/* Card Info */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
+        <h3 className="font-syncopate text-2xl md:text-3xl font-black text-white uppercase mb-1 tracking-tighter">
+          {creator.nickname}
+        </h3>
+        <p className="text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-4">
+          {displayFollowers}
+        </p>
         
-        <div className="flex gap-4 mb-6 relative z-20">
-          {creator.platforms.map((p, i) => (
-            <div key={i} className="relative group/icon">
-              <a 
-                href={p.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-slate-500 hover:text-[#FFC400] transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <SocialFollowerIcon 
-                  platform={p.type} 
-                  count={p.handle}
-                  className="text-slate-500"
-                />
-              </a>
-            </div>
-          ))}
+        {/* Social Platforms Icons */}
+        <div className="flex gap-4 mb-4 relative z-20">
+          {(Array.isArray(creator.platforms) ? creator.platforms : []).map((p: any, i: number) => {
+            const pType = p?.type || p?.platform || p?.name || (typeof p === 'string' ? p : '');
+            const pUrl = p?.url || '#';
+            if (!pType) return null;
+
+            return (
+              <div key={i} className="relative group/icon">
+                <a 
+                  href={pUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="text-slate-400 hover:text-[#FFC400] transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SocialFollowerIcon 
+                    platform={pType} 
+                    count={p?.handle || p?.count || p?.followers}
+                    size={18}
+                    className="text-slate-400 hover:text-[#FFC400]"
+                  />
+                </a>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="h-0 overflow-hidden group-hover:h-auto opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out">
-          <div className="pt-4 border-t border-white/10 space-y-4">
-            <div>
-              <p className="text-[#FFC400] font-syncopate text-sm font-black uppercase">{creator.metrics.totalReach}</p>
-            </div>
-            <div>
-              <p className="text-white text-[10px] font-bold uppercase leading-tight">{creator.focus}</p>
-            </div>
+        {/* Divider line & Highlight Metrics (Always visible) */}
+        <div className="pt-3 border-t border-white/20 space-y-1">
+          <div>
+            <p className="text-[#FFC400] font-syncopate text-xl font-black uppercase tracking-tight">
+              {creator.total_reach || creator.metrics?.totalReach || '1.4M+'}
+            </p>
+          </div>
+          <div>
+            <p className="text-white font-syncopate text-[10px] font-extrabold uppercase leading-snug tracking-wider">
+              {creator.focus || 'GAMING'}
+            </p>
           </div>
         </div>
       </div>
@@ -524,30 +563,176 @@ const CreatorCard: React.FC<{ creator: Creator; index: number }> = ({ creator, i
   );
 };
 
+import { safeJsonParse } from '../src/utils/json';
+
 const Teams = () => {
   const { teamId } = useParams<{ teamId?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    // Fetch Teams and Creators in parallel
+    const loadAll = async () => {
+      try {
+        const [teamsRes, creatorsRes] = await Promise.all([
+          fetch('/api/teams').then(res => res.ok ? res.json() : []).catch(() => []),
+          fetch('/api/creators').then(res => res.ok ? res.json() : []).catch(() => [])
+        ]);
+
+        if (isMounted) {
+          if (Array.isArray(teamsRes)) {
+            const loadedTeams: Team[] = await Promise.all(
+              teamsRes.map(async (t: any) => {
+                let playersData: any[] = [];
+                try {
+                  const pRes = await fetch(`/api/teams/${t.id}/players`);
+                  if (pRes.ok) playersData = await pRes.json();
+                } catch (e) {}
+
+                const mappedPlayers: Player[] = playersData.map((p: any) => ({
+                  id: String(p.id),
+                  nickname: p.ign || p.nickname || 'PLAYER',
+                  role: p.role || 'ROSTER',
+                  name: p.name || '',
+                  photo: p.photo || 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&q=80&w=500&h=600',
+                  bio: p.bio || '',
+                  age: p.age || '20',
+                  nationality: p.nationality || 'Saudi Arabia',
+                  socials: safeJsonParse(p.socials, {}),
+                  achievements: safeJsonParse(p.achievements, []),
+                  stats: {
+                    kd: p.stats?.kd ?? p.kd ?? 1.2,
+                    mvps: p.stats?.mvps ?? p.mvps ?? 0,
+                    tournaments: p.stats?.tournaments ?? p.tournaments ?? 0,
+                    winRate: p.stats?.winRate ?? p.win_rate ?? p.winRate ?? '70%'
+                  }
+                }));
+
+                const parseAchievements = safeJsonParse(t.achievements, []);
+                const parseMedia = safeJsonParse(t.media, []);
+
+                return {
+                  id: String(t.id),
+                  name: t.name,
+                  game: t.game,
+                  region: t.region || 'MENA',
+                  league: t.league || '',
+                  banner: t.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+                  logo: t.logo || '',
+                  bio: t.bio || '',
+                  tagline: t.tagline || '',
+                  players: mappedPlayers,
+                  achievements: parseAchievements,
+                  trophies: parseAchievements,
+                  media: parseMedia,
+                  winRate: t.win_rate || t.winRate || '75%',
+                  globalRank: t.global_rank || t.globalRank || '#1 GLOBAL',
+                  championships: t.championships || 3,
+                  seasonRecord: t.season_record || t.seasonRecord || '18-4',
+                  stats: {
+                    winRate: t.win_rate || t.winRate || '75%',
+                    rank: t.global_rank || t.globalRank || '#1 GLOBAL',
+                    championships: t.championships || 3,
+                    seasonRecord: t.season_record || t.seasonRecord || '18-4'
+                  }
+                };
+              })
+            );
+            setTeams(loadedTeams);
+          }
+
+          if (Array.isArray(creatorsRes)) {
+            const publishedData = creatorsRes
+              .filter((c: any) => c.published !== 0 && c.status !== 'inactive' && c.status !== 'archived')
+              .sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
+
+            const mappedCreators: Creator[] = (publishedData.length > 0 ? publishedData : creatorsRes).map((c: any) => {
+              let parsedPlatforms: any[] = typeof c.platforms === 'string' ? safeJsonParse(c.platforms, []) : (Array.isArray(c.platforms) ? c.platforms : []);
+              const parsedSocials: any = typeof c.socials === 'string' ? safeJsonParse(c.socials, {}) : (c.socials || {});
+              if ((!parsedPlatforms || parsedPlatforms.length === 0) && parsedSocials) {
+                parsedPlatforms = Object.entries(parsedSocials).map(([name, handle]) => ({
+                  type: name,
+                  platform: name,
+                  url: String(handle || ''),
+                  handle: String(handle || '')
+                }));
+              }
+
+              const parsedMetrics: any = typeof c.metrics === 'string' ? safeJsonParse(c.metrics, {}) : (c.metrics || {});
+
+              return {
+                id: String(c.id),
+                name: c.name || 'CREATOR',
+                alias: c.alias || c.handle || c.name,
+                nickname: c.alias || c.nickname || c.name || 'CREATOR',
+                photo: c.photo || c.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=500&h=500',
+                published: c.published !== undefined ? c.published : 1,
+                display_order: c.display_order || 0,
+                total_reach: c.total_reach || '1M+',
+                followers: c.followers || '100K+',
+                platforms: parsedPlatforms,
+                socials: parsedSocials,
+                metrics: {
+                  followers: parsedMetrics.followers || c.followers || '100K+',
+                  totalReach: parsedMetrics.totalReach || c.total_reach || '1M+'
+                },
+                focus: c.focus || c.role || 'GAMING'
+              };
+            });
+            setCreators(mappedCreators);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load teams/creators:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadAll();
+    return () => { isMounted = false; };
+  }, []);
 
   const selectedTeamId = useMemo(() => {
     return teamId || searchParams.get('id') || null;
   }, [teamId, searchParams]);
 
   const selectedTeam = useMemo(() => 
-    MOCK_TEAMS.find(t => t.id === selectedTeamId) || null,
-    [selectedTeamId]
+    teams.find(t => 
+      String(t.id) === String(selectedTeamId) || 
+      t.name.toLowerCase() === String(selectedTeamId).toLowerCase() || 
+      t.game.toLowerCase() === String(selectedTeamId).toLowerCase()
+    ) || null,
+    [selectedTeamId, teams]
   );
 
   const directorySchema = useMemo(() => {
-    return MOCK_TEAMS.map(t => {
-      const teamPlayers = t.players.map(p => ({
+    return teams.map(t => {
+      const teamPlayers = (t.players || []).map(p => ({
         nickname: p.nickname,
         role: p.role,
         url: `https://geekayesports.com/players/${p.nickname.toLowerCase()}`
       }));
       return generateSportsTeamSchema(t.name, teamPlayers, t.region, t.logo, t.achievements);
     });
-  }, []);
+  }, [teams]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[600px] flex flex-col items-center justify-center relative">
+        <div className="w-12 h-12 border-4 border-[#FFC400]/20 border-t-[#FFC400] rounded-full animate-spin mb-4" />
+        <span className="font-syncopate text-[#FFC400] text-xs font-bold tracking-widest uppercase animate-pulse">
+          LOADING TEAMS DATA...
+        </span>
+      </div>
+    );
+  }
 
   const handleSelectTeam = (id: string | null) => {
     if (id) {
@@ -592,7 +777,7 @@ const Teams = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {MOCK_TEAMS.map((team, idx) => (
+                  {teams.map((team, idx) => (
                     <DivisionCard 
                       key={team.id} 
                       team={team} 
@@ -618,7 +803,7 @@ const Teams = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {MOCK_CREATORS.map((creator, idx) => (
+                  {creators.map((creator, idx) => (
                     <CreatorCard key={creator.id} creator={creator} index={idx} />
                   ))}
                 </div>
@@ -633,6 +818,7 @@ const Teams = () => {
             <TeamDetail 
               key="team-detail-view"
               team={selectedTeam} 
+              allTeams={teams}
               onBack={() => {
                 handleSelectTeam(null);
                 window.scrollTo(0, 0);

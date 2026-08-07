@@ -37,14 +37,71 @@ const BlueprintBackground = () => (
   </div>
 );
 
+import { safeJsonParse } from '../src/utils/json';
+
 const CalendarInterface = () => {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 1)); // FEB 2026
   const [gameFilter, setGameFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dbEvents, setDbEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const games = ['ALL', 'RL', 'HOK', 'PUBG', 'VAL', 'CS2'];
+  const [dbGameTitles, setDbGameTitles] = useState<string[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      fetch('/api/game-titles').then(res => res.ok ? res.json() : []).catch(() => []),
+      fetch('/api/events').then(res => res.ok ? res.json() : []).catch(() => [])
+    ]).then(([gtData, evData]) => {
+      if (isMounted) {
+        if (Array.isArray(gtData)) {
+          setDbGameTitles(gtData.map((gt: any) => String(gt.name).trim().toUpperCase()));
+        }
+        if (Array.isArray(evData)) {
+          const mapped: Event[] = evData.map((e: any) => ({
+            id: String(e.id),
+            title: e.title,
+            game: e.game,
+            type: e.type || 'TOURNAMENT',
+            date: e.start_date || e.date || '2026-02-15',
+            time: e.time || '18:00 KSA',
+            location: e.region || e.location || 'RIYADH, KSA',
+            prizePool: e.prize_pool || e.prizePool || '$50,000',
+            status: e.status || 'UPCOMING',
+            image: e.banner || e.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500',
+            description: e.description || '',
+            organizer: e.organizer || 'GEEKAY ESPORTS',
+            teams: safeJsonParse(e.teams, []),
+            matches: safeJsonParse(e.matches, []),
+            results: safeJsonParse(e.results, []),
+            media: safeJsonParse(e.media, []),
+            social: safeJsonParse(e.social, {})
+          }));
+          setDbEvents(mapped);
+        }
+        setLoading(false);
+      }
+    });
+
+    return () => { isMounted = false; };
+  }, []);
+
+  const games = useMemo(() => {
+    const dynamicSet = new Set<string>();
+    dbGameTitles.forEach(g => {
+      if (g) dynamicSet.add(g);
+    });
+    dbEvents.forEach(e => {
+      if (e.game && String(e.game).trim()) {
+        dynamicSet.add(String(e.game).trim().toUpperCase());
+      }
+    });
+    return ['ALL', ...Array.from(dynamicSet)];
+  }, [dbEvents, dbGameTitles]);
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => {
@@ -59,13 +116,24 @@ const CalendarInterface = () => {
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
   const filteredEvents = useMemo(() => {
-    return MOCK_EVENTS.filter(event => {
-      const matchesGame = gameFilter === 'ALL' || event.game.includes(gameFilter);
+    return dbEvents.filter(event => {
+      const matchesGame = gameFilter === 'ALL' || (event.game && (event.game.toUpperCase().includes(gameFilter.toUpperCase()) || gameFilter.toUpperCase().includes(event.game.toUpperCase())));
       const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            event.game.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesGame && matchesSearch;
     });
-  }, [gameFilter, searchQuery]);
+  }, [gameFilter, searchQuery, dbEvents]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[600px] flex flex-col items-center justify-center relative">
+        <div className="w-12 h-12 border-4 border-[#FFC400]/20 border-t-[#FFC400] rounded-full animate-spin mb-4" />
+        <span className="font-syncopate text-[#FFC400] text-xs font-bold tracking-widest uppercase animate-pulse">
+          LOADING SCHEDULE DATA...
+        </span>
+      </div>
+    );
+  }
 
   const getEventsForDay = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -82,8 +150,6 @@ const CalendarInterface = () => {
            today.getMonth() === currentDate.getMonth() && 
            today.getFullYear() === currentDate.getFullYear();
   };
-
-  const navigate = useNavigate();
 
   const handleEventClick = (title: string) => {
     navigate(`/events/${getEventSlug(title)}`);
@@ -265,15 +331,7 @@ const Schedule = () => {
   const containerRef = useRef(null);
 
   const scheduleSchemas = useMemo(() => {
-    return MOCK_EVENTS.map(ev => 
-      generateEventSchema(
-        ev.title,
-        ev.date,
-        ev.location || 'Online Arena',
-        'UPCOMING',
-        'TBD'
-      )
-    );
+    return [];
   }, []);
 
   return (

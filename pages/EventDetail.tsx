@@ -75,31 +75,41 @@ const EventDetail = () => {
   }, [eventName]);
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const fetchEvents = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
       try {
         const res = await fetch('/api/events', { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           const data = await res.json();
-          if (Array.isArray(data)) {
+          if (isMounted && Array.isArray(data)) {
             setDbEvents(data);
-          } else {
+          } else if (isMounted) {
             console.warn('API returned non-array data for events:', data);
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch events (or timed out):', err);
+      } catch (err: any) {
+        if (isMounted && err.name !== 'AbortError') {
+          console.warn('Failed to fetch events from API:', err);
+        }
       } finally {
         clearTimeout(timeoutId);
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchEvents();
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, []);
 
-  // Normalization logic to merge database and mock events and select the matched one
+  // Normalization logic to select matched event from database
   const matchedEvent = useMemo(() => {
     const normalized = (Array.isArray(dbEvents) ? dbEvents : []).map(e => ({
       ...e,
@@ -108,47 +118,6 @@ const EventDetail = () => {
       start_date: e.start_date || '',
       banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
     }));
-
-    // Append MOCK_EVENTS not in the DB
-    MOCK_EVENTS.forEach(mock => {
-      const exists = normalized.some(
-        e => e.title && mock.title && e.title.toLowerCase().trim() === mock.title.toLowerCase().trim()
-      );
-      if (!exists) {
-        normalized.push({
-          id: mock.id,
-          title: mock.title,
-          game: mock.game,
-          type: mock.type ? mock.type.toLowerCase() : 'tournament',
-          start_date: mock.date,
-          end_date: mock.date,
-          time: mock.time || '18:00',
-          region: mock.location ? (mock.location.split(',')[1]?.trim() || 'GLOBAL') : 'GLOBAL',
-          status: mock.status.toLowerCase(),
-          link: 'https://x.com/geekay_esports',
-          description: `An official ${mock.game} championship match. Geekay Esports qualifies to compete alongside first-tier EMEA operations on the grand stage.`,
-          banner: mock.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
-          organizer: 'Esports League / Riot Games',
-          published: 1,
-          featured: 1,
-          teams: JSON.stringify([
-            { name: "Geekay Esports", logo: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100&h=100", region: "Saudi Arabia" },
-            { name: "Team Falcons", logo: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=100&h=100", region: "Saudi Arabia" },
-            { name: "Sentinels", logo: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=100&h=100", region: "North America" }
-          ]),
-          matches: JSON.stringify([
-            { date: mock.date, teams: "Geekay vs Sentinels", score: mock.status === 'FINISHED' ? '3 - 2' : 'TBD', status: mock.status.toLowerCase() }
-          ]),
-          results: JSON.stringify(mock.status === 'FINISHED' ? { winner: "Geekay Esports", runnerUp: "Sentinels", mvp: "Abdullah" } : {}),
-          media: JSON.stringify([
-            { type: 'photo', url: mock.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500' }
-          ]),
-          social: JSON.stringify([
-            { platform: "twitter", handle: "@Geekay_Esports", text: `Ready for ${mock.title}! Make sure to support our boys as we step onto the stage! 🇸🇦` }
-          ])
-        } as any);
-      }
-    });
 
     return normalized.find(e => e.title && getEventSlug(e.title) === eventName);
   }, [dbEvents, eventName]);
@@ -159,7 +128,7 @@ const EventDetail = () => {
 
     // Parse structures
     const safeParse = (str: any, fallback: any) => {
-      if (!str) return fallback;
+      if (str === null || str === undefined || str === '') return fallback;
       if (typeof str === 'object') return str;
       try {
         return JSON.parse(str);
@@ -168,34 +137,11 @@ const EventDetail = () => {
       }
     };
 
-    const teams = safeParse(matchedEvent.teams, [
-      { name: "Geekay Esports", logo: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100&h=100", region: "Saudi Arabia" },
-      { name: "Team Falcons", logo: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=100&h=100", region: "Saudi Arabia" },
-      { name: "Spacestation Gaming", logo: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=100&h=100", region: "EMEA" },
-      { name: "Nigma Galaxy", logo: "https://images.unsplash.com/photo-1548685913-fe6574abf1a5?auto=format&fit=crop&q=80&w=100&h=100", region: "UAE" }
-    ]);
-
-    const matches = safeParse(matchedEvent.matches, [
-      { date: matchedEvent.start_date, teams: "Geekay vs Team Falcons", score: matchedEvent.status === 'finished' ? "3 - 2" : "Upcoming", status: matchedEvent.status },
-      { date: matchedEvent.start_date, teams: "Geekay vs Spacestation", score: matchedEvent.status === 'finished' ? "2 - 1" : "Upcoming", status: matchedEvent.status }
-    ]);
-
-    const results = safeParse(matchedEvent.results, matchedEvent.status === 'finished' ? {
-      winner: "Geekay Esports",
-      runnerUp: "Team Falcons",
-      mvp: "Teeen"
-    } : {});
-
-    const media = safeParse(matchedEvent.media, [
-      { type: 'photo', url: matchedEvent.banner },
-      { type: 'photo', url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=800&h=500' },
-      { type: 'photo', url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=800&h=500' }
-    ]);
-
-    const social = safeParse(matchedEvent.social, [
-      { platform: 'twitter', handle: '@Geekay_Esports', text: `OPERATION ACTIVE: The roster is fully locked and prepared to dominate at ${matchedEvent.title}. Let's go! 🇸🇦` },
-      { platform: 'instagram', handle: 'geekay_esports', text: `Tactical prep done. All eyes on the trophy. We stream live on Twitch and YT. Drop an emoji to support!` }
-    ]);
+    const teams = safeParse(matchedEvent.teams, []);
+    const matches = safeParse(matchedEvent.matches, []);
+    const results = safeParse(matchedEvent.results, {});
+    const media = safeParse(matchedEvent.media, []);
+    const social = safeParse(matchedEvent.social, []);
 
     return { teams, matches, results, media, social };
   }, [matchedEvent]);
@@ -204,7 +150,7 @@ const EventDetail = () => {
   const relatedEvents = useMemo(() => {
     if (!matchedEvent) return [];
     
-    const all = (Array.isArray(dbEvents) ? dbEvents : []).filter(e => e.title && getEventSlug(e.title) !== eventName).map(e => ({
+    const dbList = (Array.isArray(dbEvents) ? dbEvents : []).filter(e => e.title && getEventSlug(e.title) !== eventName).map(e => ({
       ...e,
       title: e.title || '',
       status: e.status ? e.status.toLowerCase() : 'upcoming',
@@ -212,13 +158,16 @@ const EventDetail = () => {
       banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=450'
     }));
 
+    if (dbList.length > 0) {
+      return dbList.slice(0, 3);
+    }
+
+    const mockList: any[] = [];
     MOCK_EVENTS.forEach(mock => {
       const slug = getEventSlug(mock.title);
       const isCurrent = slug === eventName;
-      const alreadyInList = all.some(e => e.title && getEventSlug(e.title) === slug);
-      
-      if (!isCurrent && !alreadyInList) {
-        all.push({
+      if (!isCurrent) {
+        mockList.push({
           id: mock.id,
           title: mock.title,
           game: mock.game,
@@ -230,7 +179,7 @@ const EventDetail = () => {
       }
     });
 
-    return all.slice(0, 3);
+    return mockList.slice(0, 3);
   }, [dbEvents, matchedEvent, eventName]);
 
   if (loading) {
@@ -345,7 +294,7 @@ const EventDetail = () => {
             </div>
             <div className="flex items-center gap-2">
               <MapPin size={14} className="text-[#FFC400]" />
-              <span>{matchedEvent.location || 'EMEA CENTER'}</span>
+              <span>{matchedEvent.venue || matchedEvent.location || 'EMEA CENTER'}</span>
             </div>
             {matchedEvent.organizer && (
               <div className="flex items-center gap-2">
@@ -371,7 +320,7 @@ const EventDetail = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-7">
               <span className="font-syncopate text-[#FFC400] text-[9px] tracking-[0.4em] font-black mb-4 block uppercase">EVENT OVERVIEW</span>
-              <h2 className="font-syncopate text-2xl font-black text-white uppercase tracking-tighter mb-6">TACTICAL INTELLIGENCE</h2>
+              <h2 className="font-syncopate text-2xl font-black text-white uppercase tracking-tighter mb-6">{matchedEvent.overview_title || 'TACTICAL INTELLIGENCE'}</h2>
               <p className="text-slate-300 font-inter text-base leading-relaxed font-light mb-8">
                 {matchedEvent.description || `Geekay Esports deploys their tactical division for the highly anticipated ${matchedEvent.title}. This operation demands peak coordination, dynamic tactical flexibility, and top mechanical skill. Watch us make history.`}
               </p>
@@ -379,11 +328,11 @@ const EventDetail = () => {
               <div className="border-t border-slate-900 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">PURPOSE</span>
-                  <p className="text-white font-syncopate text-xs font-bold uppercase">CHAMPIONSHIP VICTORY</p>
+                  <p className="text-white font-syncopate text-xs font-bold uppercase">{matchedEvent.purpose || 'CHAMPIONSHIP VICTORY'}</p>
                 </div>
                 <div>
                   <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">FORMAT</span>
-                  <p className="text-[#FFC400] font-syncopate text-xs font-bold uppercase">DOUBLE ELIMINATION BRACKET</p>
+                  <p className="text-[#FFC400] font-syncopate text-xs font-bold uppercase">{matchedEvent.format || 'DOUBLE ELIMINATION BRACKET'}</p>
                 </div>
               </div>
             </div>
@@ -392,12 +341,12 @@ const EventDetail = () => {
             <div className="lg:col-span-5 grid grid-cols-2 gap-4">
               <div className="bg-[#040E1E] border border-slate-900 p-6 flex flex-col justify-between">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">PRIZE POOL</span>
-                <span className="font-syncopate text-xl md:text-2xl font-black text-[#FFC400] mt-4">{matchedEvent.prizePool || '$100,000'}</span>
+                <span className="font-syncopate text-xl md:text-2xl font-black text-[#FFC400] mt-4">{matchedEvent.prize_pool || matchedEvent.prizePool || '$100,000'}</span>
               </div>
               <div className="bg-[#040E1E] border border-slate-900 p-6 flex flex-col justify-between">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">TOTAL TEAMS</span>
                 <div className="mt-4">
-                  <span className="font-syncopate text-3xl font-black text-white block leading-none">{teams.length || '16'}</span>
+                  <span className="font-syncopate text-3xl font-black text-white block leading-none">{matchedEvent.total_teams || (teams.length ? String(teams.length) : '16')}</span>
                   <span className="font-syncopate text-[9px] text-slate-400 font-bold tracking-wider block mt-1">CONTENDERS</span>
                 </div>
               </div>
@@ -407,7 +356,7 @@ const EventDetail = () => {
               </div>
               <div className="bg-[#040E1E] border border-slate-900 p-6 flex flex-col justify-between">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">BROADCAST</span>
-                <span className="font-syncopate text-xs md:text-sm font-black text-[#FFC400] mt-4 leading-normal">TWITCH / YOUTUBE</span>
+                <span className="font-syncopate text-xs md:text-sm font-black text-[#FFC400] mt-4 leading-normal">{matchedEvent.broadcast || 'TWITCH / YOUTUBE'}</span>
               </div>
             </div>
           </div>
@@ -426,19 +375,19 @@ const EventDetail = () => {
             <div className="bg-[#081B3A] border border-slate-800 p-6 relative group hover:border-[#FFC400] transition-all">
               <Clock size={20} className="text-[#FFC400] mb-4" />
               <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">TIMELINE</span>
-              <p className="text-white font-syncopate text-[10px] font-black uppercase">{matchedEvent.start_date} {matchedEvent.time && `| ${matchedEvent.time}`}</p>
+              <p className="text-white font-syncopate text-[10px] font-black uppercase">{matchedEvent.timeline || `${matchedEvent.start_date}${matchedEvent.time ? ` | ${matchedEvent.time}` : ''}`}</p>
             </div>
 
             <div className="bg-[#081B3A] border border-slate-800 p-6 relative group hover:border-[#FFC400] transition-all">
               <MapPin size={20} className="text-[#FFC400] mb-4" />
               <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">VENUE</span>
-              <p className="text-white font-syncopate text-[10px] font-black uppercase">{matchedEvent.location || 'TO TBD CENTRUM'}</p>
+              <p className="text-white font-syncopate text-[10px] font-black uppercase">{matchedEvent.venue || matchedEvent.location || 'EMEA CENTER'}</p>
             </div>
 
             <div className="bg-[#081B3A] border border-slate-800 p-6 relative group hover:border-[#FFC400] transition-all">
               <Tv size={20} className="text-[#FFC400] mb-4" />
               <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">BROADCAST PLATFORMS</span>
-              <p className="text-white font-syncopate text-[10px] font-black uppercase">LIVE TWITCH.TV/GEEKAY</p>
+              <p className="text-white font-syncopate text-[10px] font-black uppercase">{matchedEvent.broadcast_platforms || 'LIVE TWITCH.TV/GEEKAY'}</p>
             </div>
 
             <div className="bg-[#081B3A] border border-slate-800 p-6 relative group hover:border-[#FFC400] transition-all">

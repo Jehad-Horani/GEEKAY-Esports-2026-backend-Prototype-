@@ -15,6 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { db, auth } from '../lib/firebase';
 import { 
   collection, 
@@ -34,44 +35,80 @@ const AdminSubscribers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'unsubscribed'>('all');
   const [selectedSubscriber, setSelectedSubscriber] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const q = query(collection(db, 'subscribers'), orderBy('subscribedAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setSubscribers(docs);
+  const fetchFromApi = async () => {
+    try {
+      const res = await fetch('/api/subscribers');
+      if (res.ok) {
+        const data = await res.json();
+        setSubscribers(data);
+        setError(null);
+      }
+    } catch (e) {
+      console.error('API subscribers error:', e);
+    } finally {
       setLoading(false);
-      setError(null);
-    }, (err) => {
-      console.error("Firestore error:", err);
-      setError(err.message);
-      setLoading(false);
-    });
+    }
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    let unsubscribe: any;
+    try {
+      const q = query(collection(db, 'subscribers'), orderBy('subscribedAt', 'desc'));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setSubscribers(docs);
+        setLoading(false);
+        setError(null);
+      }, (err) => {
+        console.warn("Firestore error, falling back to REST API:", err);
+        fetchFromApi();
+      });
+    } catch (err) {
+      console.warn("Firestore init error, falling back to REST API:", err);
+      fetchFromApi();
+    }
+
+    return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this subscriber? This action is irreversible.')) return;
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
     try {
-      await deleteDoc(doc(db, 'subscribers', id));
+      setSubscribers(prev => prev.filter(sub => String(sub.id) !== String(id)));
+      try {
+        await deleteDoc(doc(db, 'subscribers', String(id)));
+      } catch (e) {
+        await fetch(`/api/subscribers/${id}`, { method: 'DELETE' });
+      }
     } catch (error) {
-      alert('Failed to delete subscriber.');
+      console.error('Failed to delete subscriber');
     }
   };
 
   const toggleStatus = async (subscriber: any) => {
     const newStatus = subscriber.status === 'active' ? 'unsubscribed' : 'active';
     try {
-      await updateDoc(doc(db, 'subscribers', subscriber.id), {
-        status: newStatus
-      });
+      setSubscribers(prev => prev.map(s => String(s.id) === String(subscriber.id) ? { ...s, status: newStatus } : s));
+      try {
+        await updateDoc(doc(db, 'subscribers', String(subscriber.id)), {
+          status: newStatus
+        });
+      } catch (e) {
+        await fetch(`/api/subscribers/${subscriber.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...subscriber, status: newStatus })
+        });
+      }
     } catch (error) {
       alert('Failed to update status.');
     }
@@ -251,7 +288,7 @@ const AdminSubscribers = () => {
                       <ShieldCheck size={18} />
                     </button>
                     <button 
-                      onClick={() => handleDelete(sub.id)}
+                      onClick={() => setDeleteTarget({ id: sub.id, name: sub.email })}
                       className="p-3 bg-white/5 text-slate-400 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={18} />
@@ -323,7 +360,7 @@ const AdminSubscribers = () => {
                   </ArenaButton>
                   <button 
                     onClick={() => {
-                        handleDelete(selectedSubscriber.id);
+                        setDeleteTarget({ id: selectedSubscriber.id, name: selectedSubscriber.email });
                         setSelectedSubscriber(null);
                     }}
                     className="w-full h-14 font-syncopate text-[10px] font-bold uppercase tracking-widest text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all"
@@ -336,6 +373,15 @@ const AdminSubscribers = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
+        title="DELETE_SUBSCRIBER"
+        itemName={deleteTarget?.name}
+        description="Are you sure you want to remove this subscriber from your mailing list? This action is irreversible."
+      />
     </div>
   );
 };

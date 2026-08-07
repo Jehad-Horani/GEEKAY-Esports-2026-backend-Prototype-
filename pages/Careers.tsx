@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Briefcase, ChevronRight, Search, Zap, Target, Shield, Globe, TrendingUp, Cpu, Award, ZapOff, Trophy, Users, DollarSign, Activity, Play, ArrowRight, ChevronDown } from 'lucide-react';
 import { MOCK_JOBS } from '../constants';
+import { Job } from '../types';
 import ArenaButton from '../components/ui/ArenaButton';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -25,15 +26,49 @@ const BenefitCard = ({ icon, title, index }: { icon: React.ReactNode, title: str
   </motion.div>
 );
 
+import { safeJsonParse } from '../src/utils/json';
+
 const Careers = () => {
   const [filter, setFilter] = useState('ALL');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dbJobs, setDbJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const departments = ['ALL', ...Array.from(new Set(MOCK_JOBS.map(job => job.department)))];
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/jobs')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (isMounted && Array.isArray(data)) {
+          const mapped: Job[] = data.map((j: any) => ({
+            id: String(j.id),
+            slug: j.slug || String(j.id),
+            title: j.title,
+            department: j.department || 'OPERATIONS',
+            location: j.location || 'RIYADH, SAUDI ARABIA',
+            type: j.work_type || j.type || 'FULL-TIME',
+            summary: j.summary || '',
+            responsibilities: safeJsonParse(j.responsibilities, []),
+            requirements: safeJsonParse(j.requirements, []),
+            niceToHave: safeJsonParse(j.nice_to_have || j.niceToHave, []),
+            benefits: safeJsonParse(j.benefits, []),
+            email: j.email || j.application_email || ''
+          }));
+          setDbJobs(mapped);
+        }
+      })
+      .catch(err => console.error('Failed to fetch jobs:', err))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  const departments = useMemo(() => ['ALL', ...Array.from(new Set(dbJobs.map(job => job.department)))], [dbJobs]);
 
   const filteredJobs = useMemo(() => {
-    return filter === 'ALL' ? MOCK_JOBS : MOCK_JOBS.filter(job => job.department === filter);
-  }, [filter]);
+    return filter === 'ALL' ? dbJobs : dbJobs.filter(job => job.department === filter);
+  }, [filter, dbJobs]);
 
   return (
     <div className="bg-[#081B3A] min-h-screen overflow-x-hidden selection:bg-[#FFC400] selection:text-black">
