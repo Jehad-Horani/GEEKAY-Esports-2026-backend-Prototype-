@@ -1368,7 +1368,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
     let payload = { ...rawPayload };
     for (let attempts = 0; attempts < 15; attempts++) {
       try {
-        const { data, error } = await supabase.from(tableName).insert([payload]).select().single();
+        const { data, error } = await supabase.from(tableName).upsert([payload]).select().single();
         if (!error && data) return data;
         if (error) {
           const msg = error.message || '';
@@ -1376,11 +1376,24 @@ app.get('/api/auth/me', (req: any, res: any) => {
             console.warn(`Supabase table '${tableName}' not found in schema cache. Skipping Supabase insert.`);
             return null;
           }
-          if (error.code === 'PGRST204' || msg.includes('Could not find the')) {
+          if (error.code === 'PGRST204' || msg.includes('Could not find the') || msg.includes('column')) {
             const match = msg.match(/Could not find the '([^']+)' column/);
             if (match && match[1] && match[1] in payload) {
               delete payload[match[1]];
               continue;
+            }
+          }
+          if (msg.includes('duplicate key') || msg.includes('primary key') || error.code === '23505') {
+            delete payload.id;
+            const { data: insData, error: insErr } = await supabase.from(tableName).insert([payload]).select().single();
+            if (!insErr && insData) return insData;
+            if (insErr) {
+              const insMsg = insErr.message || '';
+              const match = insMsg.match(/Could not find the '([^']+)' column/);
+              if (match && match[1] && match[1] in payload) {
+                delete payload[match[1]];
+                continue;
+              }
             }
           }
           console.warn(`Supabase insert info on ${tableName}:`, msg);
@@ -1635,9 +1648,19 @@ app.get('/api/auth/me', (req: any, res: any) => {
         const insertedObj = { id: newId, ...payload };
         if (tableName === 'users') delete insertedObj.password;
 
-        safeInsertSupabase(tableName, { ...rawPayload, id: newId }).catch(sbErr => {
+        try {
+          const sbRes = await safeInsertSupabase(tableName, { ...rawPayload, id: newId });
+          if (sbRes && sbRes.id) {
+            insertedObj.id = sbRes.id;
+            try {
+              if (sbRes.id !== newId) {
+                db.prepare(`UPDATE ${tableName} SET id = ? WHERE id = ?`).run(sbRes.id, newId);
+              }
+            } catch (syncErr) {}
+          }
+        } catch (sbErr) {
           console.error(`Supabase sync error on POST /api/${tableName}:`, sbErr);
-        });
+        }
 
         try {
           db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
@@ -1700,9 +1723,11 @@ app.get('/api/auth/me', (req: any, res: any) => {
           }
         }
 
-        safeUpdateSupabase(tableName, targetId, rawPayload).catch(sbErr => {
+        try {
+          await safeUpdateSupabase(tableName, targetId, rawPayload);
+        } catch (sbErr) {
           console.error(`Supabase sync error on PUT /api/${tableName}/${targetId}:`, sbErr);
-        });
+        }
 
         try {
           db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
@@ -1871,12 +1896,14 @@ app.get('/api/auth/me', (req: any, res: any) => {
   app.post('/api/game-titles', (req, res) => res.redirect(307, '/api/game_titles'));
   app.delete('/api/game-titles/:id', (req, res) => res.redirect(307, `/api/game_titles/${req.params.id}`));
   
-  app.delete('/api/game_titles/by-name/:name', (req: any, res: any) => {
+  app.delete('/api/game_titles/by-name/:name', async (req: any, res: any) => {
     try {
       const name = req.params.name;
       db.prepare('DELETE FROM game_titles WHERE LOWER(name) = LOWER(?)').run(name);
       if (supabase) {
-        supabase.from('game_titles').delete().ilike('name', name).then(() => {}).catch(() => {});
+        try {
+          await supabase.from('game_titles').delete().ilike('name', name);
+        } catch (sbErr) {}
       }
       res.json({ success: true });
     } catch (err: any) {
@@ -1970,7 +1997,10 @@ app.get('/api/auth/me', (req: any, res: any) => {
       const newId = info.lastInsertRowid;
       const insertedObj = { id: newId, ...payload };
 
-      safeInsertSupabase('players', { ...rawPayload, id: newId }).catch(() => {});
+      const sbRes = await safeInsertSupabase('players', { ...rawPayload, id: newId });
+      if (sbRes && sbRes.id) {
+        insertedObj.id = sbRes.id;
+      }
 
       res.json(insertedObj);
     } catch (err: any) {
@@ -2012,7 +2042,9 @@ app.get('/api/auth/me', (req: any, res: any) => {
         }
       }
 
-      safeUpdateSupabase('players', targetId, rawPayload).catch(() => {});
+      try {
+        await safeUpdateSupabase('players', targetId, rawPayload);
+      } catch (e) {}
 
       res.json({ success: true, id: req.params.id, ...payload });
     } catch (err: any) {
