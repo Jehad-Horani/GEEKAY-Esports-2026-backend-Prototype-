@@ -1490,14 +1490,17 @@ app.get('/api/auth/me', (req: any, res: any) => {
     app.get(`/api/${tableName}`, async (req: any, res: any) => {
       try {
         if (tableName === 'users') {
-          // Verify user is authenticated
+          // Verify user is authenticated and is Admin
           let token = req.cookies?.token;
           if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
             token = req.headers.authorization.split(' ')[1];
           }
           if (!token) return res.status(401).json({ error: 'Authentication required. Access denied.' });
           try {
-            jwt.verify(token, JWT_SECRET);
+            const decoded: any = jwt.verify(token, JWT_SECRET);
+            if (decoded.role !== 'admin') {
+              return res.status(403).json({ error: 'Access denied: Administrator privileges required.' });
+            }
           } catch (e) {
             return res.status(401).json({ error: 'Session expired or invalid token.' });
           }
@@ -1583,7 +1586,12 @@ app.get('/api/auth/me', (req: any, res: any) => {
     });
 
     // POST create endpoint
-    app.post(`/api/${tableName}`, authenticateToken, async (req: any, res: any) => {
+    app.post(`/api/${tableName}`, authenticateToken, (req: any, res: any, next: any) => {
+      if (tableName === 'users' && req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
+      }
+      next();
+    }, async (req: any, res: any) => {
       try {
         if (!req.body || Object.keys(req.body).length === 0) {
           return res.status(400).json({ error: 'Request body is empty' });
@@ -1636,7 +1644,12 @@ app.get('/api/auth/me', (req: any, res: any) => {
     });
 
     // PUT update endpoint
-    app.put(`/api/${tableName}/:id`, authenticateToken, async (req: any, res: any) => {
+    app.put(`/api/${tableName}/:id`, authenticateToken, (req: any, res: any, next: any) => {
+      if (tableName === 'users' && req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
+      }
+      next();
+    }, async (req: any, res: any) => {
       try {
         if (!req.body || Object.keys(req.body).length === 0) {
           return res.status(400).json({ error: 'Request body is empty' });
@@ -1697,7 +1710,12 @@ app.get('/api/auth/me', (req: any, res: any) => {
     });
 
     // DELETE endpoint
-    app.delete(`/api/${tableName}/:id`, authenticateToken, async (req: any, res: any) => {
+    app.delete(`/api/${tableName}/:id`, authenticateToken, (req: any, res: any, next: any) => {
+      if (tableName === 'users' && req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
+      }
+      next();
+    }, async (req: any, res: any) => {
       try {
         const rawId = req.params.id;
         const numId = Number(rawId);

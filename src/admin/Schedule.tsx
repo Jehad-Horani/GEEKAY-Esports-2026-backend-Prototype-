@@ -314,21 +314,7 @@ const AdminSchedule = () => {
           <h1 className="font-syncopate text-4xl md:text-6xl font-black text-white uppercase tracking-tighter">SCHEDULE</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-3 bg-white/5 p-1 rounded-sm border border-white/10">
-              <button 
-                onClick={() => setReplaceMode(false)}
-                className={`px-3 py-1.5 font-syncopate text-[8px] font-bold transition-all ${!replaceMode ? 'bg-[#FFC400] text-black' : 'text-slate-500 hover:text-white'}`}
-              >
-                APPEND
-              </button>
-              <button 
-                onClick={() => setReplaceMode(true)}
-                className={`px-3 py-1.5 font-syncopate text-[8px] font-bold transition-all ${replaceMode ? 'bg-red-500 text-white' : 'text-slate-500 hover:text-white'}`}
-              >
-                REPLACE
-              </button>
-            </div>
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-3">
             <input 
               type="file" 
               ref={fileInputRef}

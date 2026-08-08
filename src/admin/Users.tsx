@@ -6,7 +6,7 @@ import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 const AdminUsers = () => {
-  const { user: currentUser, toggleRole } = useOutletContext<any>() || {};
+  const { user: currentUser } = useOutletContext<any>() || {};
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<any[]>([]);
@@ -14,6 +14,37 @@ const AdminUsers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
+
+  // Check if current active role is Editor (Restricted Access)
+  if (currentUser && currentUser.role !== 'admin') {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-8 max-w-2xl mx-auto space-y-6">
+        <div className="w-20 h-20 bg-red-500/10 border-2 border-red-500/30 rounded-full flex items-center justify-center text-red-500 mb-2">
+          <ShieldAlert size={40} />
+        </div>
+        
+        <div>
+          <span className="text-red-500 font-syncopate text-[10px] font-bold tracking-[0.4em] uppercase block mb-2">RESTRICTED_ACCESS</span>
+          <h1 className="font-syncopate text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">
+            ADMINISTRATOR PRIVILEGES REQUIRED
+          </h1>
+        </div>
+
+        <p className="text-slate-400 font-inter text-sm leading-relaxed">
+          Your account is registered as <span className="text-blue-400 font-bold uppercase">Editor</span>. Editor accounts have full access to manage content, news, teams, creators, and schedule, but <span className="text-white font-bold">Users & Roles management is restricted exclusively to Administrators</span>.
+        </p>
+
+        <div className="pt-6 flex justify-center w-full">
+          <button
+            onClick={() => navigate('/admin')}
+            className="px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-syncopate text-xs font-bold uppercase tracking-wider transition-all"
+          >
+            RETURN TO DASHBOARD
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('geekay_token');

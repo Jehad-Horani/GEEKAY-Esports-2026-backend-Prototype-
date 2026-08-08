@@ -41,7 +41,10 @@ import { safeJsonParse } from '../src/utils/json';
 
 const CalendarInterface = () => {
   const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 1)); // FEB 2026
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [gameFilter, setGameFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
@@ -67,7 +70,7 @@ const CalendarInterface = () => {
             title: e.title,
             game: e.game,
             type: e.type || 'TOURNAMENT',
-            date: e.start_date || e.date || '2026-02-15',
+            date: e.start_date || e.date || new Date().toISOString().split('T')[0],
             time: e.time || '18:00 KSA',
             location: e.region || e.location || 'RIYADH, KSA',
             prizePool: e.prize_pool || e.prizePool || '$50,000',
@@ -360,11 +363,11 @@ const Schedule = () => {
             
             <div className="flex gap-4">
               <div className="border border-slate-800 p-4 bg-[#081B3A]/40">
-                <h2 className="font-syncopate text-xs font-black text-[#FFC400] tracking-wider uppercase mb-1">2026 SCHEDULE</h2>
+                <h2 className="font-syncopate text-xs font-black text-[#FFC400] tracking-wider uppercase mb-1">{new Date().getFullYear()} SCHEDULE</h2>
                 <span className="text-slate-500 font-inter text-[10px] uppercase">Active Season</span>
               </div>
               <div className="border border-slate-900 p-4 bg-[#081B3A]/20 opacity-60">
-                <h2 className="font-syncopate text-xs font-black text-slate-400 tracking-wider uppercase mb-1">2025 SCHEDULE</h2>
+                <h2 className="font-syncopate text-xs font-black text-slate-400 tracking-wider uppercase mb-1">{new Date().getFullYear() - 1} SCHEDULE</h2>
                 <span className="text-slate-500 font-inter text-[10px] uppercase">Archived</span>
               </div>
             </div>
