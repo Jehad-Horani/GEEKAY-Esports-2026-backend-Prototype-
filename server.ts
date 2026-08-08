@@ -1366,41 +1366,71 @@ app.get('/api/auth/me', (req: any, res: any) => {
   const safeInsertSupabase = async (tableName: string, rawPayload: any) => {
     if (!supabase) return null;
     let payload = { ...rawPayload };
-    for (let attempts = 0; attempts < 15; attempts++) {
+
+    for (let attempts = 0; attempts < 20; attempts++) {
       try {
-        const { data, error } = await supabase.from(tableName).upsert([payload]).select().single();
+        const { data, error } = await supabase.from(tableName).upsert([payload]).select().maybeSingle();
         if (!error && data) return data;
+
         if (error) {
-          const msg = error.message || '';
-          if (msg.includes('Could not find the table') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist')) {
-            console.warn(`Supabase table '${tableName}' not found in schema cache. Skipping Supabase insert.`);
+          const msg = (error.message || '') + ' ' + (error.details || '') + ' ' + (error.hint || '');
+
+          if (msg.includes('Could not find the table') || (msg.includes('relation') && msg.includes('does not exist'))) {
+            console.warn(`Supabase table '${tableName}' not found. Skipping Supabase insert.`);
             return null;
           }
-          if (error.code === 'PGRST204' || msg.includes('Could not find the') || msg.includes('column')) {
-            const match = msg.match(/Could not find the '([^']+)' column/);
+
+          let removedAKey = false;
+          const colMatches = [
+            /Could not find the '([^']+)' column/,
+            /column "([^"]+)"/,
+            /column '([^']+)'/,
+            /Could not find the '([^']+)'/
+          ];
+
+          for (const regex of colMatches) {
+            const match = msg.match(regex);
             if (match && match[1] && match[1] in payload) {
               delete payload[match[1]];
-              continue;
+              removedAKey = true;
+              break;
             }
           }
-          if (msg.includes('duplicate key') || msg.includes('primary key') || error.code === '23505') {
-            delete payload.id;
-            const { data: insData, error: insErr } = await supabase.from(tableName).insert([payload]).select().single();
-            if (!insErr && insData) return insData;
-            if (insErr) {
-              const insMsg = insErr.message || '';
-              const match = insMsg.match(/Could not find the '([^']+)' column/);
-              if (match && match[1] && match[1] in payload) {
-                delete payload[match[1]];
-                continue;
+
+          if (!removedAKey) {
+            for (const key of Object.keys(payload)) {
+              if (msg.toLowerCase().includes(`'${key.toLowerCase()}'`) || msg.toLowerCase().includes(`"${key.toLowerCase()}"`) || msg.toLowerCase().includes(`column ${key.toLowerCase()}`)) {
+                delete payload[key];
+                removedAKey = true;
+                break;
               }
             }
           }
-          console.warn(`Supabase insert info on ${tableName}:`, msg);
+
+          if (!removedAKey && (msg.includes('duplicate key') || msg.includes('primary key') || error.code === '23505')) {
+            delete payload.id;
+            const { data: insData, error: insErr } = await supabase.from(tableName).insert([payload]).select().maybeSingle();
+            if (!insErr && insData) return insData;
+            if (insErr) {
+              const insMsg = (insErr.message || '') + ' ' + (insErr.details || '');
+              for (const key of Object.keys(payload)) {
+                if (insMsg.toLowerCase().includes(key.toLowerCase())) {
+                  delete payload[key];
+                  removedAKey = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (!removedAKey) {
+            console.warn(`Supabase insert info on ${tableName}:`, msg);
+            break;
+          }
         }
-        return null;
       } catch (err) {
-        return null;
+        console.error(`Exception in safeInsertSupabase on ${tableName}:`, err);
+        break;
       }
     }
     return null;
@@ -1412,38 +1442,31 @@ app.get('/api/auth/me', (req: any, res: any) => {
     let payload = { ...rawPayload };
     delete payload.id;
 
-    for (let attempts = 0; attempts < 15; attempts++) {
+    for (let attempts = 0; attempts < 20; attempts++) {
       try {
         const { data, error } = await supabase.from(tableName).update(payload).eq('id', targetId).select();
-        let errToProcess = error;
 
         if (!error && data && data.length > 0) return true;
 
         if (!error && data && data.length === 0) {
-          // If record does not exist in Supabase yet, attempt upsert
-          const { error: upsertErr } = await supabase.from(tableName).upsert([{ id: targetId, ...payload }]);
-          if (!upsertErr) return true;
-          errToProcess = upsertErr;
+          const inserted = await safeInsertSupabase(tableName, { id: targetId, ...rawPayload });
+          return !!inserted;
         }
 
-        if (errToProcess) {
-          const msg = errToProcess.message || '';
-          if (msg.includes('Could not find the table') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist')) {
-            console.warn(`Supabase table '${tableName}' not found in schema cache. Skipping Supabase update.`);
-            return false;
-          }
-          if (errToProcess.code === 'PGRST204' || msg.includes('Could not find the')) {
-            const match = msg.match(/Could not find the '([^']+)' column/);
-            if (match && match[1] && match[1] in payload) {
-              delete payload[match[1]];
-              continue;
+        if (error) {
+          const msg = (error.message || '') + ' ' + (error.details || '');
+          let removedAKey = false;
+          for (const key of Object.keys(payload)) {
+            if (msg.toLowerCase().includes(key.toLowerCase())) {
+              delete payload[key];
+              removedAKey = true;
+              break;
             }
           }
-          console.warn(`Supabase update info on ${tableName}:`, msg);
+          if (!removedAKey) break;
         }
-        return false;
       } catch (err) {
-        return false;
+        break;
       }
     }
     return false;
@@ -1497,6 +1520,29 @@ app.get('/api/auth/me', (req: any, res: any) => {
     }
   };
 
+  // Helper to push SQLite seeded rows to Supabase if missing
+  const syncSqliteToSupabase = async (tableName: string) => {
+    if (!supabase) return;
+    try {
+      const validCols = getValidColumns(tableName);
+      if (validCols.length === 0) return;
+
+      const { data: sbData, error } = await supabase.from(tableName).select('id');
+      if (error) return;
+
+      const sbIds = new Set((sbData || []).map((r: any) => String(r.id)));
+      const sqliteRows = db.prepare(`SELECT * FROM ${tableName}`).all() as any[];
+
+      for (const row of sqliteRows) {
+        if (!sbIds.has(String(row.id))) {
+          await safeInsertSupabase(tableName, row);
+        }
+      }
+    } catch (e) {
+      console.error(`Error in syncSqliteToSupabase for ${tableName}:`, e);
+    }
+  };
+
   // --- API Routes (Generic CRUD Helper) ---
   const createCrudRoutes = (tableName: string, entityName: string) => {
     // GET list endpoint
@@ -1523,18 +1569,31 @@ app.get('/api/auth/me', (req: any, res: any) => {
           try {
             const validCols = getValidColumns(tableName);
             const orderCol = validCols.includes('display_order') ? 'display_order' : 'id';
-            const { data, error } = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
-            if (!error && Array.isArray(data) && data.length > 0) {
-              syncSupabaseToSqlite(tableName, data);
-              let itemsToReturn = data;
-              if (tableName === 'users') {
-                itemsToReturn = itemsToReturn.map((u: any) => {
-                  const copy = { ...u };
-                  delete copy.password;
-                  return copy;
-                });
+            let { data, error } = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
+
+            const sqliteCount = (db.prepare(`SELECT COUNT(*) as c FROM ${tableName}`).get() as any)?.c || 0;
+
+            if (!error && Array.isArray(data)) {
+              if (data.length < sqliteCount) {
+                await syncSqliteToSupabase(tableName);
+                const refetch = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
+                if (!refetch.error && Array.isArray(refetch.data) && refetch.data.length > 0) {
+                  data = refetch.data;
+                }
               }
-              return res.json(itemsToReturn);
+
+              if (data.length > 0) {
+                syncSupabaseToSqlite(tableName, data);
+                let itemsToReturn = data;
+                if (tableName === 'users') {
+                  itemsToReturn = itemsToReturn.map((u: any) => {
+                    const copy = { ...u };
+                    delete copy.password;
+                    return copy;
+                  });
+                }
+                return res.json(itemsToReturn);
+              }
             }
           } catch (sbErr) {
             console.error(`Supabase fetch sync failed for ${tableName}:`, sbErr);
@@ -1926,9 +1985,20 @@ app.get('/api/auth/me', (req: any, res: any) => {
     try {
       if (supabase) {
         try {
-          const { data, error } = await supabase.from('players').select('*').order('display_order', { ascending: true });
-          if (!error && Array.isArray(data) && data.length > 0) {
-            syncSupabaseToSqlite('players', data);
+          let { data, error } = await supabase.from('players').select('*').order('display_order', { ascending: true });
+          const sqliteCount = (db.prepare('SELECT COUNT(*) as c FROM players').get() as any)?.c || 0;
+          if (!error && Array.isArray(data)) {
+            if (data.length < sqliteCount) {
+              await syncSqliteToSupabase('players');
+              const refetch = await supabase.from('players').select('*').order('display_order', { ascending: true });
+              if (!refetch.error && Array.isArray(refetch.data) && refetch.data.length > 0) {
+                data = refetch.data;
+              }
+            }
+            if (data.length > 0) {
+              syncSupabaseToSqlite('players', data);
+              return res.json(data);
+            }
           }
         } catch (sbErr) {}
       }
@@ -1947,7 +2017,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
           const { data, error } = await supabase.from('players').select('*').eq('id', req.params.id).single();
           if (!error && data) {
             syncSupabaseToSqlite('players', [data]);
-            sqlitePlayer = db.prepare('SELECT * FROM players WHERE id = ? OR ign = ? OR nickname = ?').get(req.params.id, req.params.id, req.params.id);
+            return res.json(data);
           }
         } catch (e) {}
       }
@@ -1964,6 +2034,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
           const { data, error } = await supabase.from('players').select('*').eq('team_id', req.params.id).order('display_order', { ascending: true });
           if (!error && Array.isArray(data) && data.length > 0) {
             syncSupabaseToSqlite('players', data);
+            return res.json(data);
           }
         } catch (e) {}
       }
