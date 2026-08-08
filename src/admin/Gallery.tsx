@@ -6,6 +6,7 @@ import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { ToastNotification } from './components/Toast';
+import { getAuthHeaders } from './utils/api';
 
 const AdminGallery = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -55,7 +56,8 @@ const AdminGallery = () => {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(editingItem),
         signal: controller.signal
       });
@@ -89,7 +91,7 @@ const AdminGallery = () => {
     setDeleteTarget(null);
     try {
       setItems(prev => prev.filter(item => String(item.id) !== String(id)));
-      await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
+      await fetch(`/api/gallery/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       fetchItems();
     } catch (err: any) {
       fetchItems();
@@ -132,7 +134,8 @@ const AdminGallery = () => {
         
         const res = await fetch('/api/gallery', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
+          credentials: 'include',
           body: JSON.stringify(newItem)
         });
         if (res.ok) successCount++;

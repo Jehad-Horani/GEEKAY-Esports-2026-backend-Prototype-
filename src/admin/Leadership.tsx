@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { getAuthHeaders } from './utils/api';
 
 const AdminLeadership = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -45,7 +46,8 @@ const AdminLeadership = () => {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(editingItem),
         signal: controller.signal
       });
@@ -78,7 +80,7 @@ const AdminLeadership = () => {
     setDeleteTarget(null);
     try {
       setItems(prev => prev.filter(item => String(item.id) !== String(id)));
-      await fetch(`/api/leadership/${id}`, { method: 'DELETE' });
+      await fetch(`/api/leadership/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       fetchItems();
     } catch (err: any) {
       fetchItems();

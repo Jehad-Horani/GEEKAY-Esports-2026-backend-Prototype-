@@ -27,6 +27,7 @@ import ImageUploader from '../components/ImageUploader';
 import { safeJsonParse } from '../utils/json';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { ToastNotification } from './components/Toast';
+import { getAuthHeaders } from './utils/api';
 
 const AdminCreators = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -182,7 +183,8 @@ const AdminCreators = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -216,7 +218,7 @@ const AdminCreators = () => {
     setDeleteTarget(null);
     try {
       setItems((prev: any[]) => prev.filter((item: any) => String(item.id) !== String(id)));
-      await fetch(`/api/creators/${id}`, { method: 'DELETE' });
+      await fetch(`/api/creators/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       fetchItems();
     } catch (err) {
       fetchItems();
@@ -227,7 +229,8 @@ const AdminCreators = () => {
     try {
       await fetch(`/api/creators/${item.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ ...item, status: newStatus })
       });
       fetchItems();

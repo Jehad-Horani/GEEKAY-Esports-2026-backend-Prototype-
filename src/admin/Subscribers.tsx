@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { getAuthHeaders } from './utils/api';
 import { db, auth } from '../lib/firebase';
 import { 
   collection, 
@@ -87,7 +88,7 @@ const AdminSubscribers = () => {
       try {
         await deleteDoc(doc(db, 'subscribers', String(id)));
       } catch (e) {
-        await fetch(`/api/subscribers/${id}`, { method: 'DELETE' });
+        await fetch(`/api/subscribers/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       }
     } catch (error) {
       console.error('Failed to delete subscriber');
@@ -105,7 +106,8 @@ const AdminSubscribers = () => {
       } catch (e) {
         await fetch(`/api/subscribers/${subscriber.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
+          credentials: 'include',
           body: JSON.stringify({ ...subscriber, status: newStatus })
         });
       }

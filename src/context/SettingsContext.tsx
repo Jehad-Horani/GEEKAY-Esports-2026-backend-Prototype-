@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getAuthHeaders } from '../admin/utils/api';
 
 export interface SiteSettings {
   general_email: string;
@@ -111,7 +112,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setSettings(merged); // Optimistic update
       const res = await fetch('/api/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(merged)
       });
       if (res.ok) {

@@ -31,6 +31,7 @@ import ImageUploader from '../components/ImageUploader';
 import { safeJsonParse } from '../utils/json';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { ToastNotification } from './components/Toast';
+import { getAuthHeaders } from './utils/api';
 
 const AdminNews = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -193,7 +194,8 @@ const AdminNews = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
@@ -220,7 +222,7 @@ const AdminNews = () => {
     if (type === 'article') {
       try {
         setItems((prev: any[]) => prev.filter((item: any) => String(item.id) !== String(id)));
-        await fetch(`/api/news/${id}`, { method: 'DELETE' });
+        await fetch(`/api/news/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
         fetchData();
       } catch (err) {
         fetchData();
@@ -228,7 +230,7 @@ const AdminNews = () => {
     } else if (type === 'category') {
       try {
         setCategories((prev: any[]) => prev.filter((c: any) => String(c.id) !== String(id)));
-        await fetch(`/api/news_categories/${id}`, { method: 'DELETE' });
+        await fetch(`/api/news_categories/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
         fetchData();
       } catch (err) {
         fetchData();
@@ -236,7 +238,7 @@ const AdminNews = () => {
     } else if (type === 'author') {
       try {
         setAuthors((prev: any[]) => prev.filter((a: any) => String(a.id) !== String(id)));
-        await fetch(`/api/news_authors/${id}`, { method: 'DELETE' });
+        await fetch(`/api/news_authors/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
         fetchData();
       } catch (err) {
         fetchData();
@@ -244,7 +246,7 @@ const AdminNews = () => {
     } else if (type === 'tag') {
       try {
         setTagsList((prev: any[]) => prev.filter((t: any) => String(t.id) !== String(id)));
-        await fetch(`/api/news_tags/${id}`, { method: 'DELETE' });
+        await fetch(`/api/news_tags/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
         fetchData();
       } catch (err) {
         fetchData();
@@ -256,7 +258,8 @@ const AdminNews = () => {
     try {
       await fetch(`/api/news/${item.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ ...item, [field]: val })
       });
       fetchData();
@@ -278,7 +281,8 @@ const AdminNews = () => {
       };
       await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
       setEditingCategory(null);
@@ -301,7 +305,8 @@ const AdminNews = () => {
       };
       await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
       setEditingTag(null);

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Search, Building2, ExternalLink, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { getAuthHeaders } from './utils/api';
 
 interface Partner {
   id?: number | string;
@@ -75,7 +76,8 @@ const AdminPartners = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
@@ -107,7 +109,8 @@ const AdminPartners = () => {
       const newStatus = partner.published ? 0 : 1;
       const res = await fetch(`/api/partners/${partner.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ ...partner, published: newStatus })
       });
       if (res.ok) {
@@ -123,7 +126,9 @@ const AdminPartners = () => {
 
     try {
       const res = await fetch(`/api/partners/${deleteTarget.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        credentials: 'include'
       });
 
       if (res.ok) {

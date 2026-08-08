@@ -9,6 +9,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
+import { getAuthHeaders } from './utils/api';
 
 const AdminSchedule = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -118,7 +119,8 @@ const AdminSchedule = () => {
     try {
       const res = await fetch('/api/game-titles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ name: title })
       });
       if (res.ok) {
@@ -133,9 +135,9 @@ const AdminSchedule = () => {
   const handleDeleteGameTitle = async (gt: { id?: number | string; name: string }) => {
     try {
       if (gt.id) {
-        await fetch(`/api/game-titles/${gt.id}`, { method: 'DELETE' });
+        await fetch(`/api/game-titles/${gt.id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       } else {
-        await fetch(`/api/game_titles/by-name/${encodeURIComponent(gt.name)}`, { method: 'DELETE' });
+        await fetch(`/api/game_titles/by-name/${encodeURIComponent(gt.name)}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       }
       setGameTitlesList(prev => prev.filter(item => item.name.toUpperCase() !== gt.name.toUpperCase()));
       fetchGameTitles();
@@ -172,7 +174,8 @@ const AdminSchedule = () => {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -205,7 +208,7 @@ const AdminSchedule = () => {
     setDeleteTarget(null);
     try {
       setItems(prev => prev.filter(item => String(item.id) !== String(id)));
-      await fetch(`/api/events/${id}`, { method: 'DELETE' });
+      await fetch(`/api/events/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       fetchItems();
     } catch (err: any) {
       fetchItems();
@@ -261,7 +264,8 @@ const AdminSchedule = () => {
           for (const event of events) {
             const res = await fetch('/api/events', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
+              credentials: 'include',
               body: JSON.stringify(event)
             });
             if (res.ok) successCount++;

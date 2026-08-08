@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Search, Filter, X, Eye } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { getAuthHeaders } from './utils/api';
 
 const AdminJobs = () => {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -68,7 +69,8 @@ const AdminJobs = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -101,7 +103,7 @@ const AdminJobs = () => {
     setDeleteTarget(null);
     try {
       setJobs(prev => prev.filter(job => String(job.id) !== String(id)));
-      await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+      await fetch(`/api/jobs/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       fetchJobs();
     } catch (err: any) {
       fetchJobs();

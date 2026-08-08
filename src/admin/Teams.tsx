@@ -18,6 +18,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
 import { ToastNotification } from './components/Toast';
+import { getAuthHeaders } from './utils/api';
 
 const AdminTeams = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -188,7 +189,8 @@ const AdminTeams = () => {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -223,8 +225,8 @@ const AdminTeams = () => {
     if (type === 'team') {
       try {
         setTeams(prev => prev.filter(t => String(t.id) !== String(id)));
-        await fetch(`/api/teams/${id}`, { method: 'DELETE' });
-        setToastMsg('تم حذف الفريق بنجax! / Team deleted.');
+        await fetch(`/api/teams/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
+        setToastMsg('تم حذف الفريق بنجاح! / Team deleted.');
         fetchTeams();
       } catch (err: any) {
         fetchTeams();
@@ -232,7 +234,7 @@ const AdminTeams = () => {
     } else {
       try {
         setPlayers(prev => prev.filter(p => String(p.id) !== String(id)));
-        await fetch(`/api/players/${id}`, { method: 'DELETE' });
+        await fetch(`/api/players/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
         setToastMsg('تم حذف اللاعب بنجاح! / Player deleted.');
         if (expandedTeamId) fetchPlayers(expandedTeamId);
       } catch (err: any) {
@@ -284,7 +286,8 @@ const AdminTeams = () => {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
         signal: controller.signal
       });

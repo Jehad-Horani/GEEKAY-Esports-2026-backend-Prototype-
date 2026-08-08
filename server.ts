@@ -1513,6 +1513,15 @@ app.get('/api/auth/me', (req: any, res: any) => {
             const { data, error } = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
             if (!error && Array.isArray(data) && data.length > 0) {
               syncSupabaseToSqlite(tableName, data);
+              let itemsToReturn = data;
+              if (tableName === 'users') {
+                itemsToReturn = itemsToReturn.map((u: any) => {
+                  const copy = { ...u };
+                  delete copy.password;
+                  return copy;
+                });
+              }
+              return res.json(itemsToReturn);
             }
           } catch (sbErr) {
             console.error(`Supabase fetch sync failed for ${tableName}:`, sbErr);
