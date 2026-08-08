@@ -15,13 +15,29 @@ const AdminUsers = () => {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('geekay_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch('/api/users', {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       if (res.ok) {
         const data = await res.json();
         setUsers(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to fetch users, status:', res.status);
       }
     } catch (err) {
       console.error('Failed to fetch users:', err);
@@ -40,7 +56,11 @@ const AdminUsers = () => {
     setDeleteTarget(null);
     try {
       setUsers(prev => prev.filter(u => String(u.id) !== String(id)));
-      await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      await fetch(`/api/users/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       fetchUsers();
     } catch (err) {
       fetchUsers();
@@ -66,56 +86,21 @@ const AdminUsers = () => {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error('Failed to save user');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to save user');
+      }
       setEditingUser(null);
       fetchUsers();
     } catch (err: any) {
       alert(err.message || 'Failed to save user');
     }
   };
-
-  // Check if current active role is Editor (Restricted Access)
-  if (currentUser && currentUser.role === 'editor') {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-8 max-w-2xl mx-auto space-y-6">
-        <div className="w-20 h-20 bg-red-500/10 border-2 border-red-500/30 rounded-full flex items-center justify-center text-red-500 mb-2">
-          <ShieldAlert size={40} />
-        </div>
-        
-        <div>
-          <span className="text-red-500 font-syncopate text-[10px] font-bold tracking-[0.4em] uppercase block mb-2">RESTRICTED_ACCESS</span>
-          <h1 className="font-syncopate text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">
-            ADMINISTRATOR PRIVILEGES REQUIRED
-          </h1>
-        </div>
-
-        <p className="text-slate-400 font-inter text-sm leading-relaxed">
-          Your current session is active as <span className="text-blue-400 font-bold uppercase">Editor</span>. Editor accounts have full access to manage content, news, teams, creators, and schedule, but <span className="text-white font-bold">User Management is restricted exclusively to Admins</span>.
-        </p>
-
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-          {toggleRole && (
-            <button
-              onClick={toggleRole}
-              className="px-6 py-4 bg-[#FFC400] hover:bg-[#FFC400]/90 text-black font-syncopate text-xs font-black uppercase tracking-wider transition-all w-full sm:w-auto"
-            >
-              👑 SWITCH TO ADMIN ROLE TO TEST
-            </button>
-          )}
-          <button
-            onClick={() => navigate('/admin')}
-            className="px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-syncopate text-xs font-bold uppercase tracking-wider transition-all w-full sm:w-auto"
-          >
-            RETURN TO DASHBOARD
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const filteredUsers = users.filter(u => {
     const q = searchQuery.toLowerCase();

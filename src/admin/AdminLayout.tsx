@@ -120,6 +120,13 @@ const AdminLayout = () => {
     </div>
   );
 
+  const toggleRole = () => {
+    const newRole = user?.role === 'admin' ? 'editor' : 'admin';
+    const updated = { ...user, role: newRole };
+    setUser(updated);
+    localStorage.setItem('geekay_user', JSON.stringify(updated));
+  };
+
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: <LayoutDashboard size={20} /> },
     { name: 'Leadership', path: '/admin/leadership', icon: <UserCircle size={20} /> },
@@ -132,7 +139,7 @@ const AdminLayout = () => {
     { name: 'News', path: '/admin/news', icon: <Newspaper size={20} /> },
     { name: 'Subscribers', path: '/admin/subscribers', icon: <Mail size={20} /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings size={20} /> },
-    { name: 'Users', path: '/admin/users', icon: <Users size={20} />, adminOnly: true },
+    { name: 'Users', path: '/admin/users', icon: <Users size={20} /> },
   ];
 
   return (
@@ -154,7 +161,6 @@ const AdminLayout = () => {
 
           <nav className="flex-grow p-4 space-y-2">
             {menuItems.map((item) => {
-              if (item.adminOnly && user.role !== 'admin') return null;
               const isActive = location.pathname === item.path;
               return (
                 <Link
@@ -174,8 +180,10 @@ const AdminLayout = () => {
 
           <div className="p-4 border-t border-white/5 space-y-3">
             {isSidebarOpen && (
-              <div 
-                className="w-full py-2.5 px-3 bg-white/5 border border-white/10 rounded flex items-center justify-between text-left"
+              <button 
+                onClick={toggleRole}
+                title="Click to toggle role"
+                className="w-full py-2.5 px-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded flex items-center justify-between text-left transition-colors"
               >
                 <div>
                   <span className="block text-[8px] font-syncopate text-slate-400 font-bold tracking-widest uppercase">ACTIVE ROLE</span>
@@ -183,7 +191,8 @@ const AdminLayout = () => {
                     {user.role === 'admin' ? '👑 ADMIN' : '✏️ EDITOR'}
                   </span>
                 </div>
-              </div>
+                <span className="text-[9px] font-mono text-slate-400 underline">TOGGLE</span>
+              </button>
             )}
 
             <div className="flex items-center gap-4 px-4 py-2">
@@ -209,7 +218,7 @@ const AdminLayout = () => {
       {/* Main Content */}
       <main className="flex-grow flex flex-col min-w-0">
         <div className="flex-grow p-8 lg:p-12 overflow-y-auto">
-          <Outlet context={{ user }} />
+          <Outlet context={{ user, toggleRole }} />
         </div>
       </main>
     </div>

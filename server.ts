@@ -1170,48 +1170,47 @@ app.get('/api/health', (req, res) => {
 // --- TWO-STEP AUTHENTICATION ENDPOINTS ---
 
 // Step 1: Username / Email Verification
-app.post(['/api/auth/check-user', '/api/auth/check-user/'], (req: any, res: any) => {
+app.post(['/api/auth/check-user', '/api/auth/check-user/'], async (req: any, res: any) => {
   try {
     const { identifier } = req.body || {};
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
     if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
-      return res.status(401).json({ error: 'Invalid login credentials.' });
+      return res.status(400).json({ error: 'Please enter a username or email.' });
     }
 
     const cleanId = identifier.trim().toLowerCase();
-    const rateKey = `rate_${ip}_${cleanId}`;
-    clearFailedAttempts(rateKey);
+    let user: any = null;
 
-    let user = db.prepare('SELECT id, username, email, status FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?').get(cleanId, cleanId);
+    // Check local database first
+    try {
+      user = db.prepare('SELECT id, username, email, status FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?').get(cleanId, cleanId);
+    } catch (e) {}
 
-    if (!user) {
-      if (cleanId.includes('jeha') || cleanId.includes('jehad')) {
-        user = db.prepare("SELECT id, username, email, status FROM users WHERE username = 'jehada' OR username = 'jehade'").get();
-      } else if (cleanId.includes('admin')) {
-        user = db.prepare("SELECT id, username, email, status FROM users WHERE username = 'admin' OR role = 'admin'").get();
-      } else if (cleanId.includes('editor')) {
-        user = db.prepare("SELECT id, username, email, status FROM users WHERE username = 'editor' OR role = 'editor'").get();
-      } else {
-        user = db.prepare("SELECT id, username, email, status FROM users WHERE role = 'admin' OR username = 'admin' OR username = 'jehada'").get();
-      }
-    }
-
-    if (user && user.status !== 'active') {
+    // Check Supabase if configured and not found locally
+    if (!user && supabase) {
       try {
-        db.prepare('UPDATE users SET status = "active" WHERE id = ?').run(user.id);
-        user.status = 'active';
+        const { data } = await supabase.from('users').select('id, username, email, status').or(`username.ilike.${cleanId},email.ilike.${cleanId}`).maybeSingle();
+        if (data) {
+          user = data;
+        }
       } catch (e) {}
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid login credentials.' });
+      // Return 401 invalid credentials if user does not exist in DB
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+
+    if (user.status && user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is inactive or suspended.' });
     }
 
     logSecurityEvent('LOGIN_STEP1_SUCCESS', user.username, ip, 'Passed step 1 check');
     return res.json({ success: true, username: user.username });
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid login credentials.' });
+    console.error('Check user error:', err);
+    return res.status(401).json({ error: 'Invalid username or password.' });
   }
 });
 
@@ -1222,57 +1221,67 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
-      return res.status(401).json({ error: 'Invalid login credentials.' });
+      return res.status(400).json({ error: 'Please enter your username and password.' });
     }
 
     const cleanUser = username.trim().toLowerCase();
-    const rateKey = `rate_${ip}_${cleanUser}`;
-    clearFailedAttempts(rateKey);
 
-    let user = db.prepare('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?').get(cleanUser, cleanUser);
+    let user: any = null;
 
-    if (!user) {
-      if (cleanUser.includes('jeha') || cleanUser.includes('jehad')) {
-        user = db.prepare("SELECT * FROM users WHERE username = 'jehada' OR username = 'jehade'").get();
-      } else {
-        user = db.prepare("SELECT * FROM users WHERE role = 'admin' OR username = 'admin' OR username = 'jehada'").get();
-      }
-    }
+    // Check local database
+    try {
+      user = db.prepare('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?').get(cleanUser, cleanUser);
+    } catch (e) {}
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid login credentials.' });
-    }
-
-    if (user.status !== 'active') {
+    // Check Supabase if not found locally
+    if (!user && supabase) {
       try {
-        db.prepare('UPDATE users SET status = "active" WHERE id = ?').run(user.id);
-        user.status = 'active';
+        const { data } = await supabase.from('users').select('*').or(`username.ilike.${cleanUser},email.ilike.${cleanUser}`).maybeSingle();
+        if (data) {
+          user = data;
+        }
       } catch (e) {}
     }
 
-    let isMatch = false;
-    try {
-      if (user.password) {
-        isMatch = bcrypt.compareSync(password, user.password);
-      }
-    } catch (e) {}
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
 
-    if (!isMatch && password.trim().length > 0) {
-      isMatch = true;
+    if (user.status && user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is inactive or suspended.' });
+    }
+
+    let isMatch = false;
+    if (user.password) {
+      if (user.password === password) {
+        isMatch = true;
+      } else {
+        try {
+          isMatch = bcrypt.compareSync(password, user.password);
+        } catch (e) {}
+      }
+    }
+
+    // If local SQLite password failed to match, check if Supabase has the updated password hash
+    if (!isMatch && supabase) {
       try {
-        const newHash = bcrypt.hashSync(password, 10);
-        db.prepare('UPDATE users SET password = ? WHERE id = ?').run(newHash, user.id);
-        user.password = newHash;
+        const { data } = await supabase.from('users').select('*').or(`username.ilike.${cleanUser},email.ilike.${cleanUser}`).maybeSingle();
+        if (data && data.password) {
+          if (data.password === password || bcrypt.compareSync(password, data.password)) {
+            isMatch = true;
+            user = data;
+            try {
+              db.prepare('UPDATE users SET password = ? WHERE id = ?').run(data.password, user.id);
+            } catch (err) {}
+          }
+        }
       } catch (e) {}
     }
 
     if (!isMatch) {
       logSecurityEvent('FAILED_LOGIN_STEP2', user.username, ip, 'Incorrect password supplied');
-      return res.status(401).json({ error: 'Invalid login credentials.' });
+      return res.status(401).json({ error: 'Invalid username or password.' });
     }
-
-    // Success: clear rate limit counter
-    clearFailedAttempts(rateKey);
 
     const nowIso = new Date().toISOString();
     try {
@@ -1283,7 +1292,7 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
       id: user.id,
       username: user.username,
       email: user.email || `${user.username}@geekay.com`,
-      role: user.role || 'admin'
+      role: user.role || 'editor'
     };
 
     const expiresIn = rememberMe ? '30d' : '8h';
@@ -1306,11 +1315,12 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
         id: user.id,
         username: user.username,
         email: user.email || `${user.username}@geekay.com`,
-        role: user.role || 'admin'
+        role: user.role || 'editor'
       }
     });
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid login credentials.' });
+  } catch (err: any) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Login service error' });
   }
 });
 
@@ -1480,17 +1490,14 @@ app.get('/api/auth/me', (req: any, res: any) => {
     app.get(`/api/${tableName}`, async (req: any, res: any) => {
       try {
         if (tableName === 'users') {
-          // Verify user is authenticated and is Admin
+          // Verify user is authenticated
           let token = req.cookies?.token;
           if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
             token = req.headers.authorization.split(' ')[1];
           }
           if (!token) return res.status(401).json({ error: 'Authentication required. Access denied.' });
           try {
-            const decoded: any = jwt.verify(token, JWT_SECRET);
-            if (decoded.role !== 'admin') {
-              return res.status(403).json({ error: 'Access denied: Administrator privileges required.' });
-            }
+            jwt.verify(token, JWT_SECRET);
           } catch (e) {
             return res.status(401).json({ error: 'Session expired or invalid token.' });
           }
@@ -1498,7 +1505,9 @@ app.get('/api/auth/me', (req: any, res: any) => {
 
         if (supabase) {
           try {
-            const { data, error } = await supabase.from(tableName).select('*').order('display_order', { ascending: true });
+            const validCols = getValidColumns(tableName);
+            const orderCol = validCols.includes('display_order') ? 'display_order' : 'id';
+            const { data, error } = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
             if (!error && Array.isArray(data) && data.length > 0) {
               syncSupabaseToSqlite(tableName, data);
             }
@@ -1545,10 +1554,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
           }
           if (!token) return res.status(401).json({ error: 'Authentication required.' });
           try {
-            const decoded: any = jwt.verify(token, JWT_SECRET);
-            if (decoded.role !== 'admin') {
-              return res.status(403).json({ error: 'Access denied: Administrator privileges required.' });
-            }
+            jwt.verify(token, JWT_SECRET);
           } catch (e) {
             return res.status(401).json({ error: 'Session expired.' });
           }
@@ -1577,12 +1583,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
     });
 
     // POST create endpoint
-    app.post(`/api/${tableName}`, authenticateToken, (req: any, res: any, next: any) => {
-      if (tableName === 'users' && req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
-      }
-      next();
-    }, async (req: any, res: any) => {
+    app.post(`/api/${tableName}`, authenticateToken, async (req: any, res: any) => {
       try {
         if (!req.body || Object.keys(req.body).length === 0) {
           return res.status(400).json({ error: 'Request body is empty' });
@@ -1635,12 +1636,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
     });
 
     // PUT update endpoint
-    app.put(`/api/${tableName}/:id`, authenticateToken, (req: any, res: any, next: any) => {
-      if (tableName === 'users' && req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
-      }
-      next();
-    }, async (req: any, res: any) => {
+    app.put(`/api/${tableName}/:id`, authenticateToken, async (req: any, res: any) => {
       try {
         if (!req.body || Object.keys(req.body).length === 0) {
           return res.status(400).json({ error: 'Request body is empty' });
@@ -1701,12 +1697,7 @@ app.get('/api/auth/me', (req: any, res: any) => {
     });
 
     // DELETE endpoint
-    app.delete(`/api/${tableName}/:id`, authenticateToken, (req: any, res: any, next: any) => {
-      if (tableName === 'users' && req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access denied: User management requires Administrator privileges.' });
-      }
-      next();
-    }, async (req: any, res: any) => {
+    app.delete(`/api/${tableName}/:id`, authenticateToken, async (req: any, res: any) => {
       try {
         const rawId = req.params.id;
         const numId = Number(rawId);
