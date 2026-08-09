@@ -1486,60 +1486,41 @@ app.get('/api/auth/me', (req: any, res: any) => {
     return String(val);
   }
 
-  // Helper to sync Supabase rows to SQLite if missing
+  // Helper to sync Supabase rows to SQLite and purge deleted SQLite records
   const syncSupabaseToSqlite = (tableName: string, sbItems: any[]) => {
-    if (!Array.isArray(sbItems) || sbItems.length === 0) return;
+    if (!Array.isArray(sbItems)) return;
     const validCols = getValidColumns(tableName);
     if (validCols.length === 0) return;
 
     try {
-      const existingIds = new Set(
-        db.prepare(`SELECT id FROM ${tableName}`).all().map((r: any) => String(r.id))
-      );
+      const sbIds = new Set(sbItems.map((item: any) => String(item?.id)).filter(Boolean));
+      const sqliteRows = db.prepare(`SELECT id FROM ${tableName}`).all() as any[];
 
+      // Delete SQLite records that no longer exist in Supabase
+      for (const row of sqliteRows) {
+        if (!sbIds.has(String(row.id))) {
+          db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).run(row.id);
+        }
+      }
+
+      // Upsert Supabase records into SQLite
       for (const item of sbItems) {
         if (!item || item.id === undefined || item.id === null) continue;
-        if (!existingIds.has(String(item.id))) {
-          const payload: any = {};
-          for (const k of Object.keys(item)) {
-            if (validCols.includes(k)) {
-              payload[k] = item[k];
-            }
+        const payload: any = {};
+        for (const k of Object.keys(item)) {
+          if (validCols.includes(k)) {
+            payload[k] = item[k];
           }
-          const fields = Object.keys(payload);
-          if (fields.length > 0) {
-            const placeholders = fields.map(() => '?').join(',');
-            const values = fields.map(f => sanitizeSqliteValue(payload[f]));
-            db.prepare(`INSERT OR REPLACE INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
-            existingIds.add(String(item.id));
-          }
+        }
+        const fields = Object.keys(payload);
+        if (fields.length > 0) {
+          const placeholders = fields.map(() => '?').join(',');
+          const values = fields.map(f => sanitizeSqliteValue(payload[f]));
+          db.prepare(`INSERT OR REPLACE INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
         }
       }
     } catch (e) {
       console.error(`Error in syncSupabaseToSqlite for ${tableName}:`, e);
-    }
-  };
-
-  // Helper to push SQLite seeded rows to Supabase if missing
-  const syncSqliteToSupabase = async (tableName: string) => {
-    if (!supabase) return;
-    try {
-      const validCols = getValidColumns(tableName);
-      if (validCols.length === 0) return;
-
-      const { data: sbData, error } = await supabase.from(tableName).select('id');
-      if (error) return;
-
-      const sbIds = new Set((sbData || []).map((r: any) => String(r.id)));
-      const sqliteRows = db.prepare(`SELECT * FROM ${tableName}`).all() as any[];
-
-      for (const row of sqliteRows) {
-        if (!sbIds.has(String(row.id))) {
-          await safeInsertSupabase(tableName, row);
-        }
-      }
-    } catch (e) {
-      console.error(`Error in syncSqliteToSupabase for ${tableName}:`, e);
     }
   };
 
@@ -1569,31 +1550,19 @@ app.get('/api/auth/me', (req: any, res: any) => {
           try {
             const validCols = getValidColumns(tableName);
             const orderCol = validCols.includes('display_order') ? 'display_order' : 'id';
-            let { data, error } = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
-
-            const sqliteCount = (db.prepare(`SELECT COUNT(*) as c FROM ${tableName}`).get() as any)?.c || 0;
+            const { data, error } = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
 
             if (!error && Array.isArray(data)) {
-              if (data.length < sqliteCount) {
-                await syncSqliteToSupabase(tableName);
-                const refetch = await supabase.from(tableName).select('*').order(orderCol, { ascending: true });
-                if (!refetch.error && Array.isArray(refetch.data) && refetch.data.length > 0) {
-                  data = refetch.data;
-                }
+              syncSupabaseToSqlite(tableName, data);
+              let itemsToReturn = data;
+              if (tableName === 'users') {
+                itemsToReturn = itemsToReturn.map((u: any) => {
+                  const copy = { ...u };
+                  delete copy.password;
+                  return copy;
+                });
               }
-
-              if (data.length > 0) {
-                syncSupabaseToSqlite(tableName, data);
-                let itemsToReturn = data;
-                if (tableName === 'users') {
-                  itemsToReturn = itemsToReturn.map((u: any) => {
-                    const copy = { ...u };
-                    delete copy.password;
-                    return copy;
-                  });
-                }
-                return res.json(itemsToReturn);
-              }
+              return res.json(itemsToReturn);
             }
           } catch (sbErr) {
             console.error(`Supabase fetch sync failed for ${tableName}:`, sbErr);
@@ -1985,20 +1954,10 @@ app.get('/api/auth/me', (req: any, res: any) => {
     try {
       if (supabase) {
         try {
-          let { data, error } = await supabase.from('players').select('*').order('display_order', { ascending: true });
-          const sqliteCount = (db.prepare('SELECT COUNT(*) as c FROM players').get() as any)?.c || 0;
+          const { data, error } = await supabase.from('players').select('*').order('display_order', { ascending: true });
           if (!error && Array.isArray(data)) {
-            if (data.length < sqliteCount) {
-              await syncSqliteToSupabase('players');
-              const refetch = await supabase.from('players').select('*').order('display_order', { ascending: true });
-              if (!refetch.error && Array.isArray(refetch.data) && refetch.data.length > 0) {
-                data = refetch.data;
-              }
-            }
-            if (data.length > 0) {
-              syncSupabaseToSqlite('players', data);
-              return res.json(data);
-            }
+            syncSupabaseToSqlite('players', data);
+            return res.json(data);
           }
         } catch (sbErr) {}
       }

@@ -577,57 +577,55 @@ const Teams = () => {
   useEffect(() => {
     let isMounted = true;
     
-    // Fetch Teams and Creators in parallel
+    // Fetch Teams, Players, and Creators in parallel
     const loadAll = async () => {
       try {
-        const [teamsRes, creatorsRes] = await Promise.all([
+        const [teamsRes, playersRes, creatorsRes] = await Promise.all([
           fetch('/api/teams').then(res => res.ok ? res.json() : []).catch(() => []),
+          fetch('/api/players').then(res => res.ok ? res.json() : []).catch(() => []),
           fetch('/api/creators').then(res => res.ok ? res.json() : []).catch(() => [])
         ]);
 
         if (isMounted) {
           if (Array.isArray(teamsRes)) {
-            const loadedTeams: Team[] = await Promise.all(
-              teamsRes.map(async (t: any) => {
-                let playersData: any[] = [];
-                try {
-                  const pRes = await fetch(`/api/teams/${t.id}/players`);
-                  if (pRes.ok) playersData = await pRes.json();
-                } catch (e) {}
+            const allPlayers: any[] = Array.isArray(playersRes) ? playersRes : [];
 
-                const mappedPlayers: Player[] = playersData.map((p: any) => ({
-                  id: String(p.id),
-                  nickname: p.ign || p.nickname || 'PLAYER',
-                  role: p.role || 'ROSTER',
-                  name: p.name || '',
-                  photo: p.photo || 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&q=80&w=500&h=600',
-                  bio: p.bio || '',
-                  age: p.age || '20',
-                  nationality: p.nationality || 'Saudi Arabia',
-                  socials: safeJsonParse(p.socials, {}),
-                  achievements: safeJsonParse(p.achievements, []),
-                  stats: {
-                    kd: p.stats?.kd ?? p.kd ?? 1.2,
-                    mvps: p.stats?.mvps ?? p.mvps ?? 0,
-                    tournaments: p.stats?.tournaments ?? p.tournaments ?? 0,
-                    winRate: p.stats?.winRate ?? p.win_rate ?? p.winRate ?? '70%'
-                  }
-                }));
+            const loadedTeams: Team[] = teamsRes.map((t: any) => {
+              const teamPlayersData = allPlayers.filter((p: any) => String(p.team_id) === String(t.id));
 
-                const parseAchievements = safeJsonParse(t.achievements, []);
-                const parseMedia = safeJsonParse(t.media, []);
+              const mappedPlayers: Player[] = teamPlayersData.map((p: any) => ({
+                id: String(p.id),
+                nickname: p.ign || p.nickname || 'PLAYER',
+                role: p.role || 'ROSTER',
+                name: p.name || '',
+                photo: p.photo || 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&q=80&w=500&h=600',
+                bio: p.bio || '',
+                age: p.age || '20',
+                nationality: p.nationality || 'Saudi Arabia',
+                socials: safeJsonParse(p.socials, {}),
+                achievements: safeJsonParse(p.achievements, []),
+                stats: {
+                  kd: p.stats?.kd ?? p.kd ?? 1.2,
+                  mvps: p.stats?.mvps ?? p.mvps ?? 0,
+                  tournaments: p.stats?.tournaments ?? p.tournaments ?? 0,
+                  winRate: p.stats?.winRate ?? p.win_rate ?? p.winRate ?? '70%'
+                }
+              }));
 
-                return {
-                  id: String(t.id),
-                  name: t.name,
-                  game: t.game,
-                  region: t.region || 'MENA',
-                  league: t.league || '',
-                  banner: t.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
-                  logo: t.logo || '',
-                  bio: t.bio || '',
-                  tagline: t.tagline || '',
-                  players: mappedPlayers,
+              const parseAchievements = safeJsonParse(t.achievements, []);
+              const parseMedia = safeJsonParse(t.media, []);
+
+              return {
+                id: String(t.id),
+                name: t.name,
+                game: t.game,
+                region: t.region || 'MENA',
+                league: t.league || '',
+                banner: t.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+                logo: t.logo || '',
+                bio: t.bio || '',
+                tagline: t.tagline || '',
+                players: mappedPlayers,
                   achievements: parseAchievements,
                   trophies: parseAchievements,
                   media: parseMedia,
@@ -642,8 +640,7 @@ const Teams = () => {
                     seasonRecord: t.season_record || t.seasonRecord || '18-4'
                   }
                 };
-              })
-            );
+              });
             setTeams(loadedTeams);
           }
 
