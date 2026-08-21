@@ -1132,25 +1132,60 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
     if (Array.isArray(events) && events.length > 0) {
       const matchesList: any[] = [];
       events.forEach((ev: any) => {
-        const evDate = ev.start_date || '';
-        const evTime = ev.time || '18:00 GST';
-        const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
+        let parsedMatches: any[] = [];
+        if (typeof ev.matches === 'string') {
+          try { parsedMatches = JSON.parse(ev.matches); } catch {}
+        } else if (Array.isArray(ev.matches)) {
+          parsedMatches = ev.matches;
+        }
 
-        if (dynStatus === 'upcoming' || dynStatus === 'live') {
-          matchesList.push({
-            id: ev.id,
-            game: String(ev.game || 'ESPORTS').toUpperCase(),
-            title: ev.title,
-            opponent: cleanOpponentName(ev.organizer || 'GLOBAL CONTENDERS'),
-            date: evDate || 'TBD',
-            time: evTime,
-            region: ev.region || 'GLOBAL',
-            status: dynStatus,
-            countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING'
+        if (parsedMatches.length > 0) {
+          parsedMatches.forEach((m: any) => {
+            const mDate = m.date || ev.start_date || '';
+            const mTime = ev.time || '18:00 GST';
+            const dynStatus = getDynamicStatus(mDate, ev.end_date || mDate, mTime, m.status || ev.status);
+
+            if (dynStatus === 'upcoming' || dynStatus === 'live') {
+              matchesList.push({
+                id: `${ev.id}-${m.teams || mDate}`,
+                game: String(ev.game || 'ESPORTS').toUpperCase(),
+                title: ev.title,
+                opponent: cleanOpponentName(m.teams || ev.organizer || 'GLOBAL CONTENDERS'),
+                date: mDate || 'TBD',
+                time: mTime,
+                region: ev.region || 'GLOBAL',
+                status: dynStatus,
+                countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING',
+                sortKey: mDate || '9999-99-99'
+              });
+            }
           });
+        } else {
+          const evDate = ev.start_date || '';
+          const evTime = ev.time || '18:00 GST';
+          const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
+
+          if (dynStatus === 'upcoming' || dynStatus === 'live') {
+            matchesList.push({
+              id: ev.id,
+              game: String(ev.game || 'ESPORTS').toUpperCase(),
+              title: ev.title,
+              opponent: cleanOpponentName(ev.organizer || 'GLOBAL CONTENDERS'),
+              date: evDate || 'TBD',
+              time: evTime,
+              region: ev.region || 'GLOBAL',
+              status: dynStatus,
+              countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING',
+              sortKey: evDate || '9999-99-99'
+            });
+          }
         }
       });
-      matchesList.sort((a, b) => (a.status === 'live' ? -1 : 1));
+      matchesList.sort((a, b) => {
+        if (a.status === 'live' && b.status !== 'live') return -1;
+        if (b.status === 'live' && a.status !== 'live') return 1;
+        return a.sortKey.localeCompare(b.sortKey);
+      });
       if (matchesList.length > 0) return matchesList.slice(0, 3);
     }
     return [];
@@ -1164,7 +1199,7 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
         id: feat.id,
         title: feat.title,
         game: String(feat.game || 'ESPORTS').toUpperCase(),
-        status: String(featStatus).toUpperCase(),
+        status: String(featStatus === 'completed' ? 'FINISHED' : (featStatus === 'live' ? 'LIVE NOW' : 'UPCOMING')).toUpperCase(),
         date: feat.start_date || '2026-11-05',
         location: feat.region || feat.organizer || 'GLOBAL',
         prizePool: feat.prize_pool || '$18,000,000',

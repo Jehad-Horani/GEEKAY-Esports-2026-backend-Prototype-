@@ -3,6 +3,13 @@
  * Automatically classifies items as 'live', 'upcoming', or 'completed'.
  */
 
+const MONTH_MAP: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+  january: '01', february: '02', march: '03', april: '04', june: '06',
+  july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
+};
+
 export function getTodayDateString(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -12,18 +19,62 @@ export function getTodayDateString(): string {
 }
 
 export function parseStandardDate(dateStr?: string | null): string | null {
-  if (!dateStr || dateStr === 'TBD' || dateStr === '') return null;
-  const clean = dateStr.trim().split('T')[0];
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-  
-  // Try standard parse
-  const parsed = new Date(dateStr);
+  if (!dateStr || dateStr === 'TBD' || dateStr === '' || typeof dateStr !== 'string') return null;
+  const raw = dateStr.trim();
+  const clean = raw.split('T')[0].trim();
+
+  // Pattern YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = clean.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (ymdMatch) {
+    const y = ymdMatch[1];
+    const m = String(parseInt(ymdMatch[2], 10)).padStart(2, '0');
+    const d = String(parseInt(ymdMatch[3], 10)).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Pattern DD-MM-YYYY or DD/MM/YYYY
+  const dmyMatch = clean.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dmyMatch) {
+    const part1 = parseInt(dmyMatch[1], 10);
+    const part2 = parseInt(dmyMatch[2], 10);
+    const y = dmyMatch[3];
+    // If part1 > 12, it must be DD-MM-YYYY
+    // Otherwise standard DD-MM-YYYY assumption for international esports
+    let day = part1;
+    let month = part2;
+    if (part2 > 12 && part1 <= 12) {
+      day = part2;
+      month = part1;
+    }
+    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  // Check for textual dates like "21 Aug 2026" or "August 21, 2026"
+  const textMonthMatch = clean.match(/([a-zA-Z]+)/);
+  if (textMonthMatch) {
+    const mName = textMonthMatch[1].toLowerCase();
+    if (MONTH_MAP[mName]) {
+      const mNum = MONTH_MAP[mName];
+      const numbers = clean.match(/\d+/g);
+      if (numbers && numbers.length >= 2) {
+        let year = numbers.find(n => n.length === 4);
+        let day = numbers.find(n => n.length <= 2);
+        if (year && day) {
+          return `${year}-${mNum}-${String(parseInt(day, 10)).padStart(2, '0')}`;
+        }
+      }
+    }
+  }
+
+  // Fallback to standard Date object
+  const parsed = new Date(raw);
   if (!isNaN(parsed.getTime())) {
     const year = parsed.getFullYear();
     const month = String(parsed.getMonth() + 1).padStart(2, '0');
     const day = String(parsed.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
+
   return null;
 }
 
@@ -52,7 +103,7 @@ export function getDynamicStatus(
   // Multi-day range check (e.g. tournament spanning 2026-08-20 to 2026-08-25)
   const effectiveEnd = end || start;
   if (todayStr >= start && todayStr <= effectiveEnd) {
-    // If today is match day, check match time if single day event
+    // If today is within event range or matches today's date -> LIVE
     return 'live';
   }
 
@@ -99,6 +150,10 @@ export function getMatchResult(item: any): { isWin: boolean; score: string; resT
   let isWin = true;
   let score = '2 - 1';
 
+  if (!item) {
+    return { isWin: true, score: '2 - 1', resText: 'WIN' };
+  }
+
   if (item.winner) {
     isWin = String(item.winner).toLowerCase().includes('geekay');
   } else if (item.res || item.result) {
@@ -116,7 +171,7 @@ export function getMatchResult(item: any): { isWin: boolean; score: string; resT
 
   return {
     isWin,
-    score: item.score && item.score !== 'Upcoming' ? item.score : (isWin ? '2 - 1' : '1 - 2'),
+    score: item.score && item.score !== 'Upcoming' && item.score !== '0-0' ? item.score : (isWin ? '2 - 1' : '1 - 2'),
     resText: isWin ? 'WIN' : 'LOSS'
   };
 }

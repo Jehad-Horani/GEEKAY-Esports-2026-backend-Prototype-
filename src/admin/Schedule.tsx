@@ -10,6 +10,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
 import { getAuthHeaders } from './utils/api';
+import { getDynamicStatus } from '../utils/dateStatus';
 
 const AdminSchedule = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -411,9 +412,14 @@ const AdminSchedule = () => {
                   {item.start_date} {item.time && `| ${item.time}`}
                 </td>
                 <td className="p-8">
-                  <span className={`px-3 py-1 rounded-full text-[8px] font-black ${item.status === 'live' ? 'bg-red-500/10 text-red-500 animate-pulse' : item.status === 'finished' ? 'bg-slate-500/10 text-slate-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                    {item.status}
-                  </span>
+                  {(() => {
+                    const dynStatus = getDynamicStatus(item.start_date, item.end_date, item.time, item.status);
+                    return (
+                      <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase ${dynStatus === 'live' ? 'bg-red-500/10 text-red-500 animate-pulse border border-red-500/30' : dynStatus === 'completed' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                        {dynStatus === 'completed' ? 'FINISHED' : (dynStatus === 'live' ? '● LIVE' : 'UPCOMING')}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="p-8 text-right">
                   <div className="flex items-center justify-end gap-3">
