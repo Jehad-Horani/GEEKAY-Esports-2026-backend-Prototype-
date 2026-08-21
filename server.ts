@@ -1117,36 +1117,52 @@ interface RateLimitEntry {
 }
 const loginAttemptsMap = new Map<string, RateLimitEntry>();
 
-function checkRateLimit(key: string): { allowed: boolean; remainingSeconds?: number } {
+const MAX_FAILED_ATTEMPTS = 3;
+const LOCKOUT_DURATION_MS = 60 * 1000; // 60 seconds lockout after 3 consecutive failures
+const ATTEMPTS_WINDOW_MS = 15 * 60 * 1000; // 15-minute sliding window
+
+function checkRateLimit(key: string): { allowed: boolean; remainingSeconds?: number; attemptsLeft?: number } {
   const now = Date.now();
   const entry = loginAttemptsMap.get(key);
-  if (!entry) return { allowed: true };
+  if (!entry) return { allowed: true, attemptsLeft: MAX_FAILED_ATTEMPTS };
 
   if (entry.lockedUntil && entry.lockedUntil > now) {
     return {
       allowed: false,
-      remainingSeconds: Math.ceil((entry.lockedUntil - now) / 1000)
+      remainingSeconds: Math.ceil((entry.lockedUntil - now) / 1000),
+      attemptsLeft: 0
     };
   }
 
-  // Reset after 15 minutes window
-  if (now - entry.firstAttempt > 15 * 60 * 1000) {
+  // Reset if window has passed or lockout ended
+  if (entry.lockedUntil && entry.lockedUntil <= now) {
     loginAttemptsMap.delete(key);
-    return { allowed: true };
+    return { allowed: true, attemptsLeft: MAX_FAILED_ATTEMPTS };
   }
 
-  return { allowed: true };
+  if (now - entry.firstAttempt > ATTEMPTS_WINDOW_MS) {
+    loginAttemptsMap.delete(key);
+    return { allowed: true, attemptsLeft: MAX_FAILED_ATTEMPTS };
+  }
+
+  const attemptsLeft = Math.max(0, MAX_FAILED_ATTEMPTS - entry.count);
+  return { allowed: true, attemptsLeft };
 }
 
-function recordFailedAttempt(key: string) {
+function recordFailedAttempt(key: string): { locked: boolean; remainingSeconds: number; attemptsLeft: number } {
   const now = Date.now();
   const entry = loginAttemptsMap.get(key) || { count: 0, firstAttempt: now };
   entry.count += 1;
 
-  if (entry.count >= 5) {
-    entry.lockedUntil = now + 15 * 60 * 1000; // 15-minute lock after 5 failures
+  if (entry.count >= MAX_FAILED_ATTEMPTS) {
+    entry.lockedUntil = now + LOCKOUT_DURATION_MS;
+    loginAttemptsMap.set(key, entry);
+    return { locked: true, remainingSeconds: Math.ceil(LOCKOUT_DURATION_MS / 1000), attemptsLeft: 0 };
   }
+
   loginAttemptsMap.set(key, entry);
+  const attemptsLeft = Math.max(0, MAX_FAILED_ATTEMPTS - entry.count);
+  return { locked: false, remainingSeconds: 0, attemptsLeft };
 }
 
 function clearFailedAttempts(key: string) {
@@ -1236,6 +1252,18 @@ app.post(['/api/auth/check-user', '/api/auth/check-user/'], async (req: any, res
   try {
     const { identifier } = req.body || {};
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const rateLimitKey = `ip:${ip}`;
+
+    // Check if IP is currently locked out
+    const rateCheck = checkRateLimit(rateLimitKey);
+    if (!rateCheck.allowed) {
+      logSecurityEvent('RATE_LIMIT_BLOCKED', identifier || 'unknown', ip, `Blocked for ${rateCheck.remainingSeconds}s`);
+      return res.status(429).json({
+        error: `Too many failed attempts. Please wait ${rateCheck.remainingSeconds} seconds before trying again.`,
+        locked: true,
+        remainingSeconds: rateCheck.remainingSeconds
+      });
+    }
 
     if (!identifier || typeof identifier !== 'string' || !identifier.trim()) {
       return res.status(400).json({ error: 'Please enter a username or email.' });
@@ -1260,8 +1288,21 @@ app.post(['/api/auth/check-user', '/api/auth/check-user/'], async (req: any, res
     }
 
     if (!user) {
-      // Return 401 invalid credentials if user does not exist in DB
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      const attemptResult = recordFailedAttempt(rateLimitKey);
+      logSecurityEvent('FAILED_LOGIN_STEP1', cleanId, ip, 'Invalid identifier');
+      
+      if (attemptResult.locked) {
+        return res.status(429).json({
+          error: `Too many failed attempts. Access temporarily locked for ${attemptResult.remainingSeconds} seconds.`,
+          locked: true,
+          remainingSeconds: attemptResult.remainingSeconds
+        });
+      }
+
+      return res.status(401).json({ 
+        error: `Invalid username or password. (${attemptResult.attemptsLeft} attempt${attemptResult.attemptsLeft === 1 ? '' : 's'} remaining)`,
+        attemptsLeft: attemptResult.attemptsLeft
+      });
     }
 
     if (user.status && user.status !== 'active') {
@@ -1281,6 +1322,18 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
   try {
     const { username, password, rememberMe } = req.body || {};
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const rateLimitKey = `ip:${ip}`;
+
+    // Check if IP is locked out
+    const rateCheck = checkRateLimit(rateLimitKey);
+    if (!rateCheck.allowed) {
+      logSecurityEvent('RATE_LIMIT_BLOCKED', username || 'unknown', ip, `Blocked for ${rateCheck.remainingSeconds}s`);
+      return res.status(429).json({
+        error: `Too many failed attempts. Please wait ${rateCheck.remainingSeconds} seconds before trying again.`,
+        locked: true,
+        remainingSeconds: rateCheck.remainingSeconds
+      });
+    }
 
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'Please enter your username and password.' });
@@ -1306,7 +1359,18 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      const attemptResult = recordFailedAttempt(rateLimitKey);
+      if (attemptResult.locked) {
+        return res.status(429).json({
+          error: `Too many failed attempts. Access temporarily locked for ${attemptResult.remainingSeconds} seconds.`,
+          locked: true,
+          remainingSeconds: attemptResult.remainingSeconds
+        });
+      }
+      return res.status(401).json({ 
+        error: `Invalid username or password. (${attemptResult.attemptsLeft} attempt${attemptResult.attemptsLeft === 1 ? '' : 's'} remaining)`,
+        attemptsLeft: attemptResult.attemptsLeft
+      });
     }
 
     if (user.status && user.status !== 'active') {
@@ -1341,9 +1405,25 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
     }
 
     if (!isMatch) {
+      const attemptResult = recordFailedAttempt(rateLimitKey);
       logSecurityEvent('FAILED_LOGIN_STEP2', user.username, ip, 'Incorrect password supplied');
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      
+      if (attemptResult.locked) {
+        return res.status(429).json({
+          error: `Too many failed attempts. Access temporarily locked for ${attemptResult.remainingSeconds} seconds.`,
+          locked: true,
+          remainingSeconds: attemptResult.remainingSeconds
+        });
+      }
+
+      return res.status(401).json({ 
+        error: `Invalid username or password. (${attemptResult.attemptsLeft} attempt${attemptResult.attemptsLeft === 1 ? '' : 's'} remaining)`,
+        attemptsLeft: attemptResult.attemptsLeft
+      });
     }
+
+    // Successful login - clear any previous failed attempt counts
+    clearFailedAttempts(rateLimitKey);
 
     const nowIso = new Date().toISOString();
     try {
