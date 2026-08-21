@@ -1362,12 +1362,30 @@ app.get('/api/auth/me', (req: any, res: any) => {
   }
 });
 
+  // Helper function to prepare payload for Supabase (parsing JSON strings for JSON/JSONB columns)
+  const prepareSupabasePayload = (rawPayload: any) => {
+    const payload: any = {};
+    for (const [key, val] of Object.entries(rawPayload)) {
+      if (val === undefined) continue;
+      if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) {
+        try {
+          payload[key] = JSON.parse(val);
+        } catch (e) {
+          payload[key] = val;
+        }
+      } else {
+        payload[key] = val;
+      }
+    }
+    return payload;
+  };
+
   // Helper functions for safe Supabase mutation with column fallback
   const safeInsertSupabase = async (tableName: string, rawPayload: any) => {
     if (!supabase) return null;
-    let payload = { ...rawPayload };
+    let payload = prepareSupabasePayload(rawPayload);
 
-    for (let attempts = 0; attempts < 20; attempts++) {
+    for (let attempts = 0; attempts < 25; attempts++) {
       try {
         const { data, error } = await supabase.from(tableName).upsert([payload]).select().maybeSingle();
         if (!error && data) return data;
@@ -1375,17 +1393,24 @@ app.get('/api/auth/me', (req: any, res: any) => {
         if (error) {
           const msg = (error.message || '') + ' ' + (error.details || '') + ' ' + (error.hint || '');
 
-          if (msg.includes('Could not find the table') || (msg.includes('relation') && msg.includes('does not exist'))) {
+          // Check if table is truly missing (and not just a missing column error with 'relation' in text)
+          const isTableMissing = (msg.includes('Could not find the table') || (msg.includes('relation') && msg.includes('does not exist'))) && !msg.toLowerCase().includes('column');
+          if (isTableMissing) {
             console.warn(`Supabase table '${tableName}' not found. Skipping Supabase insert.`);
             return null;
           }
 
           let removedAKey = false;
           const colMatches = [
-            /Could not find the '([^']+)' column/,
-            /column "([^"]+)"/,
-            /column '([^']+)'/,
-            /Could not find the '([^']+)'/
+            /Could not find the '([^']+)' column/i,
+            /Could not find the column '([^']+)'/i,
+            /column "([^"]+)" of relation/i,
+            /column "([^"]+)" does not exist/i,
+            /column '([^']+)' does not exist/i,
+            /column ([a-zA-Z0-9_]+) does not exist/i,
+            /column "([^"]+)"/i,
+            /column '([^']+)'/i,
+            /Could not find the '([^']+)'/i
           ];
 
           for (const regex of colMatches) {
@@ -1399,8 +1424,35 @@ app.get('/api/auth/me', (req: any, res: any) => {
 
           if (!removedAKey) {
             for (const key of Object.keys(payload)) {
-              if (msg.toLowerCase().includes(`'${key.toLowerCase()}'`) || msg.toLowerCase().includes(`"${key.toLowerCase()}"`) || msg.toLowerCase().includes(`column ${key.toLowerCase()}`)) {
+              const kLower = key.toLowerCase();
+              if (
+                msg.toLowerCase().includes(`'${kLower}'`) || 
+                msg.toLowerCase().includes(`"${kLower}"`) || 
+                msg.toLowerCase().includes(`column ${kLower}`) ||
+                msg.toLowerCase().includes(`column "${kLower}"`) ||
+                msg.toLowerCase().includes(` ${kLower} `)
+              ) {
                 delete payload[key];
+                removedAKey = true;
+                break;
+              }
+            }
+          }
+
+          if (!removedAKey && msg.includes('is of type boolean but expression is of type')) {
+            for (const key of Object.keys(payload)) {
+              if (typeof payload[key] === 'number') {
+                payload[key] = Boolean(payload[key]);
+                removedAKey = true;
+                break;
+              }
+            }
+          }
+
+          if (!removedAKey && msg.includes('is of type integer but expression is of type boolean')) {
+            for (const key of Object.keys(payload)) {
+              if (typeof payload[key] === 'boolean') {
+                payload[key] = payload[key] ? 1 : 0;
                 removedAKey = true;
                 break;
               }
@@ -1439,10 +1491,10 @@ app.get('/api/auth/me', (req: any, res: any) => {
   const safeUpdateSupabase = async (tableName: string, id: any, rawPayload: any) => {
     if (!supabase) return false;
     const targetId = !isNaN(Number(id)) ? Number(id) : id;
-    let payload = { ...rawPayload };
+    let payload = prepareSupabasePayload(rawPayload);
     delete payload.id;
 
-    for (let attempts = 0; attempts < 20; attempts++) {
+    for (let attempts = 0; attempts < 25; attempts++) {
       try {
         const { data, error } = await supabase.from(tableName).update(payload).eq('id', targetId).select();
 
@@ -1454,15 +1506,73 @@ app.get('/api/auth/me', (req: any, res: any) => {
         }
 
         if (error) {
-          const msg = (error.message || '') + ' ' + (error.details || '');
+          const msg = (error.message || '') + ' ' + (error.details || '') + ' ' + (error.hint || '');
+
+          const isTableMissing = (msg.includes('Could not find the table') || (msg.includes('relation') && msg.includes('does not exist'))) && !msg.toLowerCase().includes('column');
+          if (isTableMissing) {
+            console.warn(`Supabase table '${tableName}' not found. Skipping Supabase update.`);
+            return false;
+          }
+
           let removedAKey = false;
-          for (const key of Object.keys(payload)) {
-            if (msg.toLowerCase().includes(key.toLowerCase())) {
-              delete payload[key];
+          const colMatches = [
+            /Could not find the '([^']+)' column/i,
+            /Could not find the column '([^']+)'/i,
+            /column "([^"]+)" of relation/i,
+            /column "([^"]+)" does not exist/i,
+            /column '([^']+)' does not exist/i,
+            /column ([a-zA-Z0-9_]+) does not exist/i,
+            /column "([^"]+)"/i,
+            /column '([^']+)'/i,
+            /Could not find the '([^']+)'/i
+          ];
+
+          for (const regex of colMatches) {
+            const match = msg.match(regex);
+            if (match && match[1] && match[1] in payload) {
+              delete payload[match[1]];
               removedAKey = true;
               break;
             }
           }
+
+          if (!removedAKey) {
+            for (const key of Object.keys(payload)) {
+              const kLower = key.toLowerCase();
+              if (
+                msg.toLowerCase().includes(`'${kLower}'`) || 
+                msg.toLowerCase().includes(`"${kLower}"`) || 
+                msg.toLowerCase().includes(`column ${kLower}`) ||
+                msg.toLowerCase().includes(`column "${kLower}"`) ||
+                msg.toLowerCase().includes(` ${kLower} `)
+              ) {
+                delete payload[key];
+                removedAKey = true;
+                break;
+              }
+            }
+          }
+
+          if (!removedAKey && msg.includes('is of type boolean but expression is of type')) {
+            for (const key of Object.keys(payload)) {
+              if (typeof payload[key] === 'number') {
+                payload[key] = Boolean(payload[key]);
+                removedAKey = true;
+                break;
+              }
+            }
+          }
+
+          if (!removedAKey && msg.includes('is of type integer but expression is of type boolean')) {
+            for (const key of Object.keys(payload)) {
+              if (typeof payload[key] === 'boolean') {
+                payload[key] = payload[key] ? 1 : 0;
+                removedAKey = true;
+                break;
+              }
+            }
+          }
+
           if (!removedAKey) break;
         }
       } catch (err) {
