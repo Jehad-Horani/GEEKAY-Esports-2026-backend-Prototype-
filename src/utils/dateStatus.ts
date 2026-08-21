@@ -119,27 +119,33 @@ export function getDynamicStatus(
 }
 
 /**
- * Clean up opponent name or title so it never renders "VS GEEKAY VS SENTINELS".
- * Returns a sleek, formatted opponent string.
+ * Clean up opponent name or title so it cleanly formats as "VS OPPONENT_NAME"
+ * and never duplicates "VS" or leaves "Geekay vs".
  */
-export function cleanOpponentName(rawOppOrTeams?: string | null, fallback = 'GLOBAL TEAMS'): string {
+export function cleanOpponentName(rawOppOrTeams?: string | null, fallback = 'GLOBAL CONTENDERS'): string {
   if (!rawOppOrTeams || !rawOppOrTeams.trim()) return `VS ${fallback}`;
   let clean = rawOppOrTeams.trim();
 
-  // If already starts with VS or vs
-  clean = clean.replace(/^vs\s+/i, '').trim();
+  // Strip leading "VS", "vs.", "vs :", "vs-"
+  clean = clean.replace(/^(vs\.?|vs\s*:|vs\s*-)\s+/i, '').trim();
 
-  // If contains "Geekay vs ..." or "... vs Geekay"
-  if (/geekay\s+vs\s+/i.test(clean)) {
-    return clean.toUpperCase();
+  // Remove "Geekay Esports vs" or "Geekay vs"
+  if (/^geekay(\s+esports)?\s+vs\.?\s+/i.test(clean)) {
+    clean = clean.replace(/^geekay(\s+esports)?\s+vs\.?\s+/i, '').trim();
   }
-  if (/\s+vs\s+geekay/i.test(clean)) {
-    return clean.toUpperCase();
+  // Remove "vs Geekay Esports" or "vs Geekay" at the end
+  else if (/\s+vs\.?\s+geekay(\s+esports)?$/i.test(clean)) {
+    clean = clean.replace(/\s+vs\.?\s+geekay(\s+esports)?$/i, '').trim();
   }
-  if (/\s+vs\s+/i.test(clean)) {
-    return clean.toUpperCase();
+  // Remove "Opponent " prefix
+  else if (/^opponent\s+/i.test(clean)) {
+    clean = clean.replace(/^opponent\s+/i, '').trim();
   }
 
+  // Remove any leftover leading "vs"
+  clean = clean.replace(/^vs\.?\s+/i, '').trim();
+
+  if (!clean) return `VS ${fallback}`;
   return `VS ${clean.toUpperCase()}`;
 }
 
