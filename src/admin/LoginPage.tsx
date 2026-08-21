@@ -1,18 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, User, ArrowRight, ShieldCheck, ArrowLeft, Key, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Lock, User, ShieldCheck, Key, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import { GEEKAY_LOGO } from '../../constants';
 
 const MAX_ALLOWED_ATTEMPTS = 3;
-const LOCKOUT_SECONDS = 60; // 60 seconds lockout period
+const LOCKOUT_SECONDS = 60; // 60-second protection lockout period
 
 const LoginPage = () => {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [identifier, setIdentifier] = useState('');
-  const [verifiedUsername, setVerifiedUsername] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +18,7 @@ const LoginPage = () => {
   const [failedCount, setFailedCount] = useState<number>(0);
   const navigate = useNavigate();
 
-  // Load persistent lock state on mount
+  // Load persistent lock state & failed count on initial render
   useEffect(() => {
     try {
       const storedLockUntil = localStorage.getItem('geekay_login_locked_until');
@@ -29,7 +26,8 @@ const LoginPage = () => {
         const lockUntilTime = parseInt(storedLockUntil, 10);
         const now = Date.now();
         if (lockUntilTime > now) {
-          setRemainingCooldown(Math.ceil((lockUntilTime - now) / 1000));
+          const diffSec = Math.ceil((lockUntilTime - now) / 1000);
+          setRemainingCooldown(diffSec);
         } else {
           localStorage.removeItem('geekay_login_locked_until');
           localStorage.removeItem('geekay_login_failed_attempts');
@@ -38,7 +36,8 @@ const LoginPage = () => {
 
       const storedAttempts = localStorage.getItem('geekay_login_failed_attempts');
       if (storedAttempts) {
-        setFailedCount(parseInt(storedAttempts, 10) || 0);
+        const count = parseInt(storedAttempts, 10) || 0;
+        setFailedCount(count);
       }
     } catch {}
   }, []);
@@ -65,29 +64,43 @@ const LoginPage = () => {
     return () => clearInterval(timer);
   }, [remainingCooldown]);
 
-  const handleFailAttempt = (serverSeconds?: number) => {
-    const nextCount = failedCount + 1;
+  const triggerLockout = (seconds = LOCKOUT_SECONDS) => {
+    const lockUntil = Date.now() + seconds * 1000;
+    try {
+      localStorage.setItem('geekay_login_locked_until', String(lockUntil));
+      localStorage.setItem('geekay_login_failed_attempts', String(MAX_ALLOWED_ATTEMPTS));
+    } catch {}
+    setFailedCount(MAX_ALLOWED_ATTEMPTS);
+    setRemainingCooldown(seconds);
+    setError(`Security protection active: 3 failed attempts reached. System locked for ${seconds} seconds.`);
+  };
+
+  const registerFailedAttempt = (serverRemainingSecs?: number) => {
+    if (serverRemainingSecs && serverRemainingSecs > 0) {
+      triggerLockout(serverRemainingSecs);
+      return;
+    }
+
+    let storedAttempts = 0;
+    try {
+      storedAttempts = parseInt(localStorage.getItem('geekay_login_failed_attempts') || '0', 10) || 0;
+    } catch {}
+
+    const nextCount = Math.max(storedAttempts, failedCount) + 1;
     setFailedCount(nextCount);
 
-    if (nextCount >= MAX_ALLOWED_ATTEMPTS || serverSeconds) {
-      const lockSeconds = serverSeconds || LOCKOUT_SECONDS;
-      const lockUntil = Date.now() + lockSeconds * 1000;
-      try {
-        localStorage.setItem('geekay_login_locked_until', String(lockUntil));
-        localStorage.setItem('geekay_login_failed_attempts', String(nextCount));
-      } catch {}
-      setRemainingCooldown(lockSeconds);
-      setError(`Security lockout: 3 failed attempts reached. Please wait ${lockSeconds}s.`);
+    if (nextCount >= MAX_ALLOWED_ATTEMPTS) {
+      triggerLockout(LOCKOUT_SECONDS);
     } else {
       try {
         localStorage.setItem('geekay_login_failed_attempts', String(nextCount));
       } catch {}
-      const left = MAX_ALLOWED_ATTEMPTS - nextCount;
-      setError(`Invalid credentials. (${left} attempt${left === 1 ? '' : 's'} remaining before lockout)`);
+      const attemptsRemaining = MAX_ALLOWED_ATTEMPTS - nextCount;
+      setError(`Invalid credentials. (${attemptsRemaining} attempt${attemptsRemaining === 1 ? '' : 's'} remaining before security lockout)`);
     }
   };
 
-  const handleSuccess = () => {
+  const registerSuccess = () => {
     try {
       localStorage.removeItem('geekay_login_locked_until');
       localStorage.removeItem('geekay_login_failed_attempts');
@@ -96,47 +109,10 @@ const LoginPage = () => {
     setRemainingCooldown(0);
   };
 
-  // Step 1: Verify Username / Email
-  const handleStep1Submit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (remainingCooldown > 0) return;
-    if (!identifier.trim()) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/auth/check-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: identifier.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (res.status === 429 || data.locked) {
-        const secs = data.remainingSeconds || LOCKOUT_SECONDS;
-        setRemainingCooldown(secs);
-        setError(data.error || `Security lockout active. Please wait ${secs}s.`);
-      } else if (!res.ok || !data.success) {
-        handleFailAttempt(data.remainingSeconds);
-      } else {
-        setVerifiedUsername(data.username);
-        setError('');
-        setStep(2);
-      }
-    } catch (err) {
-      handleFailAttempt();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 2: Authenticate Password
-  const handleStep2Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (remainingCooldown > 0) return;
-    if (!password) return;
+    if (!username.trim() || !password) return;
 
     setLoading(true);
     setError('');
@@ -146,23 +122,22 @@ const LoginPage = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: verifiedUsername,
+          username: username.trim(),
           password,
           rememberMe
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.status === 429 || data.locked) {
         const secs = data.remainingSeconds || LOCKOUT_SECONDS;
-        setRemainingCooldown(secs);
-        setError(data.error || `Security lockout active. Please wait ${secs}s.`);
+        triggerLockout(secs);
       } else if (!res.ok || !data.user) {
-        handleFailAttempt(data.remainingSeconds);
+        registerFailedAttempt(data.remainingSeconds);
       } else {
-        // Logged in successfully
-        handleSuccess();
+        // Success
+        registerSuccess();
         if (data.token) {
           localStorage.setItem('geekay_token', data.token);
         }
@@ -170,17 +145,10 @@ const LoginPage = () => {
         navigate('/admin');
       }
     } catch (err) {
-      handleFailAttempt();
+      registerFailedAttempt();
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBackToStep1 = () => {
-    if (remainingCooldown > 0) return;
-    setStep(1);
-    setPassword('');
-    setError('');
   };
 
   const isLocked = remainingCooldown > 0;
@@ -196,210 +164,142 @@ const LoginPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="text-center mb-10">
-          <div className="mb-8 flex items-center justify-center">
-            <img src={GEEKAY_LOGO} alt="Geekay Esports" className="h-16 w-auto" />
+        <div className="text-center mb-8">
+          <div className="mb-6 flex items-center justify-center">
+            <img src={GEEKAY_LOGO} alt="Geekay Esports" className="h-16 w-auto drop-shadow-[0_0_20px_rgba(255,196,0,0.2)]" />
           </div>
-          <h1 className="font-syncopate text-3xl font-black text-white tracking-tighter uppercase mb-2">
+          <h1 className="font-syncopate text-2xl md:text-3xl font-black text-white tracking-tighter uppercase mb-2">
             COMMAND <span className="text-[#FFC400]">CENTER</span>
           </h1>
-          <p className="text-slate-500 font-syncopate text-[10px] tracking-[0.4em] uppercase font-bold">
-            Authorized Personnel Only
+          <p className="text-slate-500 font-syncopate text-[9px] tracking-[0.4em] uppercase font-bold">
+            Authorized Personnel Access
           </p>
         </div>
 
-        <div className="bg-[#081B3A] border border-white/5 p-8 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.5)] relative overflow-hidden">
-          <div className={`absolute top-0 left-0 w-full h-1 transition-colors duration-300 ${isLocked ? 'bg-red-500 animate-pulse' : 'bg-[#FFC400]'}`} />
-          
-          {/* Step indicator */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-            <div className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full text-[10px] font-syncopate font-bold flex items-center justify-center ${step === 1 ? 'bg-[#FFC400] text-black' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'}`}>
-                {step === 1 ? '1' : <CheckCircle2 size={14} />}
-              </span>
-              <span className="font-syncopate text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                OPERATIVE ID
-              </span>
-            </div>
+        <div className="bg-[#081B3A] border border-white/10 p-8 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.6)] relative overflow-hidden rounded-sm">
+          <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors duration-300 ${isLocked ? 'bg-red-500 animate-pulse' : 'bg-[#FFC400]'}`} />
 
-            <div className="w-8 h-[1px] bg-slate-800" />
-
-            <div className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full text-[10px] font-syncopate font-bold flex items-center justify-center ${step === 2 ? 'bg-[#FFC400] text-black' : 'bg-slate-800 text-slate-500'}`}>
-                2
-              </span>
-              <span className="font-syncopate text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                ACCESS KEY
-              </span>
-            </div>
-          </div>
-
-          {/* Lockout Banner */}
+          {/* Security Lockout Banner */}
           {isLocked && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mb-6 bg-red-500/15 border-2 border-red-500/60 p-5 rounded-sm text-center"
+              className="mb-6 bg-red-950/80 border-2 border-red-500/80 p-5 rounded text-center shadow-lg"
             >
               <div className="flex items-center justify-center gap-2 text-red-400 mb-2">
-                <AlertTriangle size={18} className="animate-bounce" />
-                <span className="font-syncopate text-[10px] font-black tracking-widest uppercase">
+                <ShieldAlert size={22} className="animate-bounce text-red-500" />
+                <span className="font-syncopate text-xs font-black tracking-widest uppercase text-red-400">
                   SECURITY LOCKOUT ACTIVE
                 </span>
               </div>
-              <p className="text-slate-300 text-[11px] font-sans mb-3">
-                3 failed attempts reached. System temporarily locked for protection.
+              <p className="text-slate-300 text-xs font-sans mb-3">
+                3 failed attempts reached. System access temporarily locked for protection.
               </p>
-              <div className="inline-flex items-center gap-2 bg-red-950/60 border border-red-500/30 px-4 py-2 rounded">
-                <Clock size={15} className="text-red-400 animate-spin" />
-                <span className="font-mono text-base font-black text-white">
+              <div className="inline-flex items-center gap-2.5 bg-red-900/70 border border-red-500/50 px-5 py-2.5 rounded-sm">
+                <Clock size={16} className="text-red-400 animate-spin" />
+                <span className="font-mono text-lg font-black text-white tracking-widest">
                   {Math.floor(remainingCooldown / 60)}:{String(remainingCooldown % 60).padStart(2, '0')}
                 </span>
                 <span className="font-syncopate text-[8px] text-red-300 font-bold uppercase tracking-widest">
-                  REMAINING
+                  COOLDOWN
                 </span>
               </div>
             </motion.div>
           )}
 
-          {/* Standard error notice */}
+          {/* Standard Error Notice */}
           {error && !isLocked && (
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mb-6 bg-red-500/10 border border-red-500/50 p-4 text-red-500 text-[10px] font-syncopate font-bold tracking-widest uppercase text-center"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-red-500/10 border border-red-500/40 p-4 text-red-400 text-[10px] font-syncopate font-bold tracking-widest uppercase text-center rounded-sm"
             >
               {error}
             </motion.div>
           )}
 
-          {/* Attempt dots indicator */}
+          {/* Attempt indicator badges */}
           {!isLocked && failedCount > 0 && (
-            <div className="mb-6 flex items-center justify-center gap-2 bg-amber-500/10 border border-amber-500/20 py-2 px-3 rounded">
-              <span className="font-syncopate text-[8px] font-bold uppercase tracking-widest text-amber-400">
-                FAILED ATTEMPTS: {failedCount}/{MAX_ALLOWED_ATTEMPTS}
+            <div className="mb-6 flex items-center justify-between bg-amber-500/10 border border-amber-500/20 py-2.5 px-4 rounded-sm">
+              <span className="font-syncopate text-[9px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                <AlertTriangle size={14} /> FAILED ATTEMPTS: {failedCount}/{MAX_ALLOWED_ATTEMPTS}
               </span>
-              <div className="flex gap-1.5 ml-2">
+              <div className="flex gap-1.5">
                 {[1, 2, 3].map((num) => (
                   <span
                     key={num}
-                    className={`w-2.5 h-2.5 rounded-full transition-colors ${num <= failedCount ? 'bg-red-500' : 'bg-white/20'}`}
+                    className={`w-3 h-3 rounded-full transition-all ${num <= failedCount ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-white/20'}`}
                   />
                 ))}
               </div>
             </div>
           )}
 
-          <AnimatePresence mode="wait">
-            {step === 1 ? (
-              <motion.form 
-                key="step1"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                onSubmit={handleStep1Submit} 
-                className="space-y-6"
-              >
-                <div className="space-y-2">
-                  <label className="font-syncopate text-[8px] text-slate-400 font-bold tracking-[0.3em] uppercase block">
-                    STEP 1: USERNAME OR EMAIL
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-6 top-1/2 -translate-y-1/2 text-[#FFC400]" size={18} />
-                    <input 
-                      type="text" 
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      disabled={isLocked || loading}
-                      className="w-full bg-[#040E1E] border border-slate-800 py-5 pl-16 pr-6 text-white font-syncopate text-xs tracking-widest focus:outline-none focus:border-[#FFC400] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="ENTER OPERATIVE ID..."
-                      autoFocus
-                      required
-                    />
-                  </div>
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="font-syncopate text-[8px] text-slate-400 font-bold tracking-[0.3em] uppercase block">
+                OPERATIVE ID / USERNAME
+              </label>
+              <div className="relative">
+                <User className="absolute left-5 top-1/2 -translate-y-1/2 text-[#FFC400]" size={18} />
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={isLocked || loading}
+                  className="w-full bg-[#040E1E] border border-slate-800 py-4 pl-14 pr-5 text-white font-syncopate text-xs tracking-widest focus:outline-none focus:border-[#FFC400] transition-all disabled:opacity-40 disabled:cursor-not-allowed rounded-sm"
+                  placeholder="ENTER USERNAME..."
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
 
-                <ArenaButton 
-                  type="submit"
-                  className="w-full h-14 group"
-                  disabled={loading || !identifier.trim() || isLocked}
-                  icon={loading ? null : <ArrowRight className="group-hover:translate-x-2 transition-transform" />}
-                >
-                  {isLocked ? `LOCKED (${remainingCooldown}s)` : loading ? 'VERIFYING OPERATIVE...' : 'CONTINUE_TO_KEY'}
-                </ArenaButton>
-              </motion.form>
-            ) : (
-              <motion.form 
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                onSubmit={handleStep2Submit} 
-                className="space-y-6"
-              >
-                <div className="bg-[#040E1E] p-4 border border-white/5 flex items-center justify-between">
-                  <div>
-                    <span className="font-syncopate text-[7px] text-slate-500 font-bold uppercase tracking-widest block">OPERATIVE CONFIRMED</span>
-                    <span className="font-syncopate text-xs font-bold text-white tracking-wider">{verifiedUsername}</span>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={handleBackToStep1}
-                    disabled={isLocked}
-                    className="text-slate-400 hover:text-[#FFC400] text-[9px] font-syncopate font-bold uppercase tracking-widest flex items-center gap-1 transition-colors disabled:opacity-50"
-                  >
-                    <ArrowLeft size={12} /> CHANGE
-                  </button>
-                </div>
+            <div className="space-y-1.5">
+              <label className="font-syncopate text-[8px] text-slate-400 font-bold tracking-[0.3em] uppercase block">
+                SECURITY ACCESS KEY
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-[#FFC400]" size={18} />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLocked || loading}
+                  className="w-full bg-[#040E1E] border border-slate-800 py-4 pl-14 pr-5 text-white font-syncopate text-xs tracking-widest focus:outline-none focus:border-[#FFC400] transition-all disabled:opacity-40 disabled:cursor-not-allowed rounded-sm"
+                  placeholder="ENTER ACCESS KEY..."
+                  required
+                />
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="font-syncopate text-[8px] text-slate-400 font-bold tracking-[0.3em] uppercase block">
-                    STEP 2: ACCESS KEY
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-[#FFC400]" size={18} />
-                    <input 
-                      type="password" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isLocked || loading}
-                      className="w-full bg-[#040E1E] border border-slate-800 py-5 pl-16 pr-6 text-white font-syncopate text-xs tracking-widest focus:outline-none focus:border-[#FFC400] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      placeholder="ENTER ACCESS KEY..."
-                      autoFocus
-                      required
-                    />
-                  </div>
-                </div>
+            <div className="flex items-center justify-between text-xs pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-white transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={isLocked}
+                  className="accent-[#FFC400] rounded"
+                />
+                <span className="font-syncopate text-[8px] font-bold tracking-widest uppercase">REMEMBER ME (30 DAYS)</span>
+              </label>
+            </div>
 
-                <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-white transition-colors">
-                    <input 
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      disabled={isLocked}
-                      className="accent-[#FFC400] rounded"
-                    />
-                    <span className="font-syncopate text-[8px] font-bold tracking-widest uppercase">EXTEND SESSION (30 DAYS)</span>
-                  </label>
-                </div>
-
-                <ArenaButton 
-                  type="submit"
-                  className="w-full h-14 group"
-                  disabled={loading || !password || isLocked}
-                  icon={loading ? null : <Key className="group-hover:rotate-12 transition-transform" />}
-                >
-                  {isLocked ? `LOCKED (${remainingCooldown}s)` : loading ? 'AUTHENTICATING...' : 'INITIATE_SESSION'}
-                </ArenaButton>
-              </motion.form>
-            )}
-          </AnimatePresence>
+            <ArenaButton 
+              type="submit"
+              className="w-full h-14 group mt-2"
+              disabled={loading || !username.trim() || !password || isLocked}
+              icon={loading ? null : <Key className="group-hover:rotate-12 transition-transform" />}
+            >
+              {isLocked ? `LOCKED (${remainingCooldown}s)` : loading ? 'AUTHENTICATING...' : 'INITIATE_SESSION'}
+            </ArenaButton>
+          </form>
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-4 text-slate-600">
-          <ShieldCheck size={16} />
-          <span className="font-syncopate text-[8px] font-bold tracking-[0.3em] uppercase">Encrypted Session Protocol Active</span>
+        <div className="mt-8 flex items-center justify-center gap-3 text-slate-500">
+          <ShieldCheck size={16} className="text-[#FFC400]" />
+          <span className="font-syncopate text-[8px] font-bold tracking-[0.3em] uppercase">Brute-Force Protection Active</span>
         </div>
       </motion.div>
     </div>

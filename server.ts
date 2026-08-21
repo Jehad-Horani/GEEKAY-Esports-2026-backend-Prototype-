@@ -1251,7 +1251,8 @@ app.get('/api/health', (req, res) => {
 app.post(['/api/auth/check-user', '/api/auth/check-user/'], async (req: any, res: any) => {
   try {
     const { identifier } = req.body || {};
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') || req.ip || req.socket.remoteAddress || 'unknown';
     const rateLimitKey = `ip:${ip}`;
 
     // Check if IP is currently locked out
@@ -1321,7 +1322,8 @@ app.post(['/api/auth/check-user', '/api/auth/check-user/'], async (req: any, res
 app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => {
   try {
     const { username, password, rememberMe } = req.body || {};
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') || req.ip || req.socket.remoteAddress || 'unknown';
     const rateLimitKey = `ip:${ip}`;
 
     // Check if IP is locked out
