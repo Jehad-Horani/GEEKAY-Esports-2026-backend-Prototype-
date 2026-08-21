@@ -130,9 +130,11 @@ const AdminSubscribers = () => {
     XLSX.writeFile(workbook, `Geekay_Subscribers_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const formatDate = (item: any) => {
+    const ts = item?.subscribedAt || item?.created_at;
+    if (!ts) return 'N/A';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -266,7 +268,7 @@ const AdminSubscribers = () => {
                 <td className="p-8">
                   <div className="flex items-center gap-2 text-slate-400">
                     <Calendar size={12} className="text-slate-600" />
-                    <span>{formatDate(sub.subscribedAt)}</span>
+                    <span>{formatDate(sub)}</span>
                   </div>
                 </td>
                 <td className="p-8">
@@ -344,7 +346,7 @@ const AdminSubscribers = () => {
                   </div>
                   <div>
                     <p className="text-slate-500 font-syncopate text-[8px] uppercase tracking-widest mb-2">Enrollment Date</p>
-                    <p className="text-white font-syncopate text-[10px]">{formatDate(selectedSubscriber.subscribedAt)}</p>
+                    <p className="text-white font-syncopate text-[10px]">{formatDate(selectedSubscriber)}</p>
                   </div>
                   <div>
                     <p className="text-slate-500 font-syncopate text-[8px] uppercase tracking-widest mb-2">Source Origin</p>

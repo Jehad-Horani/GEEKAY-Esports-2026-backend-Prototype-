@@ -60,19 +60,35 @@ const NewsletterPopup = () => {
     setErrorMessage('');
 
     try {
-      // Use email as ID to ensure uniqueness or at least identify easily
-      // Firestore IDs can't contain certain characters, but email is mostly fine.
-      // Replacing '.' with '_' to be safe or just use auto-id
-      // We'll use auto-id but we could check for existing. 
-      // Actually, create is fine with email as ID if we sanitize.
       const subscriberId = email.replace(/\./g, '_').replace(/@/g, '_at_');
       
-      await setDoc(doc(db, 'subscribers', subscriberId), {
-        email: email,
-        subscribedAt: serverTimestamp(),
-        status: 'active',
-        source: window.location.pathname
-      });
+      // Dual-write: Firestore & REST API (SQLite / Postgres)
+      const nowIso = new Date().toISOString();
+      try {
+        await setDoc(doc(db, 'subscribers', subscriberId), {
+          email: email,
+          subscribedAt: serverTimestamp(),
+          created_at: nowIso,
+          status: 'active',
+          source: window.location.pathname
+        });
+      } catch (firestoreErr) {
+        console.warn('Firestore subscription failed, using REST API fallback:', firestoreErr);
+      }
+
+      try {
+        await fetch('/api/subscribers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            created_at: nowIso,
+            status: 'active'
+          })
+        });
+      } catch (apiErr) {
+        console.warn('REST API subscription sync failed:', apiErr);
+      }
 
       setStatus('success');
       setTimeout(() => {
