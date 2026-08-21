@@ -27,7 +27,7 @@ import ImageUploader from '../components/ImageUploader';
 import { safeJsonParse } from '../utils/json';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { ToastNotification } from './components/Toast';
-import { getAuthHeaders } from './utils/api';
+import { getAuthHeaders, handleAuthError } from './utils/api';
 
 const AdminCreators = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -192,7 +192,11 @@ const AdminCreators = () => {
       clearTimeout(timeoutId);
       
       if (!res.ok) {
-        const errorData = await res.json();
+        if (res.status === 401) {
+          handleAuthError(res);
+          throw new Error('انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول / Session expired. Please log in again.');
+        }
+        const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to save creator');
       }
       

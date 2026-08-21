@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Plus, Edit2, Trash2, Search, Building2, ExternalLink, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Edit2, Trash2, Search, Building2, ExternalLink, Eye, EyeOff, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
-import { getAuthHeaders } from './utils/api';
+import ImageUploader from '../components/ImageUploader';
+import { ToastNotification } from './components/Toast';
+import { getAuthHeaders, handleAuthError } from './utils/api';
 
 interface Partner {
   id?: number | string;
@@ -18,11 +20,12 @@ interface Partner {
 
 const DEFAULT_CATEGORIES = [
   'PARENT COMPANY',
+  'GLOBAL PARTNER',
+  'OFFICIAL SPONSOR',
   'ENDEMIC SPONSOR',
   'TECHNICAL SPONSOR',
   'PERIPHERAL SPONSOR',
-  'GLOBAL PARTNER',
-  'OFFICIAL SPONSOR'
+  'MEDIA PARTNER'
 ];
 
 const AdminPartners = () => {
@@ -32,10 +35,11 @@ const AdminPartners = () => {
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [search, setSearch] = useState('');
-  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | null; message: string }>({
-    type: null,
-    message: ''
-  });
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+  };
 
   const fetchPartners = async () => {
     try {
@@ -43,7 +47,7 @@ const AdminPartners = () => {
       const res = await fetch('/api/partners');
       if (res.ok) {
         const data = await res.json();
-        setPartners(data);
+        setPartners(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Failed to fetch partners:', err);
@@ -61,7 +65,8 @@ const AdminPartners = () => {
     if (!editingPartner) return;
 
     setSaving(true);
-    setStatusMsg({ type: null, message: '' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
       const isEdit = !!editingPartner.id;
@@ -70,7 +75,7 @@ const AdminPartners = () => {
 
       const payload = {
         ...editingPartner,
-        display_order: Number(editingPartner.display_order || 0),
+        display_order: Number(editingPartner.display_order ?? 0),
         published: editingPartner.published ? 1 : 0
       };
 
@@ -78,29 +83,34 @@ const AdminPartners = () => {
         method,
         headers: getAuthHeaders(),
         credentials: 'include',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
-        const errData = await res.json();
+        if (res.status === 401) {
+          handleAuthError(res);
+          throw new Error('انتهت الجلسة، يرجى إعادة تسجيل الدخول / Session expired.');
+        }
+        const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'Failed to save partner');
       }
 
-      setStatusMsg({
-        type: 'success',
-        message: `Partner "${editingPartner.name}" ${isEdit ? 'updated' : 'created'} successfully!`
-      });
-
+      showToast(isEdit ? 'تم تحديث الشريك بنجاح' : 'تمت إضافة الشريك بنجاح', 'success');
       setEditingPartner(null);
       fetchPartners();
     } catch (err: any) {
       console.error('Error saving partner:', err);
-      setStatusMsg({
-        type: 'error',
-        message: err.message || 'Error occurred while saving.'
-      });
+      if (err.name === 'AbortError') {
+        showToast('انتهت مهلة الطلب، يرجى المحاولة مرة أخرى', 'error');
+      } else {
+        showToast(err.message || 'Error occurred while saving.', 'error');
+      }
     } finally {
       setSaving(false);
+      clearTimeout(timeoutId);
     }
   };
 
@@ -113,8 +123,13 @@ const AdminPartners = () => {
         credentials: 'include',
         body: JSON.stringify({ ...partner, published: newStatus })
       });
+      if (res.status === 401) {
+        handleAuthError(res);
+        return;
+      }
       if (res.ok) {
         setPartners(prev => prev.map(p => p.id === partner.id ? { ...p, published: newStatus } : p));
+        showToast(`تم ${newStatus ? 'نشر' : 'إخفاء'} الشريك بنجاح`, 'success');
       }
     } catch (err) {
       console.error('Failed to toggle publish status:', err);
@@ -131,33 +146,42 @@ const AdminPartners = () => {
         credentials: 'include'
       });
 
+      if (res.status === 401) {
+        handleAuthError(res);
+        return;
+      }
+
       if (res.ok) {
-        setStatusMsg({
-          type: 'success',
-          message: 'Partner removed successfully.'
-        });
+        showToast('تم حذف الشريك بنجاح', 'success');
         setPartners(prev => prev.filter(p => p.id !== deleteTarget.id));
       } else {
         throw new Error('Failed to delete partner');
       }
     } catch (err: any) {
-      setStatusMsg({
-        type: 'error',
-        message: err.message || 'Error deleting partner.'
-      });
+      showToast(err.message || 'Error deleting partner.', 'error');
     } finally {
       setDeleteTarget(null);
     }
   };
 
   const filteredPartners = partners.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase()) ||
-    p.description.toLowerCase().includes(search.toLowerCase())
+    (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.category || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-20">
+      <AnimatePresence>
+        {toast && (
+          <ToastNotification
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 pb-8">
         <div>
@@ -167,12 +191,15 @@ const AdminPartners = () => {
           <h1 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">
             CORPORATE PARTNERS
           </h1>
+          <p className="text-slate-400 font-inter text-xs mt-2">
+            إدارة شركاء ورعاة المنظمة الرسميين، الشعارات، والتصنيفات والروابط
+          </p>
         </div>
         <ArenaButton
           type="button"
           onClick={() => setEditingPartner({
             name: '',
-            category: 'ENDEMIC SPONSOR',
+            category: 'OFFICIAL SPONSOR',
             description: '',
             image: '',
             url: '',
@@ -183,21 +210,6 @@ const AdminPartners = () => {
           <Plus size={18} className="mr-2" /> ADD NEW PARTNER
         </ArenaButton>
       </div>
-
-      {statusMsg.message && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`p-4 border flex items-center gap-3 font-syncopate text-xs tracking-wider ${
-            statusMsg.type === 'success'
-              ? 'bg-green-950/60 border-green-500 text-green-300'
-              : 'bg-red-950/60 border-red-500 text-red-300'
-          }`}
-        >
-          {statusMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          <span>{statusMsg.message}</span>
-        </motion.div>
-      )}
 
       {/* Search Bar */}
       <div className="bg-[#081B3A] border border-white/5 p-4 flex items-center gap-4">
@@ -216,6 +228,7 @@ const AdminPartners = () => {
       {/* Grid of Partners */}
       {loading ? (
         <div className="py-20 text-center text-slate-500 font-syncopate text-xs">
+          <div className="w-8 h-8 border-2 border-[#FFC400] border-t-transparent animate-spin mx-auto mb-4" />
           LOADING PARTNERS DATABASE...
         </div>
       ) : filteredPartners.length === 0 ? (
@@ -231,28 +244,33 @@ const AdminPartners = () => {
               animate={{ opacity: 1, y: 0 }}
               className="bg-[#081B3A]/60 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-300 p-6 flex flex-col justify-between relative group"
             >
-              {item.image && (
-                <div className="h-16 w-full mb-4 flex items-center justify-center bg-[#040E1E] p-2 border border-slate-800">
-                  <img src={item.image} alt={item.name} className="max-h-full max-w-full object-contain" />
-                </div>
-              )}
-
               <div>
+                <div className="h-20 w-full mb-4 flex items-center justify-center bg-[#040E1E] p-3 border border-slate-800">
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className="max-h-full max-w-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-slate-600">
+                      <ImageIcon size={24} />
+                      <span className="text-[9px] font-mono">NO LOGO</span>
+                    </div>
+                  )}
+                </div>
+
                 <span className="text-[#FFC400] font-syncopate text-[9px] tracking-[0.2em] uppercase font-bold block mb-1">
                   {item.category}
                 </span>
                 <h3 className="font-syncopate text-lg font-black text-white uppercase tracking-wider group-hover:text-[#FFC400] transition-colors">
                   {item.name}
                 </h3>
-                <p className="text-slate-400 font-inter text-xs leading-relaxed mt-3 line-clamp-3">
+                <p className="text-slate-400 font-inter text-xs leading-relaxed mt-2 line-clamp-3">
                   {item.description}
                 </p>
                 {item.url && (
                   <a
-                    href={item.url}
+                    href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#FFC400] mt-3 font-mono transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#FFC400] hover:underline mt-3 font-mono transition-colors"
                   >
                     <ExternalLink size={12} /> {item.url.replace(/^https?:\/\//, '')}
                   </a>
@@ -318,7 +336,7 @@ const AdminPartners = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-5">
               <div>
                 <label className="block text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-2">
                   PARTNER NAME *
@@ -327,7 +345,7 @@ const AdminPartners = () => {
                   type="text"
                   required
                   placeholder="e.g. PREDATOR GAMING"
-                  value={editingPartner.name}
+                  value={editingPartner.name || ''}
                   onChange={e => setEditingPartner({ ...editingPartner, name: e.target.value })}
                   className="w-full bg-[#040E1E] border border-slate-800 text-white p-3 text-sm focus:outline-none focus:border-[#FFC400]"
                 />
@@ -340,8 +358,8 @@ const AdminPartners = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. ENDEMIC SPONSOR, TECHNICAL SPONSOR"
-                  value={editingPartner.category}
+                  placeholder="e.g. OFFICIAL SPONSOR, TECHNICAL SPONSOR"
+                  value={editingPartner.category || ''}
                   onChange={e => setEditingPartner({ ...editingPartner, category: e.target.value })}
                   className="w-full bg-[#040E1E] border border-slate-800 text-white p-3 text-sm focus:outline-none focus:border-[#FFC400]"
                 />
@@ -359,6 +377,13 @@ const AdminPartners = () => {
                 </div>
               </div>
 
+              <ImageUploader
+                label="Partner Official Logo"
+                value={editingPartner.image || ''}
+                onChange={(url) => setEditingPartner({ ...editingPartner, image: url })}
+                aspectRatio="banner"
+              />
+
               <div>
                 <label className="block text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-2">
                   DESCRIPTION / TAGLINE *
@@ -367,7 +392,7 @@ const AdminPartners = () => {
                   required
                   rows={3}
                   placeholder="e.g. Official High-Performance PC Partner"
-                  value={editingPartner.description}
+                  value={editingPartner.description || ''}
                   onChange={e => setEditingPartner({ ...editingPartner, description: e.target.value })}
                   className="w-full bg-[#040E1E] border border-slate-800 text-white p-3 text-sm focus:outline-none focus:border-[#FFC400]"
                 />
@@ -389,7 +414,7 @@ const AdminPartners = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div>
                   <label className="block text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-2">
-                    DISPLAY ORDER
+                    DISPLAY ORDER (ترتيب العرض)
                   </label>
                   <input
                     type="number"
@@ -410,7 +435,7 @@ const AdminPartners = () => {
                     <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC400]"></div>
                   </label>
                   <span className="font-syncopate text-xs font-bold text-white uppercase">
-                    PUBLISH SITE-WIDE
+                    PUBLISH SITE-WIDE (ظاهر بالموقع)
                   </span>
                 </div>
               </div>

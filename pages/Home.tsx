@@ -8,6 +8,7 @@ import { MOCK_EVENTS, MOCK_TEAMS, MOCK_NEWS, MOCK_PRODUCTS } from '../constants'
 import { Link } from 'react-router-dom';
 import { Player, NewsItem, Product } from '../types';
 import SEOMeta from '../components/SEOMeta';
+import { getDynamicStatus, cleanOpponentName, getMatchResult } from '../src/utils/dateStatus';
 
 const safeFetchJson = async (url: string) => {
   try {
@@ -230,99 +231,99 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
     setMousePos({ x, y });
   };
 
-  const upcomingMatches = useMemo(() => {
+  const { upcomingMatches, pastResults, hasLiveMatch } = useMemo(() => {
+    const upcomingList: any[] = [];
+    const pastList: any[] = [];
+    let liveFound = false;
+
     if (Array.isArray(events) && events.length > 0) {
-      const upcomingList: any[] = [];
       events.forEach((ev: any) => {
-        let parsedMatches = [];
+        let parsedMatches: any[] = [];
         if (typeof ev.matches === 'string') {
           try { parsedMatches = JSON.parse(ev.matches); } catch {}
         } else if (Array.isArray(ev.matches)) {
           parsedMatches = ev.matches;
         }
+
         if (parsedMatches.length > 0) {
           parsedMatches.forEach((m: any) => {
-            if (m.status !== 'completed') {
+            const mDate = m.date || ev.start_date || '';
+            const mTime = ev.time || '18:00';
+            const dynStatus = getDynamicStatus(mDate, ev.end_date || mDate, mTime, m.status || ev.status);
+
+            if (dynStatus === 'live' || dynStatus === 'upcoming') {
+              if (dynStatus === 'live') liveFound = true;
               upcomingList.push({
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
-                opp: m.teams || ev.title,
-                date: m.date || ev.start_date || 'TBD',
-                time: ev.time || '18:00'
+                opp: cleanOpponentName(m.teams || ev.title),
+                date: mDate || 'TODAY',
+                time: mTime,
+                status: dynStatus,
+                sortKey: mDate || '9999-99-99'
               });
-            }
-          });
-        } else if (ev.status === 'upcoming' || ev.status === 'live') {
-          upcomingList.push({
-            game: String(ev.game || 'ESPORTS').toUpperCase(),
-            opp: ev.title || ev.organizer || 'GLOBAL TEAMS',
-            date: ev.start_date || 'TBD',
-            time: ev.time || '18:00'
-          });
-        }
-      });
-      if (upcomingList.length > 0) return upcomingList.slice(0, 2);
-    }
-    return [];
-  }, [events]);
-
-  const pastResults = useMemo(() => {
-    if (Array.isArray(events) && events.length > 0) {
-      const pastList: any[] = [];
-      events.forEach((ev: any) => {
-        let parsedMatches = [];
-        if (typeof ev.matches === 'string') {
-          try { parsedMatches = JSON.parse(ev.matches); } catch {}
-        } else if (Array.isArray(ev.matches)) {
-          parsedMatches = ev.matches;
-        }
-
-        if (parsedMatches.length > 0) {
-          parsedMatches.forEach((m: any) => {
-            const st = String(m.status || '').toLowerCase();
-            if (st === 'completed' || st === 'finished' || st === 'ended' || st === 'past') {
-              let isWin = true;
-              if (m.winner) {
-                isWin = String(m.winner).toLowerCase().includes('geekay');
-              } else if (m.res || m.result) {
-                isWin = String(m.res || m.result).toUpperCase() === 'WIN';
-              } else if (m.score) {
-                const numParts = String(m.score).split('-').map(s => parseInt(s.trim(), 10));
-                if (numParts.length === 2 && !isNaN(numParts[0]) && !isNaN(numParts[1])) {
-                  isWin = numParts[0] > numParts[1];
-                } else if (String(m.score).includes('1 - 3') || String(m.score).startsWith('0')) {
-                  isWin = false;
-                }
-              }
+            } else {
+              const res = getMatchResult(m);
               pastList.push({
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
-                opp: m.teams || ev.title,
-                res: isWin ? 'WIN' : 'LOSS',
-                score: m.score || (isWin ? '2-1' : '0-2')
+                opp: cleanOpponentName(m.teams || ev.title),
+                res: res.resText,
+                score: res.score,
+                date: mDate,
+                sortKey: mDate || '0000-00-00'
               });
             }
           });
-        }
+        } else {
+          const evDate = ev.start_date || '';
+          const evTime = ev.time || '18:00';
+          const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
 
-        const evStatus = String(ev.status || '').toLowerCase();
-        if (evStatus === 'completed' || evStatus === 'finished' || evStatus === 'ended' || evStatus === 'past') {
-          let resObj: any = {};
-          if (typeof ev.results === 'string') {
-            try { resObj = JSON.parse(ev.results); } catch {}
-          } else if (typeof ev.results === 'object' && ev.results) {
-            resObj = ev.results;
+          if (dynStatus === 'live' || dynStatus === 'upcoming') {
+            if (dynStatus === 'live') liveFound = true;
+            upcomingList.push({
+              game: String(ev.game || 'ESPORTS').toUpperCase(),
+              opp: cleanOpponentName(ev.title || ev.organizer),
+              date: evDate || 'TODAY',
+              time: evTime,
+              status: dynStatus,
+              sortKey: evDate || '9999-99-99'
+            });
+          } else {
+            let resObj: any = {};
+            if (typeof ev.results === 'string') {
+              try { resObj = JSON.parse(ev.results); } catch {}
+            } else if (typeof ev.results === 'object' && ev.results) {
+              resObj = ev.results;
+            }
+            const res = getMatchResult(resObj);
+            pastList.push({
+              game: String(ev.game || 'ESPORTS').toUpperCase(),
+              opp: cleanOpponentName(ev.title || 'REGIONAL FINALS'),
+              res: res.resText,
+              score: res.score,
+              date: evDate,
+              sortKey: evDate || '0000-00-00'
+            });
           }
-          const isWin = resObj.winner ? String(resObj.winner).toLowerCase().includes('geekay') : true;
-          pastList.push({
-            game: String(ev.game || 'ESPORTS').toUpperCase(),
-            opp: ev.title || 'REGIONAL FINALS',
-            res: isWin ? 'WIN' : 'LOSS',
-            score: resObj.score || (isWin ? '3-1' : '1-3')
-          });
         }
       });
-      if (pastList.length > 0) return pastList.slice(0, 2);
     }
-    return [];
+
+    // Sort upcoming: live matches first, then soonest dates
+    upcomingList.sort((a, b) => {
+      if (a.status === 'live' && b.status !== 'live') return -1;
+      if (b.status === 'live' && a.status !== 'live') return 1;
+      return a.sortKey.localeCompare(b.sortKey);
+    });
+
+    // Sort past results: most recent first
+    pastList.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+
+    return {
+      upcomingMatches: upcomingList.slice(0, 3),
+      pastResults: pastList.slice(0, 3),
+      hasLiveMatch: liveFound
+    };
   }, [events]);
 
   return (
@@ -408,12 +409,19 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="w-full max-w-md space-y-4"
             >
-              {/* Upcoming Matches */}
+              {/* Upcoming / Live Matches */}
               <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-[#FFC400]/20 p-4 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-1 h-full bg-[#FFC400]/50" />
-                <h3 className="font-syncopate text-[8px] font-black text-[#FFC400] tracking-[0.4em] uppercase mb-3 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#FFC400] animate-pulse" />
-                  UPCOMING MATCHES
+                <h3 className="font-syncopate text-[8px] font-black text-[#FFC400] tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${hasLiveMatch ? 'bg-red-500 animate-ping' : 'bg-[#FFC400] animate-pulse'}`} />
+                    <span>{hasLiveMatch ? 'LIVE & UPCOMING MATCHES' : 'UPCOMING MATCHES'}</span>
+                  </div>
+                  {hasLiveMatch && (
+                    <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 text-[7px] font-bold rounded animate-pulse">
+                      ● LIVE NOW
+                    </span>
+                  )}
                 </h3>
                 
                 <div className="space-y-2">
@@ -421,8 +429,16 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                     upcomingMatches.map((match, i) => (
                       <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
                         <div>
-                          <div className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</div>
-                          <div className="text-white font-syncopate text-[10px] font-black tracking-tight">{match.opp.startsWith('VS') ? match.opp : `VS ${match.opp}`}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</span>
+                            {match.status === 'live' && (
+                              <span className="inline-flex items-center gap-1 px-1 py-0.2 bg-red-500/20 text-red-400 font-mono text-[6px] font-bold rounded">
+                                <span className="w-1 h-1 bg-red-500 rounded-full animate-ping" />
+                                LIVE
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-white font-syncopate text-[10px] font-black tracking-tight">{match.opp}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
@@ -440,8 +456,9 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
 
               {/* Past Results */}
               <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-white/10 p-4 relative overflow-hidden group">
-                <h3 className="font-syncopate text-[8px] font-black text-white/40 tracking-[0.4em] uppercase mb-3">
-                  PAST RESULTS
+                <h3 className="font-syncopate text-[8px] font-black text-white/40 tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
+                  <span>PAST RESULTS</span>
+                  <span className="text-[7px] font-mono text-slate-500">COMPLETED</span>
                 </h3>
                 
                 <div className="space-y-2">
@@ -449,8 +466,11 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                     pastResults.map((result, i) => (
                       <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
                         <div>
-                          <div className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</div>
-                          <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">{result.opp.startsWith('VS') ? result.opp : `VS ${result.opp}`}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</span>
+                            {result.date && <span className="text-slate-500 text-[7px] font-mono">{result.date}</span>}
+                          </div>
+                          <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">{result.opp}</div>
                         </div>
                         <div className="text-right flex items-center gap-2">
                           <div className="text-white font-syncopate text-[10px] font-black">{result.score}</div>
@@ -1112,19 +1132,25 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
     if (Array.isArray(events) && events.length > 0) {
       const matchesList: any[] = [];
       events.forEach((ev: any) => {
-        if (ev.status === 'upcoming' || ev.status === 'live') {
+        const evDate = ev.start_date || '';
+        const evTime = ev.time || '18:00 GST';
+        const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
+
+        if (dynStatus === 'upcoming' || dynStatus === 'live') {
           matchesList.push({
             id: ev.id,
             game: String(ev.game || 'ESPORTS').toUpperCase(),
             title: ev.title,
-            opponent: ev.organizer || 'GLOBAL CONTENDERS',
-            date: ev.start_date || 'OCT 2026',
-            time: ev.time || '18:00 GST',
+            opponent: cleanOpponentName(ev.organizer || 'GLOBAL CONTENDERS'),
+            date: evDate || 'TBD',
+            time: evTime,
             region: ev.region || 'GLOBAL',
-            countdown: ev.status === 'live' ? 'LIVE NOW' : 'UPCOMING'
+            status: dynStatus,
+            countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING'
           });
         }
       });
+      matchesList.sort((a, b) => (a.status === 'live' ? -1 : 1));
       if (matchesList.length > 0) return matchesList.slice(0, 3);
     }
     return [];
@@ -1133,11 +1159,12 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
   const featuredTournament = useMemo(() => {
     if (Array.isArray(events) && events.length > 0) {
       const feat = events.find((e: any) => e.featured === 1 || e.featured === true) || events[0];
+      const featStatus = getDynamicStatus(feat.start_date, feat.end_date, feat.time, feat.status);
       return {
         id: feat.id,
         title: feat.title,
         game: String(feat.game || 'ESPORTS').toUpperCase(),
-        status: String(feat.status || 'UPCOMING').toUpperCase(),
+        status: String(featStatus).toUpperCase(),
         date: feat.start_date || '2026-11-05',
         location: feat.region || feat.organizer || 'GLOBAL',
         prizePool: feat.prize_pool || '$18,000,000',

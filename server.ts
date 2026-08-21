@@ -128,9 +128,12 @@ db.exec(`
     role TEXT,
     description TEXT,
     linkedin TEXT,
+    twitter TEXT,
+    x TEXT,
+    instagram TEXT,
     image TEXT,
     display_order INTEGER DEFAULT 0,
-    published INTEGER DEFAULT 0
+    published INTEGER DEFAULT 1
   );
 
   CREATE TABLE IF NOT EXISTS partners (
@@ -877,6 +880,65 @@ if (creatorCount.count === 0) {
   console.log('Seeded initial creators successfully.');
 }
 
+// Seed leadership members if empty
+const leadershipCount: any = db.prepare('SELECT COUNT(*) as count FROM leadership').get();
+if (leadershipCount.count === 0) {
+  console.log('Seeding initial leadership members...');
+  const leadershipStmt = db.prepare(`
+    INSERT INTO leadership (name, role, description, image, linkedin, twitter, x, instagram, display_order, published)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  leadershipStmt.run(
+    'KISHAN', 
+    'FOUNDER & CEO', 
+    'Pioneering the modern MENA esports ecosystem with an uncompromising vision for regional excellence.', 
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=500&h=600',
+    'https://linkedin.com',
+    'https://x.com/geekayesports',
+    'https://x.com/geekayesports',
+    'https://instagram.com/geekayesports',
+    1,
+    1
+  );
+  leadershipStmt.run(
+    'DAN', 
+    'HEAD OF ESPORTS', 
+    'Directing competitive strategy, roster recruitment, and high-performance player optimization across titles.', 
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=500&h=600',
+    'https://linkedin.com',
+    'https://x.com/geekayesports',
+    'https://x.com/geekayesports',
+    'https://instagram.com/geekayesports',
+    2,
+    1
+  );
+  leadershipStmt.run(
+    'KARL', 
+    'HEAD OF PARTNERSHIPS', 
+    'Structuring high-impact corporate synergies and global brand alignments across diverse industry verticals.', 
+    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=500&h=600',
+    'https://linkedin.com',
+    'https://x.com/geekayesports',
+    'https://x.com/geekayesports',
+    'https://instagram.com/geekayesports',
+    3,
+    1
+  );
+  leadershipStmt.run(
+    'YAZEED', 
+    'HEAD OF CREATIVES', 
+    'Defining the visual identity and uncompromising aesthetic of the brand.', 
+    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=500&h=600',
+    'https://linkedin.com',
+    'https://x.com/geekayesports',
+    'https://x.com/geekayesports',
+    'https://instagram.com/geekayesports',
+    4,
+    1
+  );
+  console.log('Seeded initial leadership members successfully.');
+}
+
 // Seed news categories, tags, authors if empty
 const partnerCount: any = db.prepare('SELECT COUNT(*) as count FROM partners').get();
 if (partnerCount.count === 0) {
@@ -1295,8 +1357,8 @@ app.post(['/api/auth/login', '/api/auth/login/'], async (req: any, res: any) => 
       role: user.role || 'editor'
     };
 
-    const expiresIn = rememberMe ? '30d' : '8h';
-    const maxAgeMs = rememberMe ? 30 * 24 * 3600 * 1000 : 8 * 3600 * 1000;
+    const expiresIn = rememberMe ? '90d' : '30d';
+    const maxAgeMs = rememberMe ? 90 * 24 * 3600 * 1000 : 30 * 24 * 3600 * 1000;
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn });
 
@@ -1330,7 +1392,7 @@ app.post(['/api/auth/logout', '/api/auth/logout/'], (req: any, res: any) => {
   res.json({ message: 'Logged out successfully' });
 });
 
-app.get('/api/auth/me', (req: any, res: any) => {
+app.get('/api/auth/me', async (req: any, res: any) => {
   let token = req.cookies?.token;
   if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
@@ -1342,13 +1404,50 @@ app.get('/api/auth/me', (req: any, res: any) => {
 
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
-    const freshUser = db.prepare('SELECT id, username, email, role, status FROM users WHERE id = ?').get(decoded.id);
-    if (!freshUser || freshUser.status === 'inactive') {
+    let freshUser: any = null;
+
+    try {
+      freshUser = db.prepare('SELECT id, username, email, role, status FROM users WHERE id = ? OR username = ?').get(decoded.id, decoded.username);
+    } catch (e) {}
+
+    if (!freshUser && supabase) {
+      try {
+        const { data } = await supabase.from('users').select('id, username, email, role, status').or(`id.eq.${decoded.id},username.eq.${decoded.username}`).maybeSingle();
+        if (data) freshUser = data;
+      } catch (e) {}
+    }
+
+    if (!freshUser) {
+      freshUser = {
+        id: decoded.id,
+        username: decoded.username,
+        email: decoded.email || `${decoded.username}@geekay.com`,
+        role: decoded.role || 'editor',
+        status: 'active'
+      };
+    }
+
+    if (freshUser.status && freshUser.status !== 'active') {
       res.clearCookie('token');
       return res.status(401).json({ user: null, error: 'Account inactive or disabled' });
     }
 
+    const refreshedToken = jwt.sign({
+      id: freshUser.id,
+      username: freshUser.username,
+      email: freshUser.email || `${freshUser.username}@geekay.com`,
+      role: freshUser.role || 'editor'
+    }, JWT_SECRET, { expiresIn: '30d' });
+
+    res.cookie('token', refreshedToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 30 * 24 * 3600 * 1000
+    });
+
     return res.json({
+      token: refreshedToken,
       user: {
         id: freshUser.id,
         username: freshUser.username,
@@ -1759,12 +1858,22 @@ app.get('/api/auth/me', (req: any, res: any) => {
         const rawPayload = { ...req.body };
         delete rawPayload.id;
 
+        if (tableName === 'leadership') {
+          if (rawPayload.x && !rawPayload.twitter) rawPayload.twitter = rawPayload.x;
+          if (rawPayload.twitter && !rawPayload.x) rawPayload.x = rawPayload.twitter;
+        }
+
         const validCols = getValidColumns(tableName).filter(c => c !== 'id');
         const payload: any = {};
         for (const k of Object.keys(rawPayload)) {
           if (validCols.length === 0 || validCols.includes(k)) {
             payload[k] = rawPayload[k];
           }
+        }
+
+        if (tableName === 'leadership') {
+          if (payload.x && !payload.twitter) payload.twitter = payload.x;
+          if (payload.twitter && !payload.x) payload.x = payload.twitter;
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
@@ -1827,6 +1936,11 @@ app.get('/api/auth/me', (req: any, res: any) => {
         const rawPayload = { ...req.body };
         delete rawPayload.id;
 
+        if (tableName === 'leadership') {
+          if (rawPayload.x && !rawPayload.twitter) rawPayload.twitter = rawPayload.x;
+          if (rawPayload.twitter && !rawPayload.x) rawPayload.x = rawPayload.twitter;
+        }
+
         const targetId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : req.params.id;
 
         const validCols = getValidColumns(tableName).filter(c => c !== 'id');
@@ -1835,6 +1949,11 @@ app.get('/api/auth/me', (req: any, res: any) => {
           if (validCols.length === 0 || validCols.includes(k)) {
             payload[k] = rawPayload[k];
           }
+        }
+
+        if (tableName === 'leadership') {
+          if (payload.x && !payload.twitter) payload.twitter = payload.x;
+          if (payload.twitter && !payload.x) payload.x = payload.twitter;
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {

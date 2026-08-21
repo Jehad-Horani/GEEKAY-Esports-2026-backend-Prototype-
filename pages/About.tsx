@@ -206,6 +206,17 @@ const About = () => {
       .catch(err => console.error('Failed to fetch partners data:', err));
   }, []);
 
+  const formatSocialLink = (val: string, platform: 'x' | 'instagram' | 'linkedin') => {
+    if (!val || val === '#' || val === '') return '';
+    const clean = val.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+    const handle = clean.replace(/^@/, '');
+    if (platform === 'x') return `https://x.com/${handle}`;
+    if (platform === 'instagram') return `https://instagram.com/${handle}`;
+    if (platform === 'linkedin') return clean.includes('linkedin.com') ? `https://${clean}` : `https://linkedin.com/in/${handle}`;
+    return `https://${clean}`;
+  };
+
   return (
     <div className="bg-[#081B3A] overflow-x-hidden selection:bg-[#FFC400] selection:text-black pt-32">
       <SEOMeta 
@@ -345,9 +356,9 @@ const About = () => {
                       </p>
                       
                       <div className="flex flex-wrap items-center gap-3">
-                        {leader.linkedin && leader.linkedin !== '#' && (
+                        {leader.linkedin && formatSocialLink(leader.linkedin, 'linkedin') && (
                           <a 
-                            href={leader.linkedin.startsWith('http') ? leader.linkedin : `https://${leader.linkedin}`} 
+                            href={formatSocialLink(leader.linkedin, 'linkedin')} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"
@@ -358,9 +369,9 @@ const About = () => {
                           </a>
                         )}
 
-                        {leader.x && leader.x !== '#' && (
+                        {leader.x && formatSocialLink(leader.x, 'x') && (
                           <a 
-                            href={leader.x.startsWith('http') ? leader.x : `https://${leader.x}`} 
+                            href={formatSocialLink(leader.x, 'x')} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"
@@ -371,9 +382,9 @@ const About = () => {
                           </a>
                         )}
 
-                        {leader.instagram && leader.instagram !== '#' && (
+                        {leader.instagram && formatSocialLink(leader.instagram, 'instagram') && (
                           <a 
-                            href={leader.instagram.startsWith('http') ? leader.instagram : `https://${leader.instagram}`} 
+                            href={formatSocialLink(leader.instagram, 'instagram')} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[10px] font-syncopate tracking-widest"

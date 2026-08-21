@@ -59,41 +59,22 @@ const AdminLayout = () => {
           const data = await res.json();
           if (data && data.user) {
             setUser(data.user);
+            if (data.token) {
+              localStorage.setItem('geekay_token', data.token);
+            }
             localStorage.setItem('geekay_user', JSON.stringify(data.user));
             setLoading(false);
             return;
           }
         }
 
-        // Fallback: check if we have a locally stored user
-        const savedUser = localStorage.getItem('geekay_user');
-        if (savedUser) {
-          try {
-            const parsed = JSON.parse(savedUser);
-            if (parsed && (parsed.username || parsed.email)) {
-              setUser(parsed);
-              setLoading(false);
-              return;
-            }
-          } catch (e) {}
-        }
-
-        // Redirect to login if unauthenticated
+        // If unauthenticated or token is expired/invalid, clear and redirect to login
         localStorage.removeItem('geekay_token');
         localStorage.removeItem('geekay_user');
         navigate('/admin/login');
       } catch (e) {
-        const savedUser = localStorage.getItem('geekay_user');
-        if (savedUser) {
-          try {
-            const parsed = JSON.parse(savedUser);
-            if (parsed && (parsed.username || parsed.email)) {
-              setUser(parsed);
-              setLoading(false);
-              return;
-            }
-          } catch (err) {}
-        }
+        localStorage.removeItem('geekay_token');
+        localStorage.removeItem('geekay_user');
         navigate('/admin/login');
       } finally {
         setLoading(false);

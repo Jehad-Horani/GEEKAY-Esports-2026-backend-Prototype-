@@ -10,6 +10,7 @@ import { MOCK_EVENTS } from '../constants';
 import { getEventSlug } from './Schedule';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
+import { getDynamicStatus } from '../src/utils/dateStatus';
 
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -111,13 +112,16 @@ const EventDetail = () => {
 
   // Normalization logic to select matched event from database
   const matchedEvent = useMemo(() => {
-    const normalized = (Array.isArray(dbEvents) ? dbEvents : []).map(e => ({
-      ...e,
-      title: e.title || '',
-      status: e.status ? e.status.toLowerCase() : 'upcoming',
-      start_date: e.start_date || '',
-      banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
-    }));
+    const normalized = (Array.isArray(dbEvents) ? dbEvents : []).map(e => {
+      const dynStatus = getDynamicStatus(e.start_date, e.end_date, e.time, e.status);
+      return {
+        ...e,
+        title: e.title || '',
+        status: dynStatus,
+        start_date: e.start_date || '',
+        banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+      };
+    });
 
     return normalized.find(e => e.title && getEventSlug(e.title) === eventName);
   }, [dbEvents, eventName]);
@@ -150,13 +154,16 @@ const EventDetail = () => {
   const relatedEvents = useMemo(() => {
     if (!matchedEvent) return [];
     
-    const dbList = (Array.isArray(dbEvents) ? dbEvents : []).filter(e => e.title && getEventSlug(e.title) !== eventName).map(e => ({
-      ...e,
-      title: e.title || '',
-      status: e.status ? e.status.toLowerCase() : 'upcoming',
-      start_date: e.start_date || '',
-      banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=450'
-    }));
+    const dbList = (Array.isArray(dbEvents) ? dbEvents : []).filter(e => e.title && getEventSlug(e.title) !== eventName).map(e => {
+      const dynStatus = getDynamicStatus(e.start_date, e.end_date, e.time, e.status);
+      return {
+        ...e,
+        title: e.title || '',
+        status: dynStatus,
+        start_date: e.start_date || '',
+        banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=450'
+      };
+    });
 
     if (dbList.length > 0) {
       return dbList.slice(0, 3);

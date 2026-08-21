@@ -38,6 +38,7 @@ const BlueprintBackground = () => (
 );
 
 import { safeJsonParse } from '../src/utils/json';
+import { getDynamicStatus } from '../src/utils/dateStatus';
 
 const CalendarInterface = () => {
   const navigate = useNavigate();
@@ -65,25 +66,29 @@ const CalendarInterface = () => {
           setDbGameTitles(gtData.map((gt: any) => String(gt.name).trim().toUpperCase()));
         }
         if (Array.isArray(evData)) {
-          const mapped: Event[] = evData.map((e: any) => ({
-            id: String(e.id),
-            title: e.title,
-            game: e.game,
-            type: e.type || 'TOURNAMENT',
-            date: e.start_date || e.date || new Date().toISOString().split('T')[0],
-            time: e.time || '18:00 KSA',
-            location: e.region || e.location || 'RIYADH, KSA',
-            prizePool: e.prize_pool || e.prizePool || '$50,000',
-            status: e.status || 'UPCOMING',
-            image: e.banner || e.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500',
-            description: e.description || '',
-            organizer: e.organizer || 'GEEKAY ESPORTS',
-            teams: safeJsonParse(e.teams, []),
-            matches: safeJsonParse(e.matches, []),
-            results: safeJsonParse(e.results, []),
-            media: safeJsonParse(e.media, []),
-            social: safeJsonParse(e.social, {})
-          }));
+          const mapped: Event[] = evData.map((e: any) => {
+            const evDate = e.start_date || e.date || new Date().toISOString().split('T')[0];
+            const dynStatus = getDynamicStatus(evDate, e.end_date, e.time, e.status);
+            return {
+              id: String(e.id),
+              title: e.title,
+              game: e.game,
+              type: e.type || 'TOURNAMENT',
+              date: evDate,
+              time: e.time || '18:00 KSA',
+              location: e.region || e.location || 'RIYADH, KSA',
+              prizePool: e.prize_pool || e.prizePool || '$50,000',
+              status: (dynStatus === 'completed' ? 'FINISHED' : (dynStatus === 'live' ? 'LIVE' : 'UPCOMING')) as 'LIVE' | 'UPCOMING' | 'FINISHED',
+              image: e.banner || e.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500',
+              description: e.description || '',
+              organizer: e.organizer || 'GEEKAY ESPORTS',
+              teams: safeJsonParse(e.teams, []),
+              matches: safeJsonParse(e.matches, []),
+              results: safeJsonParse(e.results, []),
+              media: safeJsonParse(e.media, []),
+              social: safeJsonParse(e.social, {})
+            };
+          });
           setDbEvents(mapped);
         }
         setLoading(false);
