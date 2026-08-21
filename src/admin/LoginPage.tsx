@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Lock, User, ShieldCheck, Key, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Lock, User, ShieldCheck, Key, AlertTriangle, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import { GEEKAY_LOGO } from '../../constants';
 
@@ -28,16 +28,17 @@ const LoginPage = () => {
         if (lockUntilTime > now) {
           const diffSec = Math.ceil((lockUntilTime - now) / 1000);
           setRemainingCooldown(diffSec);
+          setFailedCount(MAX_ALLOWED_ATTEMPTS);
         } else {
           localStorage.removeItem('geekay_login_locked_until');
           localStorage.removeItem('geekay_login_failed_attempts');
         }
-      }
-
-      const storedAttempts = localStorage.getItem('geekay_login_failed_attempts');
-      if (storedAttempts) {
-        const count = parseInt(storedAttempts, 10) || 0;
-        setFailedCount(count);
+      } else {
+        const storedAttempts = localStorage.getItem('geekay_login_failed_attempts');
+        if (storedAttempts) {
+          const count = parseInt(storedAttempts, 10) || 0;
+          setFailedCount(count);
+        }
       }
     } catch {}
   }, []);
@@ -72,7 +73,7 @@ const LoginPage = () => {
     } catch {}
     setFailedCount(MAX_ALLOWED_ATTEMPTS);
     setRemainingCooldown(seconds);
-    setError(`Security protection active: 3 failed attempts reached. System locked for ${seconds} seconds.`);
+    setError(`تم حظر محاولات الدخول مؤقتاً بسبب 3 محاولات خاطئة. يرجى الانتظار ${seconds} ثانية.`);
   };
 
   const registerFailedAttempt = (serverRemainingSecs?: number) => {
@@ -96,7 +97,7 @@ const LoginPage = () => {
         localStorage.setItem('geekay_login_failed_attempts', String(nextCount));
       } catch {}
       const attemptsRemaining = MAX_ALLOWED_ATTEMPTS - nextCount;
-      setError(`Invalid credentials. (${attemptsRemaining} attempt${attemptsRemaining === 1 ? '' : 's'} remaining before security lockout)`);
+      setError(`اسم المستخدم أو كلمة المرور غير صحيحة. (متبقي لديك ${attemptsRemaining} ${attemptsRemaining === 1 ? 'محاولة واحدة' : 'محاولات'} قبل الحظر)`);
     }
   };
 
@@ -145,6 +146,7 @@ const LoginPage = () => {
         navigate('/admin');
       }
     } catch (err) {
+      // In case of network error or server disconnect, client-side protection also kicks in
       registerFailedAttempt();
     } finally {
       setLoading(false);
@@ -179,40 +181,43 @@ const LoginPage = () => {
         <div className="bg-[#081B3A] border border-white/10 p-8 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.6)] relative overflow-hidden rounded-sm">
           <div className={`absolute top-0 left-0 w-full h-1.5 transition-colors duration-300 ${isLocked ? 'bg-red-500 animate-pulse' : 'bg-[#FFC400]'}`} />
 
-          {/* Security Lockout Banner */}
-          {isLocked && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mb-6 bg-red-950/80 border-2 border-red-500/80 p-5 rounded text-center shadow-lg"
-            >
-              <div className="flex items-center justify-center gap-2 text-red-400 mb-2">
-                <ShieldAlert size={22} className="animate-bounce text-red-500" />
-                <span className="font-syncopate text-xs font-black tracking-widest uppercase text-red-400">
-                  SECURITY LOCKOUT ACTIVE
-                </span>
-              </div>
-              <p className="text-slate-300 text-xs font-sans mb-3">
-                3 failed attempts reached. System access temporarily locked for protection.
-              </p>
-              <div className="inline-flex items-center gap-2.5 bg-red-900/70 border border-red-500/50 px-5 py-2.5 rounded-sm">
-                <Clock size={16} className="text-red-400 animate-spin" />
-                <span className="font-mono text-lg font-black text-white tracking-widest">
-                  {Math.floor(remainingCooldown / 60)}:{String(remainingCooldown % 60).padStart(2, '0')}
-                </span>
-                <span className="font-syncopate text-[8px] text-red-300 font-bold uppercase tracking-widest">
-                  COOLDOWN
-                </span>
-              </div>
-            </motion.div>
-          )}
+          {/* Security Lockout Banner with Live Countdown */}
+          <AnimatePresence>
+            {isLocked && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="mb-6 bg-red-950/90 border-2 border-red-500/80 p-5 rounded text-center shadow-[0_0_25px_rgba(239,68,68,0.3)]"
+              >
+                <div className="flex items-center justify-center gap-2 text-red-400 mb-2">
+                  <ShieldAlert size={22} className="animate-bounce text-red-500" />
+                  <span className="font-syncopate text-xs font-black tracking-widest uppercase text-red-400">
+                    SECURITY LOCKOUT ACTIVE
+                  </span>
+                </div>
+                <p className="text-slate-200 text-xs font-sans mb-3 font-medium">
+                  تم تجاوز الحد المسموح به (3 محاولات خاطئة). الحساب مغلق للحماية.
+                </p>
+                <div className="inline-flex items-center gap-2.5 bg-red-900/80 border border-red-500/60 px-5 py-2.5 rounded">
+                  <Clock size={16} className="text-red-300 animate-spin" />
+                  <span className="font-mono text-xl font-black text-white tracking-widest">
+                    {Math.floor(remainingCooldown / 60)}:{String(remainingCooldown % 60).padStart(2, '0')}
+                  </span>
+                  <span className="font-syncopate text-[8px] text-red-300 font-bold uppercase tracking-widest">
+                    REMAINING
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Standard Error Notice */}
           {error && !isLocked && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 bg-red-500/10 border border-red-500/40 p-4 text-red-400 text-[10px] font-syncopate font-bold tracking-widest uppercase text-center rounded-sm"
+              className="mb-6 bg-red-500/10 border border-red-500/40 p-4 text-red-400 text-xs font-sans text-center rounded-sm leading-relaxed"
             >
               {error}
             </motion.div>
