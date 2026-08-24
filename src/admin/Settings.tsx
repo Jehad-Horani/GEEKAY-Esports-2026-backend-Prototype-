@@ -180,12 +180,12 @@ const AdminSettings = () => {
 
           <div className="bg-[#081B3A] border border-white/5 p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
             {[
-              { id: 'instagram_count', label: 'INSTAGRAM', placeholder: '240K' },
-              { id: 'twitter_count', label: 'X (TWITTER)', placeholder: '399K' },
-              { id: 'tiktok_count', label: 'TIKTOK', placeholder: '481K' },
-              { id: 'youtube_count', label: 'YOUTUBE', placeholder: '523K' },
-              { id: 'twitch_count', label: 'TWITCH', placeholder: '645K' },
-              { id: 'facebook_count', label: 'FACEBOOK', placeholder: '8.7K' },
+              { id: 'instagram_count', label: 'INSTAGRAM'  },
+              { id: 'twitter_count', label: 'X (TWITTER)'  },
+              { id: 'tiktok_count', label: 'TIKTOK'  },
+              { id: 'youtube_count', label: 'YOUTUBE'  },
+              { id: 'twitch_count', label: 'TWITCH'  },
+              { id: 'facebook_count', label: 'FACEBOOK'  },
             ].map(item => (
               <div key={item.id} className="space-y-2">
                 <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">{item.label}</label>
