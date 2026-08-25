@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Twitter, Twitch, Instagram, Youtube, LayoutGrid, Info, Briefcase, Calendar, Users, Home as HomeIcon, ChevronDown, ArrowRight, Search } from 'lucide-react';
+import { Analytics } from "@vercel/analytics/react";
 
 // Pages
 import Home from './pages/Home';
@@ -465,6 +466,7 @@ function MainAppLayout() {
           </div>
         </footer>
       )}
+      <Analytics />
     </div>
   );
 }
