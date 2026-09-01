@@ -390,50 +390,74 @@ db.exec(`
 console.log('Database schema initialized successfully');
 
 // Seed default global settings if empty
-try {
-  const countSettings = (db.prepare('SELECT count(*) as count FROM settings').get() as any)?.count || 0;
-  if (countSettings === 0) {
-    const defaultSettingsMap: Record<string, string> = {
-      general_email: 'general@geekay.com',
-      partnerships_email: 'partnerships@geekay.com',
-      business_email: 'business@geekay.com',
-      careers_email: 'careers@geekay.com',
-      twitter_url: 'https://twitter.com/geekayesports',
-      twitch_url: 'https://twitch.tv/geekayesports',
-      instagram_url: 'https://instagram.com/geekayesports',
-      youtube_url: 'https://youtube.com/geekayesports',
-      snapchat_url: 'https://snapchat.com/add/geekayesports',
-      tiktok_url: 'https://tiktok.com/@geekayesports',
-      facebook_url: 'https://facebook.com/geekayesports',
-      discord_url: 'https://discord.gg/geekayesports',
-      site_announcement: 'GEEKAY PRO SHOP NOW OPEN IN UAE & KSA - EXPLORE OFFICIAL APPAREL',
-      announcement_active: 'true',
-      announcement_badge: 'OFFICIAL BRIEFING',
-      announcement_link: 'https://www.geekay.com/en/',
-      twitter_count: '399K',
-      twitch_count: '645K',
-      instagram_count: '240K',
-      youtube_count: '523K',
-      tiktok_count: '481K',
-      facebook_count: '8.7K',
-      riyadh_address: 'Al Nemer Center, 2nd Tower, 3rd Floor, Office 312, P.O. Box 12214, Riyadh',
-      riyadh_phone: '+966 54 097 4261',
-      riyadh_email: 'esports@geekaygroupmea.com',
-      riyadh_po_box: '12214',
-      dubai_address: '1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor, P.O. Box 2589, Dubai',
-      dubai_phone: '+971 52 505 9709',
-      dubai_email: 'esports@geekaygroupmea.com',
-      dubai_po_box: '2589'
-    };
-    const insertSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-    for (const [k, v] of Object.entries(defaultSettingsMap)) {
-      insertSetting.run(k, v);
+async function initializeSettings() {
+  try {
+    let hasLoadedFromSupabase = false;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('settings').select('*');
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const insertSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+          for (const item of data) {
+            const k = item.key || item.id;
+            const v = item.value;
+            if (k && v !== undefined && v !== null) {
+              insertSetting.run(k, String(v));
+            }
+          }
+          hasLoadedFromSupabase = true;
+          console.log(`Synced ${data.length} settings from Supabase into local DB.`);
+        }
+      } catch (sbErr) {
+        console.warn('Could not load initial settings from Supabase:', sbErr);
+      }
     }
-    console.log('Seeded default global settings.');
+
+    const countSettings = (db.prepare('SELECT count(*) as count FROM settings').get() as any)?.count || 0;
+    if (countSettings === 0 && !hasLoadedFromSupabase) {
+      const defaultSettingsMap: Record<string, string> = {
+        general_email: 'general@geekay.com',
+        partnerships_email: 'partnerships@geekay.com',
+        business_email: 'business@geekay.com',
+        careers_email: 'careers@geekay.com',
+        twitter_url: 'https://twitter.com/geekayesports',
+        twitch_url: 'https://twitch.tv/geekayesports',
+        instagram_url: 'https://instagram.com/geekayesports',
+        youtube_url: 'https://youtube.com/geekayesports',
+        snapchat_url: 'https://snapchat.com/add/geekayesports',
+        tiktok_url: 'https://tiktok.com/@geekayesports',
+        facebook_url: 'https://facebook.com/geekayesports',
+        discord_url: 'https://discord.gg/geekayesports',
+        site_announcement: 'GEEKAY PRO SHOP NOW OPEN IN UAE & KSA - EXPLORE OFFICIAL APPAREL',
+        announcement_active: 'true',
+        announcement_badge: 'OFFICIAL BRIEFING',
+        announcement_link: 'https://www.geekay.com/en/',
+        twitter_count: '399K',
+        twitch_count: '645K',
+        instagram_count: '240K',
+        youtube_count: '523K',
+        tiktok_count: '481K',
+        facebook_count: '8.7K',
+        riyadh_address: 'Al Nemer Center, 2nd Tower, 3rd Floor, Office 312, P.O. Box 12214, Riyadh',
+        riyadh_phone: '+966 54 097 4261',
+        riyadh_email: 'esports@geekaygroupmea.com',
+        riyadh_po_box: '12214',
+        dubai_address: '1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor, P.O. Box 2589, Dubai',
+        dubai_phone: '+971 52 505 9709',
+        dubai_email: 'esports@geekaygroupmea.com',
+        dubai_po_box: '2589'
+      };
+      const insertSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      for (const [k, v] of Object.entries(defaultSettingsMap)) {
+        insertSetting.run(k, v);
+      }
+      console.log('Seeded default global settings.');
+    }
+  } catch (setErr) {
+    console.error('Error initializing settings:', setErr);
   }
-} catch (setErr) {
-  console.error('Error seeding settings:', setErr);
 }
+initializeSettings();
 
 // Seed default game titles if empty
 try {
@@ -2174,13 +2198,18 @@ app.get('/api/auth/me', async (req: any, res: any) => {
         try {
           const { data, error } = await supabase.from('settings').select('*');
           if (!error && Array.isArray(data) && data.length > 0) {
+            const updateStmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
             for (const item of data) {
               const k = item.key || item.id;
               const v = item.value;
-              if (k && settingsObj[k] === undefined && v !== undefined) {
+              if (k && v !== undefined && v !== null) {
                 if (v === 'true' || v === true) settingsObj[k] = true;
                 else if (v === 'false' || v === false) settingsObj[k] = false;
                 else settingsObj[k] = v;
+                
+                try {
+                  updateStmt.run(k, String(v));
+                } catch (e) {}
               }
             }
           }
@@ -2199,29 +2228,38 @@ app.get('/api/auth/me', async (req: any, res: any) => {
   app.post(['/api/settings', '/api/settings/'], async (req: any, res: any) => {
     try {
       const body = req.body || {};
-      const stmt = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+      const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
 
       const entriesToSave: { key: string; value: string }[] = [];
+      const settingsObj: Record<string, any> = {};
+
       for (const [k, v] of Object.entries(body)) {
         const stringVal = typeof v === 'boolean' ? (v ? 'true' : 'false') : String(v ?? '');
         stmt.run(k, stringVal);
         entriesToSave.push({ key: k, value: stringVal });
+        if (v === 'true' || v === true) settingsObj[k] = true;
+        else if (v === 'false' || v === false) settingsObj[k] = false;
+        else settingsObj[k] = v;
       }
 
-      if (supabase) {
+      if (supabase && entriesToSave.length > 0) {
         try {
-          await supabase.from('settings').upsert(entriesToSave);
+          const { error: sbErr } = await supabase.from('settings').upsert(entriesToSave, { onConflict: 'key' });
+          if (sbErr) {
+            console.error('Supabase settings upsert error:', sbErr);
+          }
         } catch (sbErr) {
           console.warn('Supabase settings upsert warning:', sbErr);
         }
       }
 
       const rows = db.prepare('SELECT key, value FROM settings').all() as any[];
-      const settingsObj: Record<string, any> = {};
       for (const r of rows) {
-        if (r.value === 'true') settingsObj[r.key] = true;
-        else if (r.value === 'false') settingsObj[r.key] = false;
-        else settingsObj[r.key] = r.value;
+        if (settingsObj[r.key] === undefined) {
+          if (r.value === 'true') settingsObj[r.key] = true;
+          else if (r.value === 'false') settingsObj[r.key] = false;
+          else settingsObj[r.key] = r.value;
+        }
       }
       res.json(settingsObj);
     } catch (err: any) {

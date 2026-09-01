@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Twitter, Twitch, Instagram, Youtube, LayoutGrid, Info, Briefcase, Calendar, Users, Home as HomeIcon, ChevronDown, ArrowRight, Search } from 'lucide-react';
+import { Menu, X, Twitter, Twitch, Instagram, Youtube, LayoutGrid, Info, Briefcase, Calendar, Users, Home as HomeIcon, ChevronDown, ArrowRight } from 'lucide-react';
 import { Analytics } from "@vercel/analytics/react";
 
 // Pages
@@ -35,7 +35,6 @@ import EventDetail from './pages/EventDetail';
 
 import SocialFollowerIcon from './components/SocialFollowerIcon';
 import NewsletterPopup from './components/NewsletterPopup';
-import GlobalSearch from './components/GlobalSearch';
 import AnnouncementBar from './src/components/AnnouncementBar';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { GEEKAY_LOGO } from './constants';
@@ -106,8 +105,8 @@ const DesktopShopDropdown = () => {
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
-      <button className="bg-[#FFC400] text-black px-6 py-2 rounded-none font-syncopate text-[10px] font-bold hover:bg-yellow-400 transition-all skew-x-[-10deg] flex items-center gap-2">
-        <span className="skew-x-[10deg] flex items-center gap-1">
+      <button className="bg-[#FFC400] text-black px-6 py-2.5 rounded-none font-syncopate text-[10px] font-bold hover:bg-yellow-400 transition-all skew-x-[-10deg] flex items-center gap-2 shadow-[0_0_15px_rgba(255,196,0,0.3)]">
+        <span className="skew-x-[10deg] flex items-center gap-1.5">
           SHOP
           <ChevronDown size={12} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
         </span>
@@ -120,11 +119,11 @@ const DesktopShopDropdown = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-full right-0 pt-4 z-[100] w-64"
+            className="absolute top-full right-0 pt-3 z-[100] w-64"
           >
-            <div className="bg-[#040E1E]/95 backdrop-blur-md border border-[#FFC400]/20 shadow-[0_20px_40px_rgba(0,0,0,0.6)] p-2">
-              <div className="px-4 py-3 border-b border-white/5 mb-2">
-                <span className="font-syncopate text-[8px] text-slate-400 tracking-[0.2em] uppercase">Select Region</span>
+            <div className="bg-[#040E1E]/98 backdrop-blur-md border border-[#FFC400]/30 shadow-[0_20px_40px_rgba(0,0,0,0.8)] p-2 rounded-sm">
+              <div className="px-4 py-2.5 border-b border-white/10 mb-1">
+                <span className="font-syncopate text-[8px] text-slate-400 tracking-[0.2em] uppercase font-bold">Select Region</span>
               </div>
               <div className="flex flex-col gap-1">
                 {regions.map((region, i) => (
@@ -135,15 +134,15 @@ const DesktopShopDropdown = () => {
                     rel="noopener noreferrer"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 + 0.1 }}
-                    className="group relative flex items-center justify-between px-4 py-3 hover:bg-[#081B3A] transition-colors overflow-hidden"
+                    transition={{ delay: i * 0.05 + 0.05 }}
+                    className="group relative flex items-center justify-between px-4 py-3 hover:bg-[#081B3A] transition-colors rounded-sm overflow-hidden"
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#FFC400] transform -translate-x-full group-hover:translate-x-0 transition-transform" />
                     <div className="flex flex-col transform group-hover:translate-x-1 transition-transform duration-300">
-                      <span className="font-syncopate text-sm font-bold text-white">{region.name}</span>
-                      <span className="font-inter text-[10px] text-slate-500">{region.sub}</span>
+                      <span className="font-syncopate text-xs font-bold text-white group-hover:text-[#FFC400] transition-colors">{region.name}</span>
+                      <span className="font-inter text-[10px] text-slate-400">{region.sub}</span>
                     </div>
-                    <ArrowRight size={14} className="text-slate-600 group-hover:text-[#FFC400] transform group-hover:translate-x-1 transition-all duration-300" />
+                    <ArrowRight size={14} className="text-slate-500 group-hover:text-[#FFC400] transform group-hover:translate-x-1 transition-all duration-300" />
                   </motion.a>
                 ))}
               </div>
@@ -155,17 +154,20 @@ const DesktopShopDropdown = () => {
   );
 };
 
-const MobileShopDropdown = () => {
+const MobileShopDropdown = ({ onClose }: { onClose: () => void }) => {
   const [isShopOpen, setIsShopOpen] = useState(false);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col border-b border-white/5 pb-2">
       <button 
         onClick={() => setIsShopOpen(!isShopOpen)}
-        className="font-syncopate text-4xl font-bold flex items-center justify-between hover:text-[#FFC400] transition-colors w-full text-left"
+        className="font-syncopate text-sm sm:text-base font-bold py-3 px-3 flex items-center justify-between hover:text-[#FFC400] transition-colors w-full text-left tracking-wider rounded hover:bg-white/5"
       >
-        SHOP
-        <ChevronDown size={24} className={`transition-transform duration-300 ${isShopOpen ? 'rotate-180 text-[#FFC400]' : ''}`} />
+        <span className="flex items-center gap-2.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FFC400]" />
+          OFFICIAL SHOP
+        </span>
+        <ChevronDown size={16} className={`transition-transform duration-300 ${isShopOpen ? 'rotate-180 text-[#FFC400]' : 'text-slate-400'}`} />
       </button>
       <AnimatePresence>
         {isShopOpen && (
@@ -173,27 +175,26 @@ const MobileShopDropdown = () => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-4 mt-6 pl-4 border-l-2 border-slate-800">
-              <span className="font-syncopate text-[10px] text-slate-500 tracking-[0.2em] uppercase mb-2">Select Region</span>
-              {regions.map((region, i) => (
-                <motion.a
+            <div className="flex flex-col gap-2 mt-1 mb-3 pl-4 pr-1 border-l-2 border-[#FFC400]/50">
+              <span className="font-syncopate text-[8px] text-slate-400 tracking-[0.2em] uppercase mb-1">Select Store Region</span>
+              {regions.map((region) => (
+                <a
                   key={region.name}
                   href={region.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center justify-between group"
+                  onClick={onClose}
+                  className="flex items-center justify-between py-2.5 px-3 rounded bg-white/5 hover:bg-[#FFC400]/10 border border-white/5 hover:border-[#FFC400]/30 transition-all group"
                 >
                   <div className="flex flex-col">
-                    <span className="font-syncopate text-2xl font-bold text-white group-hover:text-[#FFC400] transition-colors">{region.name}</span>
-                    <span className="font-inter text-xs text-slate-500">{region.sub}</span>
+                    <span className="font-syncopate text-xs font-bold text-white group-hover:text-[#FFC400] transition-colors">{region.name}</span>
+                    <span className="font-inter text-[10px] text-slate-400">{region.sub}</span>
                   </div>
-                  <ArrowRight size={20} className="text-slate-600 group-hover:text-[#FFC400] transform group-hover:translate-x-2 transition-all" />
-                </motion.a>
+                  <ArrowRight size={14} className="text-slate-500 group-hover:text-[#FFC400] transform group-hover:translate-x-1 transition-all" />
+                </a>
               ))}
             </div>
           </motion.div>
@@ -203,9 +204,10 @@ const MobileShopDropdown = () => {
   );
 };
 
-const Navbar = ({ onSearchOpen }: { onSearchOpen: () => void }) => {
+const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { settings } = useSettings();
 
   const navLinks = [
     { name: 'HOME', path: '/' },
@@ -217,83 +219,153 @@ const Navbar = ({ onSearchOpen }: { onSearchOpen: () => void }) => {
     { name: 'CAREERS', path: '/careers' },
   ];
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  // Close menu on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
   return (
-    <nav className="w-full px-6 py-4 md:px-12 flex justify-between items-center bg-[#081B3A]/80 backdrop-blur-md border-b border-white/5">
-      <Link to="/" className="flex items-center gap-3 group">
-        <div className="w-10 h-10 group-hover:scale-110 transition-transform">
-          <img src={GEEKAY_LOGO} alt="Geekay Esports" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+    <nav className="sticky top-0 z-50 w-full h-16 md:h-20 px-4 sm:px-6 md:px-12 flex justify-between items-center bg-[#081B3A] border-b border-white/10 shadow-lg transition-all">
+      {/* Brand Logo */}
+      <Link to="/" className="flex items-center gap-3 group shrink-0">
+        <div className="w-9 h-9 sm:w-11 sm:h-11 group-hover:scale-105 transition-transform flex items-center justify-center">
+          <img src={GEEKAY_LOGO} alt="Geekay Esports" className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(255,196,0,0.15)]" referrerPolicy="no-referrer" />
         </div>
-        <span className="font-syncopate font-bold text-xl tracking-tighter hidden sm:block">GEEKAY <span className="text-[#FFC400]">ESPORTS</span></span>
+        <span className="font-syncopate font-black text-sm sm:text-base md:text-lg tracking-tighter text-white">
+          GEEKAY <span className="text-[#FFC400]">ESPORTS</span>
+        </span>
       </Link>
 
-      <div className="hidden lg:flex gap-10 items-center">
+      {/* Desktop Navigation Links */}
+      <div className="hidden lg:flex gap-7 xl:gap-9 items-center">
         {navLinks.map((link) => {
           const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
           return (
             <Link 
               key={link.name} 
               to={link.path}
-              className={`font-syncopate text-[10px] tracking-[0.25em] font-bold hover:text-[#FFC400] transition-colors relative group ${isActive ? 'text-[#FFC400]' : 'text-slate-400'}`}
+              className={`font-syncopate text-[10px] tracking-[0.25em] font-bold hover:text-[#FFC400] transition-colors relative group py-2 ${isActive ? 'text-[#FFC400]' : 'text-slate-400'}`}
             >
               {link.name}
-              <span className={`absolute -bottom-2 left-0 h-[2px] bg-[#FFC400] transition-all duration-300 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+              <span className={`absolute bottom-0 left-0 h-[2px] bg-[#FFC400] transition-all duration-300 ${isActive ? 'w-full shadow-[0_0_8px_rgba(255,196,0,0.8)]' : 'w-0 group-hover:w-full'}`} />
             </Link>
           );
         })}
         
-        {/* Search trigger button */}
-        <button 
-          onClick={onSearchOpen}
-          className="text-slate-400 hover:text-[#FFC400] transition-colors p-2"
-          aria-label="Search"
-        >
-          <Search size={16} />
-        </button>
-
         <DesktopShopDropdown />
       </div>
 
-      <div className="flex items-center gap-4 lg:hidden">
-        {/* Mobile Search Trigger */}
+      {/* Mobile Navbar Controls */}
+      <div className="flex items-center gap-2 lg:hidden">
         <button 
-          onClick={onSearchOpen}
-          className="text-slate-400 hover:text-[#FFC400] transition-colors p-2"
-          aria-label="Search"
+          className="p-2.5 text-white hover:text-[#FFC400] transition-colors rounded-md active:bg-white/10" 
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Toggle navigation menu"
         >
-          <Search size={18} />
-        </button>
-        <button className="text-white" onClick={() => setIsOpen(!isOpen)}>
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
+          {isOpen ? <X size={22} className="text-[#FFC400]" /> : <Menu size={22} />}
         </button>
       </div>
 
+      {/* Mobile Navigation Drawer Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, x: '100%' }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: '100%' }}
-            className="fixed inset-0 bg-[#081B3A] z-40 flex flex-col p-12 lg:hidden overflow-y-auto"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-16 inset-x-0 bottom-0 h-[calc(100dvh-4rem)] bg-[#040E1E] z-50 flex flex-col justify-between p-5 sm:p-7 lg:hidden overflow-y-auto overscroll-contain shadow-2xl border-t border-white/10"
           >
-             <div className="flex justify-between items-center mb-10 shrink-0">
-                <span className="font-syncopate font-bold text-xl tracking-tighter">GEEKAY</span>
-                <button onClick={() => setIsOpen(false)}><X size={32} /></button>
-             </div>
-            <div className="flex flex-col gap-8 pb-10">
-              {navLinks.map((link) => {
-                const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
-                return (
-                  <Link 
-                    key={link.name} 
-                    to={link.path} 
-                    onClick={() => setIsOpen(false)}
-                    className={`font-syncopate text-4xl font-bold flex items-center gap-4 hover:text-[#FFC400] transition-colors ${isActive ? 'text-[#FFC400]' : 'text-white'}`}
-                  >
-                    {link.name}
-                  </Link>
-                );
-              })}
-              <MobileShopDropdown />
+            {/* Top Area: Navigation Links */}
+            <div className="flex flex-col space-y-2">
+              {/* Navigation Links */}
+              <div className="flex flex-col space-y-1 pt-1">
+                <div className="text-[8px] font-syncopate text-slate-500 font-bold uppercase tracking-[0.3em] mb-1 px-3">
+                  PAGES
+                </div>
+                {navLinks.map((link) => {
+                  const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
+                  return (
+                    <Link 
+                      key={link.name} 
+                      to={link.path} 
+                      onClick={() => setIsOpen(false)}
+                      className={`font-syncopate text-sm sm:text-base font-bold py-3 px-3 rounded flex items-center justify-between transition-all ${
+                        isActive 
+                          ? 'bg-[#FFC400] text-black shadow-[0_0_20px_rgba(255,196,0,0.3)] font-black' 
+                          : 'text-slate-200 hover:text-[#FFC400] hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{link.name}</span>
+                      {isActive ? (
+                        <span className="text-black text-[10px] font-bold font-syncopate tracking-widest">• CURRENT</span>
+                      ) : (
+                        <ArrowRight size={14} className="text-slate-600 opacity-60" />
+                      )}
+                    </Link>
+                  );
+                })}
+
+                <div className="pt-1">
+                  <MobileShopDropdown onClose={() => setIsOpen(false)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Area: Socials & Admin Link */}
+            <div className="pt-5 mt-4 border-t border-white/10 space-y-4">
+              {/* Quick Social Icons */}
+              <div className="flex items-center justify-center gap-4">
+                {settings.twitter_url && (
+                  <a href={settings.twitter_url} target="_blank" rel="noopener noreferrer" className="p-2.5 rounded bg-white/5 text-slate-400 hover:text-[#FFC400] hover:bg-white/10 transition-colors" aria-label="X Twitter">
+                    <Twitter size={16} />
+                  </a>
+                )}
+                {settings.instagram_url && (
+                  <a href={settings.instagram_url} target="_blank" rel="noopener noreferrer" className="p-2.5 rounded bg-white/5 text-slate-400 hover:text-[#FFC400] hover:bg-white/10 transition-colors" aria-label="Instagram">
+                    <Instagram size={16} />
+                  </a>
+                )}
+                {settings.youtube_url && (
+                  <a href={settings.youtube_url} target="_blank" rel="noopener noreferrer" className="p-2.5 rounded bg-white/5 text-slate-400 hover:text-[#FFC400] hover:bg-white/10 transition-colors" aria-label="YouTube">
+                    <Youtube size={16} />
+                  </a>
+                )}
+                {settings.twitch_url && (
+                  <a href={settings.twitch_url} target="_blank" rel="noopener noreferrer" className="p-2.5 rounded bg-white/5 text-slate-400 hover:text-[#FFC400] hover:bg-white/10 transition-colors" aria-label="Twitch">
+                    <Twitch size={16} />
+                  </a>
+                )}
+              </div>
+
+              {/* Footer status & Admin link */}
+              <div className="flex items-center justify-between text-slate-400 px-1 pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="font-syncopate text-[8px] tracking-widest uppercase font-bold text-slate-400">
+                    GEEKAY MEA HQ
+                  </span>
+                </div>
+                <Link 
+                  to="/admin/login" 
+                  onClick={() => setIsOpen(false)}
+                  className="text-[9px] font-syncopate font-bold text-slate-400 hover:text-[#FFC400] transition-colors tracking-widest uppercase"
+                >
+                  ADMIN ACCESS →
+                </Link>
+              </div>
             </div>
           </motion.div>
         )}
@@ -331,21 +403,9 @@ export default function App() {
 }
 
 function MainAppLayout() {
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
   const { settings } = useSettings();
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setIsSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col selection:bg-[#FFC400] selection:text-black bg-grid bg-[#081B3A] overflow-x-hidden">
@@ -353,11 +413,10 @@ function MainAppLayout() {
       <CustomCursor />
       {!isAdmin && (
         <header className="fixed top-0 left-0 w-full z-[100]">
-          <Navbar onSearchOpen={() => setIsSearchOpen(true)} />
+          <Navbar />
         </header>
       )}
       {!isAdmin && <AnnouncementBar />}
-      {!isAdmin && <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />}
       {!isAdmin && <NewsletterPopup />}
       <main className="flex-grow relative z-20">
         <Routes>

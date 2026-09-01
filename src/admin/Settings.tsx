@@ -180,12 +180,12 @@ const AdminSettings = () => {
 
           <div className="bg-[#081B3A] border border-white/5 p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
             {[
-              { id: 'instagram_count', label: 'INSTAGRAM'  },
-              { id: 'twitter_count', label: 'X (TWITTER)'  },
-              { id: 'tiktok_count', label: 'TIKTOK'  },
-              { id: 'youtube_count', label: 'YOUTUBE'  },
-              { id: 'twitch_count', label: 'TWITCH'  },
-              { id: 'facebook_count', label: 'FACEBOOK'  },
+              { id: 'instagram_count', label: 'INSTAGRAM' },
+              { id: 'twitter_count', label: 'X (TWITTER)' },
+              { id: 'tiktok_count', label: 'TIKTOK' },
+              { id: 'youtube_count', label: 'YOUTUBE' },
+              { id: 'twitch_count', label: 'TWITCH' },
+              { id: 'facebook_count', label: 'FACEBOOK' },
             ].map(item => (
               <div key={item.id} className="space-y-2">
                 <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">{item.label}</label>
@@ -193,7 +193,7 @@ const AdminSettings = () => {
                   type="text"
                   value={formData[item.id] || ''}
                   onChange={e => handleChange(item.id, e.target.value)}
-                  placeholder={item.placeholder}
+                  placeholder=""
                   className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs text-center focus:outline-none focus:border-[#FFC400]"
                 />
               </div>
