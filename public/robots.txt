@@ -1,0 +1,8 @@
+# Robots.txt for GEEKAY Esports
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemaps
+Sitemap: https://geekayesports.com/sitemap.xml

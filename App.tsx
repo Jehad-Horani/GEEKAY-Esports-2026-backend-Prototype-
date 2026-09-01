@@ -39,12 +39,67 @@ import AnnouncementBar from './src/components/AnnouncementBar';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { GEEKAY_LOGO } from './constants';
 
-// Component to handle scroll reset on navigation
-const ScrollToTop = () => {
+// Component to handle scroll reset and page metadata on navigation
+const RouteTracker = () => {
   const { pathname } = useLocation();
   
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    // Dynamic Title and Meta updates
+    const titleMap: Record<string, { title: string; desc: string }> = {
+      '/': {
+        title: 'GEEKAY Esports | Enter the Arena',
+        desc: 'The official hub of Geekay Esports — Leading global esports organization with championship rosters across Overwatch, Rocket League, Rainbow Six Siege, Honor of Kings, Fortnite, MLBB, and PUBG Mobile.'
+      },
+      '/teams': {
+        title: 'Championship Rosters & Teams | GEEKAY Esports',
+        desc: 'Explore the official Geekay Esports professional rosters, player stats, trophies, and tournament records.'
+      },
+      '/schedule': {
+        title: 'Match Schedule & Tournaments | GEEKAY Esports',
+        desc: 'Stay updated on upcoming esports matches, live broadcasts, and tournament results for Geekay squads.'
+      },
+      '/about': {
+        title: 'About the Organization | GEEKAY Esports',
+        desc: 'Learn about Geekay Esports history, global championship legacy, executive leadership, and partners.'
+      },
+      '/careers': {
+        title: 'Careers & Opportunities | GEEKAY Esports',
+        desc: 'Join the Geekay Esports staff and competitive esports organization in Riyadh, Dubai, and globally.'
+      },
+      '/news': {
+        title: 'Latest News & Briefings | GEEKAY Esports',
+        desc: 'Official tournament reports, roster announcements, and behind-the-scenes esports news.'
+      },
+      '/socials': {
+        title: 'Creators & Community Hub | GEEKAY Esports',
+        desc: 'Connect with official Geekay Esports content creators, streamers, and social channels.'
+      },
+      '/info': {
+        title: 'Brand Assets & Organization Info | GEEKAY Esports',
+        desc: 'Official Geekay Esports media kit, logos, branding guidelines, and contact channels.'
+      }
+    };
+
+    const currentMeta = titleMap[pathname];
+    if (currentMeta) {
+      document.title = currentMeta.title;
+      const descTag = document.querySelector('meta[name="description"]');
+      if (descTag) descTag.setAttribute('content', currentMeta.desc);
+      const ogTitleTag = document.querySelector('meta[property="og:title"]');
+      if (ogTitleTag) ogTitleTag.setAttribute('content', currentMeta.title);
+      const ogDescTag = document.querySelector('meta[property="og:description"]');
+      if (ogDescTag) ogDescTag.setAttribute('content', currentMeta.desc);
+    } else if (pathname.startsWith('/admin')) {
+      document.title = 'Admin Control Center | GEEKAY Esports';
+    } else if (pathname.startsWith('/player/')) {
+      document.title = 'Player Profile | GEEKAY Esports';
+    } else if (pathname.startsWith('/news/')) {
+      document.title = 'News Article | GEEKAY Esports';
+    } else if (pathname.startsWith('/careers/')) {
+      document.title = 'Job Opening | GEEKAY Esports';
+    }
   }, [pathname]);
 
   return null;
@@ -395,7 +450,7 @@ export default function App() {
   return (
     <SettingsProvider>
       <Router>
-        <ScrollToTop />
+        <RouteTracker />
         <MainAppLayout />
       </Router>
     </SettingsProvider>
