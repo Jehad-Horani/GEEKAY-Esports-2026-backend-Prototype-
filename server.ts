@@ -2595,6 +2595,40 @@ app.get('/api/auth/me', async (req: any, res: any) => {
     });
   });
 
+  // Explicit Favicon handler for search engines and crawlers (never return HTML)
+  app.get([
+    '/favicon.ico',
+    '/favicon.png',
+    '/favicon-16x16.png',
+    '/favicon-32x32.png',
+    '/favicon-48x48.png',
+    '/favicon-96x96.png',
+    '/favicon-192x192.png',
+    '/favicon-512x512.png',
+    '/apple-touch-icon.png',
+    '/icon.png',
+    '/site.webmanifest',
+    '/manifest.json'
+  ], (req: any, res: any) => {
+    const fileName = path.basename(req.path);
+    const candidatePaths = [
+      path.resolve(process.cwd(), 'dist', fileName),
+      path.resolve(process.cwd(), 'public', fileName),
+      path.resolve(__dirname, 'dist', fileName),
+      path.resolve(__dirname, 'public', fileName),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        if (fileName.endsWith('.ico')) res.setHeader('Content-Type', 'image/x-icon');
+        else if (fileName.endsWith('.json') || fileName.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json');
+        else res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+        return res.sendFile(p);
+      }
+    }
+    res.status(404).end();
+  });
+
   // Catch-all 404 for unhandled /api routes to prevent HTML falling through
   app.all('/api/*splat', (req: any, res: any) => {
     res.setHeader('Content-Type', 'application/json');

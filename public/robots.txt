@@ -4,5 +4,8 @@ Allow: /
 Disallow: /admin/
 Disallow: /api/
 
+User-agent: Googlebot-Image
+Allow: /
+
 # Sitemaps
 Sitemap: https://geekayesports.com/sitemap.xml
