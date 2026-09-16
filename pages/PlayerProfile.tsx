@@ -283,7 +283,7 @@ export default function PlayerProfile() {
   const prevPlayer = team.players[rosterIndex === 0 ? team.players.length - 1 : rosterIndex - 1];
   const nextPlayer = team.players[rosterIndex === team.players.length - 1 ? 0 : rosterIndex + 1];
 
-  // Map achievements to dynamic chronological timeline results
+  // Map achievements to dynamic chronological timeline results (Strictly real database data)
   const timelineResults = player.achievements && Array.isArray(player.achievements) && player.achievements.length > 0 
     ? player.achievements.map((ach: any) => {
         if (typeof ach === 'string') {
@@ -302,11 +302,7 @@ export default function PlayerProfile() {
           year: ach?.year || ach?.date || '2025'
         };
       })
-    : [
-        { placement: '1st Place', tournamentName: `${team.game} Regional Open Challenger`, year: '2025' },
-        { placement: '2nd Place', tournamentName: `${team.game} Saudi eLeague Finals`, year: '2025' },
-        { placement: '3rd Place', tournamentName: `${team.game} World Esports Masterclass`, year: '2024' },
-      ];
+    : [];
 
   // Matches played procedural calculation
   const calculatedMatches = player.stats?.tournaments ? player.stats.tournaments * 8 + 32 : 124;
@@ -519,37 +515,39 @@ export default function PlayerProfile() {
             </section>
 
             {/* ====================================================
-                TOURNAMENT RESULTS
+                TOURNAMENT RESULTS (Strictly database data)
                 ==================================================== */}
-            <section className="scroll-mt-32">
-              <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                <span className="text-[#FFC400] font-mono">//</span> TOURNAMENT RESULTS
-              </h2>
+            {timelineResults.length > 0 && (
+              <section className="scroll-mt-32">
+                <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
+                  <span className="text-[#FFC400] font-mono">//</span> TOURNAMENT RESULTS
+                </h2>
 
-              <div className="border border-slate-800 bg-[#040E1E]/20 p-8 space-y-6">
-                {timelineResults.map((res, i) => (
-                  <div key={i} className="flex gap-6 items-center group">
-                    <div className="w-16 h-16 shrink-0 bg-[#0A254D] border border-slate-800 flex items-center justify-center text-center skew-x-[-10deg] group-hover:border-[#FFC400] transition-colors">
-                      <div className="skew-x-[10deg] font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors leading-none">
-                        {res.placement.split(' ')[0]}
+                <div className="border border-slate-800 bg-[#040E1E]/20 p-8 space-y-6">
+                  {timelineResults.map((res, i) => (
+                    <div key={i} className="flex gap-6 items-center group">
+                      <div className="w-16 h-16 shrink-0 bg-[#0A254D] border border-slate-800 flex items-center justify-center text-center skew-x-[-10deg] group-hover:border-[#FFC400] transition-colors">
+                        <div className="skew-x-[10deg] font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors leading-none">
+                          {res.placement.split(' ')[0]}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-grow border-b border-slate-900 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div>
+                          <h4 className="font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors uppercase tracking-widest">
+                            {res.tournamentName}
+                          </h4>
+                          <span className="text-slate-500 font-inter text-xs font-light">
+                            {res.placement.toLowerCase().includes('finish') || res.placement.toLowerCase().includes('place') || res.placement.toLowerCase().includes('award') ? res.placement : `${res.placement} Finish`}
+                          </span>
+                        </div>
+                        <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right">{res.year}</span>
                       </div>
                     </div>
-                    
-                    <div className="flex-grow border-b border-slate-900 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                      <div>
-                        <h4 className="font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors uppercase tracking-widest">
-                          {res.tournamentName}
-                        </h4>
-                        <span className="text-slate-500 font-inter text-xs font-light">
-                          {res.placement.toLowerCase().includes('finish') || res.placement.toLowerCase().includes('place') || res.placement.toLowerCase().includes('award') ? res.placement : `${res.placement} Finish`}
-                        </span>
-                      </div>
-                      <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right">{res.year}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* ====================================================
                 ACHIEVEMENTS SECTION
@@ -622,36 +620,33 @@ export default function PlayerProfile() {
             </section>
 
             {/* ====================================================
-                PLAYER GALLERY & MEDIA
+                PLAYER GALLERY & MEDIA (Strictly database data)
                 ==================================================== */}
-            <section className="scroll-mt-32">
-              <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                <span className="text-[#FFC400] font-mono">//</span> MEDIA
-              </h2>
+            {player.media && Array.isArray(player.media) && player.media.length > 0 && (
+              <section className="scroll-mt-32">
+                <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
+                  <span className="text-[#FFC400] font-mono">//</span> MEDIA
+                </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {(player.media && Array.isArray(player.media) && player.media.length > 0) ? (
-                  player.media.map((item: any, i: number) => {
-                    const fallback = GALLERY_PHOTOS[i % GALLERY_PHOTOS.length];
-                    const isVideo = item.type === 'video' || (item.url && (item.url.includes('youtube.com') || item.url.includes('youtu.be') || item.url.includes('twitch.tv') || item.url.endsWith('.mp4')));
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {player.media.map((item: any, i: number) => {
+                    const mediaUrl = typeof item === 'string' ? item : item?.url;
+                    if (!mediaUrl) return null;
+                    const isVideo = item.type === 'video' || (mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be') || mediaUrl.includes('twitch.tv') || mediaUrl.endsWith('.mp4'));
                     
                     if (isVideo) {
                       return (
                         <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
-                          {item.url && (item.url.includes('youtube.com') || item.url.includes('youtu.be')) ? (
+                          {mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be') ? (
                             <iframe 
-                              src={item.url.replace('watch?v=', 'embed/')} 
+                              src={mediaUrl.replace('watch?v=', 'embed/')} 
                               title={item.title || `Media Video ${i + 1}`}
                               className="w-full h-full border-0"
                               allowFullScreen
                             />
                           ) : (
-                            <a href={item.url || '#'} target="_blank" rel="noopener noreferrer" className="block w-full h-full relative">
-                              <img 
-                                src={fallback} 
-                                alt={item.title || `Player Media ${i + 1}`} 
-                                className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-                              />
+                            <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full relative">
+                              <video src={mediaUrl} className="w-full h-full object-cover" />
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                 <div className="w-12 h-12 rounded-full bg-[#FFC400] text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                                   ▶
@@ -669,12 +664,8 @@ export default function PlayerProfile() {
                     return (
                       <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
                         <img 
-                          src={item.url || fallback} 
+                          src={mediaUrl} 
                           alt={item.title || `${player.nickname} Gallery Photo ${i + 1}`} 
-                          onError={(e) => {
-                            // Fallback gracefully on broken image URL
-                            (e.target as HTMLImageElement).src = fallback;
-                          }}
                           className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -683,27 +674,10 @@ export default function PlayerProfile() {
                         </div>
                       </div>
                     );
-                  })
-                ) : (
-                  GALLERY_PHOTOS.map((photo, i) => (
-                    <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
-                      <img 
-                        src={photo} 
-                        alt={`${player.nickname} Match Gallery Photo ${i + 1}`} 
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500';
-                        }}
-                        className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                        LIVE ARENA // PIC_{i + 1}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
+                  })}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* Sidebar Columns */}

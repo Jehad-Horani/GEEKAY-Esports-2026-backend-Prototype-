@@ -906,6 +906,56 @@ if (creatorCount.count === 0) {
   console.log('Seeded initial creators successfully.');
 }
 
+// Auto-migrate and synchronize creators socials & platforms in SQLite
+try {
+  const dbCreators = db.prepare('SELECT id, socials, platforms FROM creators').all() as any[];
+  for (const c of dbCreators) {
+    let s: Record<string, string> = {};
+    if (c.socials) {
+      if (typeof c.socials === 'object') s = { ...c.socials };
+      else { try { s = JSON.parse(c.socials); } catch (e) {} }
+    }
+    let p: any[] = [];
+    if (c.platforms) {
+      if (Array.isArray(c.platforms)) p = [...c.platforms];
+      else { try { p = JSON.parse(c.platforms); } catch (e) {} }
+    }
+
+    let modified = false;
+    // Extract missing links from platforms to socials
+    if (Array.isArray(p)) {
+      p.forEach((item: any) => {
+        if (item && typeof item === 'object') {
+          const k = (item.type || item.platform || item.name || '').toLowerCase();
+          const u = item.url || item.link || item.handle || '';
+          if (k && u && (!s[k] || String(s[k]).trim() === '')) {
+            s[k] = String(u).trim();
+            modified = true;
+          }
+        }
+      });
+    }
+
+    // Rebuild platforms if empty or string array
+    const validKeys = Object.entries(s).filter(([_, u]) => u && String(u).trim() !== '' && String(u) !== '#');
+    if (validKeys.length > 0 && (!p || p.length === 0 || typeof p[0] === 'string')) {
+      p = validKeys.map(([k, u]) => ({
+        type: k.toLowerCase(),
+        platform: k.toLowerCase(),
+        url: String(u).trim(),
+        handle: k.toLowerCase()
+      }));
+      modified = true;
+    }
+
+    if (modified || (c.socials === null && Object.keys(s).length > 0)) {
+      db.prepare('UPDATE creators SET socials = ?, platforms = ? WHERE id = ?').run(JSON.stringify(s), JSON.stringify(p), c.id);
+    }
+  }
+} catch (migErr) {
+  console.error('Failed to run startup creators migration:', migErr);
+}
+
 // Seed leadership members if empty
 const leadershipCount: any = db.prepare('SELECT COUNT(*) as count FROM leadership').get();
 if (leadershipCount.count === 0) {
@@ -1841,6 +1891,74 @@ app.get('/api/auth/me', async (req: any, res: any) => {
     }
   };
 
+  // Helper to ensure creator socials and platforms are fully synchronized and never lost
+  const normalizeCreatorRow = (item: any) => {
+    if (!item) return item;
+    let socials: Record<string, string> = {};
+    if (item.socials) {
+      if (typeof item.socials === 'object') socials = { ...item.socials };
+      else {
+        try { socials = JSON.parse(item.socials); } catch (e) {}
+      }
+    }
+
+    let platforms: any[] = [];
+    if (item.platforms) {
+      if (Array.isArray(item.platforms)) platforms = [...item.platforms];
+      else {
+        try { platforms = JSON.parse(item.platforms); } catch (e) {}
+      }
+    }
+
+    // Reconcile: If platforms has objects with URLs, ensure socials has them
+    if (Array.isArray(platforms) && platforms.length > 0) {
+      platforms.forEach((p: any) => {
+        if (p && typeof p === 'object') {
+          const k = (p.type || p.platform || p.name || '').toLowerCase();
+          const u = p.url || p.link || p.handle || '';
+          if (k && u && (!socials[k] || String(socials[k]).trim() === '')) {
+            socials[k] = String(u).trim();
+          }
+        }
+      });
+    }
+
+    // Reconcile: If socials has entries, ensure platforms array contains them with full URLs
+    const validSocialEntries = Object.entries(socials).filter(([_, u]) => u && String(u).trim() !== '' && String(u) !== '#');
+    if (validSocialEntries.length > 0) {
+      const existingTypes = new Set(platforms.map((p: any) => (p?.type || p?.platform || (typeof p === 'string' ? p : '')).toLowerCase()));
+      validSocialEntries.forEach(([key, url]) => {
+        const lowerKey = key.toLowerCase();
+        if (!existingTypes.has(lowerKey)) {
+          platforms.push({
+            type: lowerKey,
+            platform: lowerKey,
+            url: String(url).trim(),
+            handle: lowerKey
+          });
+          existingTypes.add(lowerKey);
+        } else {
+          platforms = platforms.map((p: any) => {
+            const pType = (p?.type || p?.platform || (typeof p === 'string' ? p : '')).toLowerCase();
+            if (pType === lowerKey) {
+              return {
+                type: lowerKey,
+                platform: lowerKey,
+                url: String(url).trim(),
+                handle: typeof p === 'object' && p.handle ? p.handle : lowerKey
+              };
+            }
+            return p;
+          });
+        }
+      });
+    }
+
+    item.socials = JSON.stringify(socials);
+    item.platforms = JSON.stringify(platforms);
+    return item;
+  };
+
   // --- API Routes (Generic CRUD Helper) ---
   const createCrudRoutes = (tableName: string, entityName: string) => {
     // GET list endpoint
@@ -1879,6 +1997,9 @@ app.get('/api/auth/me', async (req: any, res: any) => {
                   return copy;
                 });
               }
+              if (tableName === 'creators' && Array.isArray(itemsToReturn)) {
+                itemsToReturn = itemsToReturn.map(normalizeCreatorRow);
+              }
               return res.json(itemsToReturn);
             }
           } catch (sbErr) {
@@ -1906,6 +2027,10 @@ app.get('/api/auth/me', async (req: any, res: any) => {
             delete copy.password;
             return copy;
           });
+        }
+
+        if (tableName === 'creators' && Array.isArray(sqliteItems)) {
+          sqliteItems = sqliteItems.map(normalizeCreatorRow);
         }
 
         res.json(sqliteItems);
@@ -1946,6 +2071,10 @@ app.get('/api/auth/me', async (req: any, res: any) => {
           delete sqliteItem.password;
         }
 
+        if (tableName === 'creators' && sqliteItem) {
+          sqliteItem = normalizeCreatorRow(sqliteItem);
+        }
+
         res.json(sqliteItem || null);
       } catch (err: any) {
         res.status(500).json({ error: 'Failed to retrieve item.' });
@@ -1971,6 +2100,10 @@ app.get('/api/auth/me', async (req: any, res: any) => {
           if (rawPayload.twitter && !rawPayload.x) rawPayload.x = rawPayload.twitter;
         }
 
+        if (tableName === 'creators') {
+          normalizeCreatorRow(rawPayload);
+        }
+
         const validCols = getValidColumns(tableName).filter(c => c !== 'id');
         const payload: any = {};
         for (const k of Object.keys(rawPayload)) {
@@ -1982,6 +2115,10 @@ app.get('/api/auth/me', async (req: any, res: any) => {
         if (tableName === 'leadership') {
           if (payload.x && !payload.twitter) payload.twitter = payload.x;
           if (payload.twitter && !payload.x) payload.x = payload.twitter;
+        }
+
+        if (tableName === 'creators') {
+          normalizeCreatorRow(payload);
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
@@ -2049,6 +2186,10 @@ app.get('/api/auth/me', async (req: any, res: any) => {
           if (rawPayload.twitter && !rawPayload.x) rawPayload.x = rawPayload.twitter;
         }
 
+        if (tableName === 'creators') {
+          normalizeCreatorRow(rawPayload);
+        }
+
         const targetId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : req.params.id;
 
         const validCols = getValidColumns(tableName).filter(c => c !== 'id');
@@ -2062,6 +2203,10 @@ app.get('/api/auth/me', async (req: any, res: any) => {
         if (tableName === 'leadership') {
           if (payload.x && !payload.twitter) payload.twitter = payload.x;
           if (payload.twitter && !payload.x) payload.x = payload.twitter;
+        }
+
+        if (tableName === 'creators') {
+          normalizeCreatorRow(payload);
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {

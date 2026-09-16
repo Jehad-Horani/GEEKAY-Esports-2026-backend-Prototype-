@@ -317,38 +317,41 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
         {/* ====================================================
             TEAM MEDIA SECTION
             ==================================================== */}
-        <section className="py-20 border-t border-slate-800/40 mb-20">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">VISUAL ARCHIVES</span>
-              <h2 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">RECENT MEDIA</h2>
+        {/* ====================================================
+            TEAM MEDIA SECTION (Strictly database data)
+            ==================================================== */}
+        {team.media && Array.isArray(team.media) && team.media.length > 0 && (
+          <section className="py-20 border-t border-slate-800/40 mb-20">
+            <div className="flex items-end justify-between mb-12">
+              <div>
+                <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">VISUAL ARCHIVES</span>
+                <h2 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">RECENT MEDIA</h2>
+              </div>
+              <div className="hidden md:block h-[1px] flex-grow mx-12 bg-slate-800/80" />
+              <ImageIcon size={32} className="text-slate-700" />
             </div>
-            <div className="hidden md:block h-[1px] flex-grow mx-12 bg-slate-800/80" />
-            <ImageIcon size={32} className="text-slate-700" />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {(team.media && Array.isArray(team.media) && team.media.length > 0 ? team.media : TEAM_MEDIA_PHOTOS.map(url => ({ type: 'photo', url }))).map((item: any, i: number) => {
-              const photo = typeof item === 'string' ? item : (item.url || TEAM_MEDIA_PHOTOS[i % TEAM_MEDIA_PHOTOS.length]);
-              return (
-                <div key={`media-${i}`} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
-                  <img 
-                    src={photo} 
-                    alt={`${team.name} Team Media Photo ${i + 1}`} 
-                    className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = TEAM_MEDIA_PHOTOS[i % TEAM_MEDIA_PHOTOS.length];
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                    MEDIA ARCHIVE // UNIT_{team.name.toUpperCase()}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+              {team.media.map((item: any, i: number) => {
+                const photo = typeof item === 'string' ? item : item?.url;
+                if (!photo) return null;
+                return (
+                  <div key={`media-${i}`} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                    <img 
+                      src={photo} 
+                      alt={`${team.name} Team Media Photo ${i + 1}`} 
+                      className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
+                      MEDIA ARCHIVE // UNIT_{team.name.toUpperCase()}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ====================================================
             RELATED TEAMS (MORE TEAMS) SECTION
@@ -468,6 +471,53 @@ const CreatorCard: React.FC<{ creator: Creator; index: number }> = ({ creator, i
     ? followersStr.toUpperCase() 
     : `${followersStr.toUpperCase()} FOLLOWERS`;
 
+  // Robustly derive social links from both platforms and socials
+  const socialEntries: { type: string; url: string; handle?: string }[] = [];
+  
+  if (Array.isArray(creator.platforms)) {
+    creator.platforms.forEach((p: any) => {
+      const type = p?.type || p?.platform || p?.name || (typeof p === 'string' ? p : '');
+      const url = p?.url || p?.link || '';
+      if (type) {
+        socialEntries.push({
+          type: String(type).toLowerCase(),
+          url: url && String(url).trim() !== '' ? String(url) : '#',
+          handle: p?.handle || p?.count || p?.followers
+        });
+      }
+    });
+  }
+
+  // Parse socials object if present
+  let rawSocials: any = creator.socials;
+  if (typeof rawSocials === 'string') {
+    try {
+      rawSocials = JSON.parse(rawSocials);
+    } catch {
+      rawSocials = {};
+    }
+  }
+
+  if (rawSocials && typeof rawSocials === 'object') {
+    Object.entries(rawSocials).forEach(([k, v]) => {
+      if (v && String(v).trim() !== '' && String(v) !== '#') {
+        const lowerKey = k.toLowerCase();
+        const existing = socialEntries.find(s => s.type === lowerKey);
+        if (existing) {
+          if (!existing.url || existing.url === '#') {
+            existing.url = String(v);
+          }
+        } else {
+          socialEntries.push({
+            type: lowerKey,
+            url: String(v),
+            handle: lowerKey
+          });
+        }
+      }
+    });
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -504,10 +554,10 @@ const CreatorCard: React.FC<{ creator: Creator; index: number }> = ({ creator, i
         </p>
         
         {/* Social Platforms Icons */}
-        <div className="flex gap-4 mb-4 relative z-20">
-          {(Array.isArray(creator.platforms) ? creator.platforms : []).map((p: any, i: number) => {
-            const pType = p?.type || p?.platform || p?.name || (typeof p === 'string' ? p : '');
-            const pUrl = p?.url || '#';
+        <div className="flex gap-4 mb-4 relative z-20 flex-wrap">
+          {socialEntries.map((p, i: number) => {
+            const pType = p.type;
+            const pUrl = p.url || '#';
             if (!pType) return null;
 
             return (
@@ -521,7 +571,7 @@ const CreatorCard: React.FC<{ creator: Creator; index: number }> = ({ creator, i
                 >
                   <SocialFollowerIcon 
                     platform={pType} 
-                    count={p?.handle || p?.count || p?.followers}
+                    count={p.handle}
                     size={18}
                     className="text-slate-400 hover:text-[#FFC400]"
                   />

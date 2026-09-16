@@ -20,7 +20,8 @@ import {
   Twitter, 
   Share2, 
   Sparkles,
-  Link as LinkIcon
+  Link as LinkIcon,
+  MessageSquare
 } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
@@ -28,6 +29,7 @@ import { safeJsonParse } from '../utils/json';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders, handleAuthError } from './utils/api';
+import SocialFollowerIcon from '../../components/SocialFollowerIcon';
 
 const AdminCreators = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -48,14 +50,43 @@ const AdminCreators = () => {
       const res = await fetch('/api/creators');
       if (res.ok) {
         const data = await res.json();
-        const parsed = data.map((item: any) => ({
-          ...item,
-          socials: typeof item.socials === 'string' ? safeJsonParse(item.socials, {}) : (item.socials || {}),
-          languages: typeof item.languages === 'string' ? safeJsonParse(item.languages, []) : (item.languages || []),
-          platforms: typeof item.platforms === 'string' ? safeJsonParse(item.platforms, []) : (item.platforms || []),
-          associated_games: typeof item.associated_games === 'string' ? safeJsonParse(item.associated_games, []) : (item.associated_games || []),
-          gallery_images: typeof item.gallery_images === 'string' ? safeJsonParse(item.gallery_images, []) : (item.gallery_images || [])
-        }));
+        const parsed = data.map((item: any) => {
+          let socials = typeof item.socials === 'string' ? safeJsonParse(item.socials, {}) : (item.socials && typeof item.socials === 'object' ? { ...item.socials } : {});
+          let platforms = typeof item.platforms === 'string' ? safeJsonParse(item.platforms, []) : (Array.isArray(item.platforms) ? [...item.platforms] : []);
+          
+          // Reconcile: If platforms has objects with URLs, ensure socials has them
+          if (Array.isArray(platforms) && platforms.length > 0) {
+            platforms.forEach((p: any) => {
+              if (p && typeof p === 'object') {
+                const k = (p.type || p.platform || p.name || '').toLowerCase();
+                const u = p.url || p.link || p.handle || '';
+                if (k && u && (!socials[k] || String(socials[k]).trim() === '')) {
+                  socials[k] = String(u).trim();
+                }
+              }
+            });
+          }
+
+          // Reconcile: If socials has entries, ensure platforms array contains them with full URLs
+          const validSocialEntries = Object.entries(socials).filter(([_, u]) => u && String(u).trim() !== '' && String(u) !== '#');
+          if (validSocialEntries.length > 0 && (!platforms || platforms.length === 0 || typeof platforms[0] === 'string')) {
+            platforms = validSocialEntries.map(([k, u]) => ({
+              type: k.toLowerCase(),
+              platform: k.toLowerCase(),
+              url: String(u).trim(),
+              handle: k.toLowerCase()
+            }));
+          }
+
+          return {
+            ...item,
+            socials,
+            platforms,
+            languages: typeof item.languages === 'string' ? safeJsonParse(item.languages, []) : (item.languages || []),
+            associated_games: typeof item.associated_games === 'string' ? safeJsonParse(item.associated_games, []) : (item.associated_games || []),
+            gallery_images: typeof item.gallery_images === 'string' ? safeJsonParse(item.gallery_images, []) : (item.gallery_images || [])
+          };
+        });
         setItems(parsed);
       }
     } catch (err) {
@@ -94,9 +125,9 @@ const AdminCreators = () => {
       total_reach: '1.4M+',
       focus: 'ROCKET LEAGUE LIVE STREAMS',
       socials: {
-        youtube: 'https://youtube.com',
-        twitch: 'https://twitch.tv',
-        twitter: 'https://x.com',
+        youtube: '',
+        twitch: '',
+        twitter: '',
         tiktok: '',
         instagram: '',
         kick: ''
@@ -111,7 +142,22 @@ const AdminCreators = () => {
   };
 
   const handleOpenEdit = (item: any) => {
-    const parsedSocials = typeof item.socials === 'object' && item.socials ? item.socials : safeJsonParse(item.socials, {});
+    let parsedSocials = typeof item.socials === 'object' && item.socials ? { ...item.socials } : safeJsonParse(item.socials, {});
+    let parsedPlatforms = typeof item.platforms === 'string' ? safeJsonParse(item.platforms, []) : (Array.isArray(item.platforms) ? [...item.platforms] : []);
+    
+    // Crucial: Reconcile platforms into parsedSocials so inputs are never blank when editing!
+    if (Array.isArray(parsedPlatforms)) {
+      parsedPlatforms.forEach((p: any) => {
+        if (p && typeof p === 'object') {
+          const k = (p.type || p.platform || p.name || '').toLowerCase();
+          const u = p.url || p.link || p.handle || '';
+          if (k && u && (!parsedSocials[k] || String(parsedSocials[k]).trim() === '')) {
+            parsedSocials[k] = String(u).trim();
+          }
+        }
+      });
+    }
+
     const parsedMetrics = typeof item.metrics === 'object' && item.metrics ? item.metrics : safeJsonParse(item.metrics, {});
 
     setEditingItem({
@@ -121,6 +167,7 @@ const AdminCreators = () => {
       total_reach: item.total_reach || parsedMetrics.totalReach || parsedMetrics.total_reach || '1.4M+',
       focus: item.focus || 'GAMING',
       socials: parsedSocials,
+      platforms: parsedPlatforms,
       display_order: item.display_order ?? 1,
       published: item.published ?? 1,
       languages: Array.isArray(item.languages) ? item.languages : safeJsonParse(item.languages, []),
@@ -144,17 +191,39 @@ const AdminCreators = () => {
       const method = editingItem.id ? 'PUT' : 'POST';
       const url = editingItem.id ? `/api/creators/${editingItem.id}` : '/api/creators';
       
-      const socialsObj = typeof editingItem.socials === 'object' && editingItem.socials ? editingItem.socials : safeJsonParse(editingItem.socials, {});
+      const rawSocials = typeof editingItem.socials === 'object' && editingItem.socials ? editingItem.socials : safeJsonParse(editingItem.socials, {});
+      const rawPlatforms = typeof editingItem.platforms === 'string' ? safeJsonParse(editingItem.platforms, []) : (Array.isArray(editingItem.platforms) ? editingItem.platforms : []);
       
+      const socialsObj: Record<string, string> = { ...rawSocials };
+      
+      // Also retain links from existing platforms if not overwritten
+      if (Array.isArray(rawPlatforms)) {
+        rawPlatforms.forEach((p: any) => {
+          if (p && typeof p === 'object') {
+            const k = (p.type || p.platform || p.name || '').toLowerCase();
+            const u = p.url || p.link || p.handle || '';
+            if (k && u && (!socialsObj[k] || String(socialsObj[k]).trim() === '')) {
+              socialsObj[k] = String(u).trim();
+            }
+          }
+        });
+      }
+
+      // Filter out empty URLs
+      const cleanedSocials: Record<string, string> = {};
+      Object.entries(socialsObj).forEach(([k, v]) => {
+        if (v && String(v).trim() !== '' && String(v) !== '#') {
+          cleanedSocials[k.toLowerCase()] = String(v).trim();
+        }
+      });
+
       // Auto-generate platforms JSON array for DB
-      const platformsArray = Object.entries(socialsObj)
-        .filter(([_, u]) => u && String(u).trim() !== '')
-        .map(([key, u]) => ({
-          type: key,
-          platform: key,
-          url: String(u),
-          handle: key
-        }));
+      const platformsArray = Object.entries(cleanedSocials).map(([key, u]) => ({
+        type: key,
+        platform: key,
+        url: String(u),
+        handle: key
+      }));
 
       // Auto-generate metrics JSON object for DB
       const metricsObj = {
@@ -175,7 +244,7 @@ const AdminCreators = () => {
         published: editingItem.published ? 1 : 0,
         seo_slug: editingItem.seo_slug || creatorAlias.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-'),
         languages: typeof editingItem.languages === 'string' ? editingItem.languages : JSON.stringify(editingItem.languages || []),
-        socials: JSON.stringify(socialsObj),
+        socials: JSON.stringify(cleanedSocials),
         platforms: JSON.stringify(platformsArray),
         metrics: JSON.stringify(metricsObj),
         gallery_images: typeof editingItem.gallery_images === 'string' ? editingItem.gallery_images : JSON.stringify(editingItem.gallery_images || [])
@@ -374,6 +443,25 @@ const AdminCreators = () => {
                     Reach: {item.total_reach}
                   </span>
                 )}
+
+                {/* Social Channels Icons directly on admin card */}
+                <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
+                  {Object.entries(item.socials || {})
+                    .filter(([_, u]) => u && String(u).trim() !== '' && String(u) !== '#')
+                    .map(([platform, u]) => (
+                      <a
+                        key={platform}
+                        href={String(u)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-slate-400 hover:text-[#FFC400] p-1.5 bg-slate-900 border border-slate-800 hover:border-[#FFC400]/40 transition-colors"
+                        title={`${platform.toUpperCase()}: ${u}`}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <SocialFollowerIcon platform={platform} size={13} />
+                      </a>
+                    ))}
+                </div>
               </div>
             </div>
 
@@ -584,32 +672,55 @@ const AdminCreators = () => {
 
                 {activeTab === 'socials' && (
                   <div className="space-y-6">
+                    <div className="p-3 bg-[#FFC400]/10 border border-[#FFC400]/20 text-[#FFC400] font-syncopate text-[10px] uppercase tracking-wider flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-bold">
+                        <Sparkles size={12} /> SOCIAL MEDIA & STREAM CHANNELS
+                      </span>
+                      <span className="text-white/70 font-mono text-[9px]">SYNCED TO DATABASE & LIVE WEBSITE</span>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[
-                        { key: 'twitch', label: 'Twitch Channel URL', icon: <Twitch size={16} className="text-purple-400" /> },
-                        { key: 'youtube', label: 'YouTube Profile URL', icon: <Youtube size={16} className="text-red-500" /> },
-                        { key: 'twitter', label: 'Twitter / X Handle or URL', icon: <Twitter size={16} className="text-sky-400" /> },
-                        { key: 'tiktok', label: 'TikTok Profile URL', icon: <Share2 size={16} className="text-cyan-400" /> },
-                        { key: 'instagram', label: 'Instagram Profile URL', icon: <Instagram size={16} className="text-pink-500" /> },
-                        { key: 'kick', label: 'Kick Channel URL', icon: <Globe size={16} className="text-emerald-400" /> }
-                      ].map(social => (
-                        <div key={social.key} className="space-y-1.5 bg-[#040E1E] p-3 border border-white/5">
-                          <div className="flex items-center gap-2">
-                            {social.icon}
-                            <label className="font-syncopate text-[9px] text-slate-400 font-bold uppercase">{social.label}</label>
+                        { key: 'twitch', label: 'Twitch Channel URL', icon: <Twitch size={16} className="text-purple-400" />, placeholder: 'https://twitch.tv/username' },
+                        { key: 'youtube', label: 'YouTube Profile URL', icon: <Youtube size={16} className="text-red-500" />, placeholder: 'https://youtube.com/@username' },
+                        { key: 'twitter', label: 'Twitter / X URL or Handle', icon: <Twitter size={16} className="text-sky-400" />, placeholder: 'https://x.com/username' },
+                        { key: 'tiktok', label: 'TikTok Profile URL', icon: <Share2 size={16} className="text-cyan-400" />, placeholder: 'https://tiktok.com/@username' },
+                        { key: 'instagram', label: 'Instagram Profile URL', icon: <Instagram size={16} className="text-pink-500" />, placeholder: 'https://instagram.com/username' },
+                        { key: 'kick', label: 'Kick Channel URL', icon: <Globe size={16} className="text-emerald-400" />, placeholder: 'https://kick.com/username' },
+                        { key: 'discord', label: 'Discord Invite / Profile', icon: <MessageSquare size={16} className="text-indigo-400" />, placeholder: 'https://discord.gg/invite' },
+                        { key: 'facebook', label: 'Facebook Profile URL', icon: <Globe size={16} className="text-blue-500" />, placeholder: 'https://facebook.com/username' }
+                      ].map(social => {
+                        const val = editingItem.socials?.[social.key] || '';
+                        const isSet = Boolean(val && String(val).trim() !== '' && String(val) !== '#');
+                        return (
+                          <div key={social.key} className="space-y-1.5 bg-[#040E1E] p-3.5 border border-white/5 hover:border-white/20 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {social.icon}
+                                <label className="font-syncopate text-[9px] text-slate-300 font-bold uppercase">{social.label}</label>
+                              </div>
+                              {isSet ? (
+                                <span className="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5">CONNECTED</span>
+                              ) : (
+                                <span className="text-[8px] font-mono text-slate-600">OPTIONAL</span>
+                              )}
+                            </div>
+                            <input 
+                              type="text" 
+                              value={val}
+                              onChange={e => {
+                                const newVal = e.target.value;
+                                setEditingItem({
+                                  ...editingItem,
+                                  socials: { ...(editingItem.socials || {}), [social.key]: newVal }
+                                });
+                              }}
+                              placeholder={social.placeholder}
+                              className="w-full bg-slate-900 border border-slate-800 p-2.5 text-white font-inter text-xs focus:outline-none focus:border-[#FFC400] transition-colors"
+                            />
                           </div>
-                          <input 
-                            type="text" 
-                            value={editingItem.socials?.[social.key] || ''}
-                            onChange={e => setEditingItem({
-                              ...editingItem,
-                              socials: { ...(editingItem.socials || {}), [social.key]: e.target.value }
-                            })}
-                            placeholder={`https://...`}
-                            className="w-full bg-slate-900 border border-slate-800 p-2.5 text-white font-inter text-xs focus:outline-none focus:border-[#FFC400]"
-                          />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -652,14 +763,13 @@ const AdminCreators = () => {
                       {editingItem.followers || '500K FOLLOWERS'}
                     </p>
                     
-                    {/* Socials */}
-                    <div className="flex gap-3 mb-4">
+                    {/* Socials Preview with real icons */}
+                    <div className="flex gap-3 mb-4 flex-wrap">
                       {Object.entries(editingItem.socials || {})
-                        .filter(([_, url]) => url && String(url).trim() !== '')
-                        .slice(0, 4)
-                        .map(([type], i) => (
-                          <div key={i} className="text-slate-400 text-xs font-bold uppercase border border-slate-700 px-1.5 py-0.5 rounded">
-                            {type}
+                        .filter(([_, url]) => url && String(url).trim() !== '' && String(url) !== '#')
+                        .map(([platform, url], i) => (
+                          <div key={i} className="text-slate-300 hover:text-[#FFC400] transition-colors" title={`${platform}: ${url}`}>
+                            <SocialFollowerIcon platform={platform} size={16} />
                           </div>
                         ))}
                     </div>

@@ -319,48 +319,9 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
     // Sort past results: most recent first
     pastList.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 
-    // Fallback default past results if none exist in the database
-    const finalPastResults = pastList.length > 0 ? pastList.slice(0, 3) : [
-      {
-        game: 'ROCKET LEAGUE',
-        opp: 'VS KARMINE CORP',
-        res: 'WIN',
-        score: '3 - 2',
-        date: 'RECENT'
-      },
-      {
-        game: 'VALORANT',
-        opp: 'VS TEAM FALCONS',
-        res: 'WIN',
-        score: '2 - 1',
-        date: 'RECENT'
-      },
-      {
-        game: 'OVERWATCH',
-        opp: 'VS TWISTED MINDS',
-        res: 'WIN',
-        score: '3 - 1',
-        date: 'RECENT'
-      }
-    ];
-
-    // Fallback default upcoming matches if none exist
-    const finalUpcomingMatches = upcomingList.length > 0 ? upcomingList.slice(0, 3) : [
-      {
-        game: 'VALORANT',
-        opp: 'VS SENTINELS',
-        date: 'UPCOMING',
-        time: '18:00 GST',
-        status: 'upcoming'
-      },
-      {
-        game: 'OVERWATCH',
-        opp: 'VS SPACESTATION GAMING',
-        date: 'UPCOMING',
-        time: '20:00 GST',
-        status: 'upcoming'
-      }
-    ];
+    // Strictly real database data - no fake or hardcoded mock fallbacks
+    const finalPastResults = pastList.slice(0, 3);
+    const finalUpcomingMatches = upcomingList.slice(0, 3);
 
     return {
       upcomingMatches: finalUpcomingMatches,
@@ -444,98 +405,92 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
             </motion.div>
           </div>
 
-          {/* RIGHT: Compact Match Panel */}
-          <div className="hidden lg:flex items-center justify-center relative z-10">
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="w-full max-w-md space-y-4"
-            >
-              {/* Upcoming / Live Matches */}
-              <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-[#FFC400]/20 p-4 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1 h-full bg-[#FFC400]/50" />
-                <h3 className="font-syncopate text-[8px] font-black text-[#FFC400] tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${hasLiveMatch ? 'bg-red-500 animate-ping' : 'bg-[#FFC400] animate-pulse'}`} />
-                    <span>{hasLiveMatch ? 'LIVE & UPCOMING MATCHES' : 'UPCOMING MATCHES'}</span>
+          {/* RIGHT: Compact Match Panel (Only displayed when there is real data in the database) */}
+          {(upcomingMatches.length > 0 || pastResults.length > 0) && (
+            <div className="hidden lg:flex items-center justify-center relative z-10">
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="w-full max-w-md space-y-4"
+              >
+                {/* Upcoming / Live Matches - Rendered only if events/matches exist in database */}
+                {upcomingMatches.length > 0 && (
+                  <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-[#FFC400]/20 p-4 relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[#FFC400]/50" />
+                    <h3 className="font-syncopate text-[8px] font-black text-[#FFC400] tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${hasLiveMatch ? 'bg-red-500 animate-ping' : 'bg-[#FFC400] animate-pulse'}`} />
+                        <span>{hasLiveMatch ? 'LIVE & UPCOMING MATCHES' : 'UPCOMING MATCHES'}</span>
+                      </div>
+                      {hasLiveMatch && (
+                        <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 text-[7px] font-bold rounded animate-pulse">
+                          ● LIVE NOW
+                        </span>
+                      )}
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      {upcomingMatches.map((match, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</span>
+                              {match.status === 'live' && (
+                                <span className="inline-flex items-center gap-1 px-1 py-0.2 bg-red-500/20 text-red-400 font-mono text-[6px] font-bold rounded">
+                                  <span className="w-1 h-1 bg-red-500 rounded-full animate-ping" />
+                                  LIVE
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-white font-syncopate text-[10px] font-black tracking-tight">{match.opp}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
+                            <div className="text-white/40 font-syncopate text-[7px] tracking-widest">{match.time}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  {hasLiveMatch && (
-                    <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 text-[7px] font-bold rounded animate-pulse">
-                      ● LIVE NOW
-                    </span>
-                  )}
-                </h3>
-                
-                <div className="space-y-2">
-                  {upcomingMatches.length > 0 ? (
-                    upcomingMatches.map((match, i) => (
-                      <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</span>
-                            {match.status === 'live' && (
-                              <span className="inline-flex items-center gap-1 px-1 py-0.2 bg-red-500/20 text-red-400 font-mono text-[6px] font-bold rounded">
-                                <span className="w-1 h-1 bg-red-500 rounded-full animate-ping" />
-                                LIVE
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-white font-syncopate text-[10px] font-black tracking-tight">{match.opp}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
-                          <div className="text-white/40 font-syncopate text-[7px] tracking-widest">{match.time}</div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase py-1">
-                      NO UPCOMING MATCHES SCHEDULED
-                    </div>
-                  )}
-                </div>
-              </div>
+                )}
 
-              {/* Past Results */}
-              <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-white/10 p-4 relative overflow-hidden group">
-                <h3 className="font-syncopate text-[8px] font-black text-white/40 tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
-                  <span>PAST RESULTS</span>
-                  <span className="text-[7px] font-mono text-slate-500">COMPLETED</span>
-                </h3>
-                
-                <div className="space-y-2">
-                  {pastResults.length > 0 ? (
-                    pastResults.map((result, i) => (
-                      <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</span>
-                            {result.date && <span className="text-slate-500 text-[7px] font-mono">{result.date}</span>}
+                {/* Past Results - Rendered only if completed events/matches exist in database */}
+                {pastResults.length > 0 && (
+                  <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-white/10 p-4 relative overflow-hidden group">
+                    <h3 className="font-syncopate text-[8px] font-black text-white/40 tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
+                      <span>PAST RESULTS</span>
+                      <span className="text-[7px] font-mono text-slate-500">COMPLETED</span>
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      {pastResults.map((result, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</span>
+                              {result.date && <span className="text-slate-500 text-[7px] font-mono">{result.date}</span>}
+                            </div>
+                            <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">{result.opp}</div>
                           </div>
-                          <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">{result.opp}</div>
-                        </div>
-                        <div className="text-right flex items-center gap-2">
-                          <div className="text-white font-syncopate text-[10px] font-black">{result.score}</div>
-                          <div className={`font-syncopate text-[8px] font-black px-1.5 py-0.5 ${result.res === 'WIN' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                            {result.res}
+                          <div className="text-right flex items-center gap-2">
+                            <div className="text-white font-syncopate text-[10px] font-black">{result.score}</div>
+                            <div className={`font-syncopate text-[8px] font-black px-1.5 py-0.5 ${result.res === 'WIN' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                              {result.res}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase py-1">
-                      NO RECENT MATCH RESULTS
+                      ))}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                )}
 
-              {/* Tactical Decor */}
-              <div className="absolute -top-2 -right-2 w-12 h-12 border-t border-r border-[#FFC400]/10 pointer-events-none" />
-              <div className="absolute -bottom-2 -left-2 w-12 h-12 border-b border-l border-[#FFC400]/10 pointer-events-none" />
-            </motion.div>
-          </div>
+                {/* Tactical Decor */}
+                <div className="absolute -top-2 -right-2 w-12 h-12 border-t border-r border-[#FFC400]/10 pointer-events-none" />
+                <div className="absolute -bottom-2 -left-2 w-12 h-12 border-b border-l border-[#FFC400]/10 pointer-events-none" />
+              </motion.div>
+            </div>
+          )}
 
         </div>
       </motion.div>
