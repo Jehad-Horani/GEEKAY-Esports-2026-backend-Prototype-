@@ -519,6 +519,8 @@ addColumnSafely('players', 'win_rate', 'TEXT DEFAULT "70%"');
 addColumnSafely('players', 'nickname', 'TEXT');
 addColumnSafely('players', 'published', 'INTEGER DEFAULT 1');
 addColumnSafely('players', 'oper_age', 'TEXT');
+addColumnSafely('players', 'birth_date', 'TEXT');
+addColumnSafely('players', 'country', 'TEXT');
 addColumnSafely('players', 'joined_date', 'TEXT');
 addColumnSafely('players', 'division', 'TEXT');
 addColumnSafely('players', 'region', 'TEXT');

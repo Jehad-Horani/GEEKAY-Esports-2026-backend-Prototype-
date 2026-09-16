@@ -17,6 +17,8 @@ export interface Player {
   photo: string;
   bio: string;
   age?: string;
+  birth_date?: string;
+  country?: string;
   nationality?: string;
   joined_date?: string;
   stats: {

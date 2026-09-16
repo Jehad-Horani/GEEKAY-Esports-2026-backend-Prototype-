@@ -34,21 +34,7 @@ import { Player, Team, Trophy, Creator } from '../types';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta, { generateSportsTeamSchema } from '../components/SEOMeta';
-
-// Flag mapping helper
-const getFlagEmoji = (nationality?: string) => {
-  const nat = (nationality || 'Saudi Arabia').trim().toLowerCase();
-  if (nat.includes('saudi') || nat.includes('ksa') || nat === 'sa') return '🇸🇦';
-  if (nat.includes('brazil') || nat === 'br') return '🇧🇷';
-  if (nat.includes('germany') || nat === 'de') return '🇩🇪';
-  if (nat.includes('ireland') || nat.includes('uk') || nat.includes('english') || nat.includes('england')) return '🇬🇧';
-  if (nat.includes('italy') || nat === 'it') return '🇮🇹';
-  if (nat.includes('danish') || nat.includes('denmark') || nat === 'dk') return '🇩🇰';
-  if (nat.includes('vietnam') || nat === 'vn') return '🇻🇳';
-  if (nat.includes('korea') || nat === 'kr') return '🇰🇷';
-  if (nat.includes('poland') || nat === 'pl') return '🇵🇱';
-  return '🇸🇦';
-};
+import { getFlagEmoji, getNationalityDetails } from '../src/utils/nationality';
 
 // Fallback high-quality unsplash imagery for team media gallery
 const TEAM_MEDIA_PHOTOS = [
@@ -205,8 +191,8 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                 <span className="font-syncopate text-3xl font-black text-[#FFC400] mt-4">{team.stats?.winRate || '78%'}</span>
               </div>
               <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">GLOBAL RANK</span>
-                <span className="font-syncopate text-3xl font-black text-white mt-4">{team.stats?.rank || '#3 GLOBAL'}</span>
+                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">REGIONAL RANK</span>
+                <span className="font-syncopate text-3xl font-black text-white mt-4">{team.stats?.rank || '#1 REGIONAL'}</span>
               </div>
               <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">CHAMPIONSHIPS</span>
@@ -267,7 +253,7 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                   {/* Standard state: Nickname & Role */}
                   <div className="relative z-10 p-6 transition-opacity duration-300 group-hover:opacity-0">
                     <span className="text-[#FFC400] font-syncopate text-[8px] tracking-[0.3em] font-black uppercase mb-1 block">{player.role}</span>
-                    <h3 className="font-syncopate text-2xl font-black text-white uppercase tracking-tighter leading-none">{player.nickname}</h3>
+                    <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none break-words line-clamp-1">{player.nickname}</h3>
                   </div>
 
                   {/* Hover overlay with extra stats & info (Country Flag, Nationality, Top Achievement) */}
@@ -279,10 +265,10 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                       {/* Flag and Nationality */}
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-lg select-none leading-none">{flag}</span>
-                        <span className="text-slate-400 font-syncopate text-[9px] tracking-widest uppercase">{player.nationality || 'Saudi Arabia'}</span>
+                        <span className="text-slate-400 font-syncopate text-[9px] tracking-widest uppercase">{player.nationality || player.country || 'Saudi Arabia'}</span>
                       </div>
 
-                      <h3 className="font-syncopate text-3xl font-black text-white uppercase tracking-tighter leading-none mb-1">{player.nickname}</h3>
+                      <h3 className="font-syncopate text-2xl sm:text-3xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none mb-1 break-words line-clamp-1">{player.nickname}</h3>
                       <p className="text-[#FFC400] font-syncopate text-[9px] tracking-[0.3em] uppercase font-black mb-4">{player.role}</p>
                       
                       {/* Top Achievement display */}

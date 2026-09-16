@@ -19,6 +19,7 @@ import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders } from './utils/api';
+import { calculateAgeFromBirthDate, getNationalityDetails } from '../utils/nationality';
 
 const AdminTeams = () => {
   const [teams, setTeams] = useState<any[]>([]);
@@ -85,7 +86,14 @@ const AdminTeams = () => {
   };
 
   const handleOpenPlayerEdit = (player: any) => {
-    setEditingPlayer(player);
+    const computedAge = calculateAgeFromBirthDate(player.birth_date);
+    setEditingPlayer({
+      ...player,
+      birth_date: player.birth_date || '',
+      age: computedAge !== null ? String(computedAge) : (player.age || ''),
+      nationality: player.nationality || player.country || 'Saudi Arabia',
+      country: player.country || player.nationality || 'Saudi Arabia'
+    });
 
     // Parse Match History JSON
     try {
@@ -250,6 +258,9 @@ const AdminTeams = () => {
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     try {
+      const calculatedAge = calculateAgeFromBirthDate(editingPlayer.birth_date);
+      const resolvedAge = calculatedAge !== null ? String(calculatedAge) : (editingPlayer.age || '22');
+
       const payload = {
         ...editingPlayer,
         team_id: expandedTeamId,
@@ -257,7 +268,9 @@ const AdminTeams = () => {
         nickname: editingPlayer.nickname || editingPlayer.ign || 'PLAYER',
         role: editingPlayer.role || 'ROSTER',
         name: editingPlayer.name || '',
-        age: editingPlayer.age || '20',
+        age: resolvedAge,
+        birth_date: editingPlayer.birth_date || '',
+        country: editingPlayer.nationality || editingPlayer.country || 'Saudi Arabia',
         nationality: editingPlayer.nationality || editingPlayer.country || 'Saudi Arabia',
         joined_date: editingPlayer.joined_date || editingPlayer.joinedDate || '',
         photo: editingPlayer.photo || editingPlayer.image || '',
@@ -551,12 +564,12 @@ const AdminTeams = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Global Rank</label>
+                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Regional Rank</label>
                     <input 
                       type="text" 
                       value={editingTeam.global_rank || editingTeam.globalRank || ''}
                       onChange={e => setEditingTeam({...editingTeam, global_rank: e.target.value, globalRank: e.target.value})}
-                      placeholder="e.g. #1 GLOBAL"
+                      placeholder="e.g. #1 REGIONAL"
                       className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
@@ -810,14 +823,57 @@ const AdminTeams = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Nationality / Country</label>
+                    <div className="flex items-center justify-between">
+                      <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">
+                        Nationality / Country / الجنسية
+                      </label>
+                      {(editingPlayer.nationality || editingPlayer.country) && (
+                        <span className="text-[10px] font-syncopate text-[#FFC400] flex items-center gap-1.5 font-bold">
+                          <span className="text-base select-none leading-none">
+                            {getNationalityDetails(editingPlayer.nationality || editingPlayer.country).flag}
+                          </span>
+                          <span>{getNationalityDetails(editingPlayer.nationality || editingPlayer.country).name}</span>
+                        </span>
+                      )}
+                    </div>
                     <input 
                       type="text" 
+                      list="nationalities-list"
                       value={editingPlayer.nationality || editingPlayer.country || ''}
                       onChange={e => setEditingPlayer({...editingPlayer, nationality: e.target.value, country: e.target.value})}
-                      placeholder="e.g. Saudi Arabia, Brazil, Germany"
+                      placeholder="e.g. Malaysia, Saudi Arabia, Jordan, Egypt, Brazil..."
                       className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
+                    <datalist id="nationalities-list">
+                      <option value="Malaysia" />
+                      <option value="Saudi Arabia" />
+                      <option value="Jordan" />
+                      <option value="Egypt" />
+                      <option value="United Arab Emirates" />
+                      <option value="Kuwait" />
+                      <option value="Qatar" />
+                      <option value="Bahrain" />
+                      <option value="Oman" />
+                      <option value="Morocco" />
+                      <option value="Algeria" />
+                      <option value="Tunisia" />
+                      <option value="Iraq" />
+                      <option value="Lebanon" />
+                      <option value="Syria" />
+                      <option value="Palestine" />
+                      <option value="United States" />
+                      <option value="United Kingdom" />
+                      <option value="Canada" />
+                      <option value="Germany" />
+                      <option value="France" />
+                      <option value="Brazil" />
+                      <option value="South Korea" />
+                      <option value="Japan" />
+                      <option value="Turkey" />
+                      <option value="Poland" />
+                      <option value="Denmark" />
+                      <option value="Sweden" />
+                    </datalist>
                   </div>
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Joined Date (e.g. January 2024)</label>
@@ -839,107 +895,52 @@ const AdminTeams = () => {
                 />
               </FormSection>
 
-              {/* SECTION 2: PLAYER OVERVIEW & RATINGS */}
-              <FormSection title="2. PLAYER OVERVIEW & RATINGS" subtitle="Bio, age, K/D ratio, and tactical performance ratings">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Age / العمر</label>
-                    <input 
-                      type="text" 
-                      value={editingPlayer.age || ''}
-                      onChange={e => setEditingPlayer({...editingPlayer, age: e.target.value})}
-                      placeholder="e.g. 22"
-                      className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
-                  </div>
+              {/* SECTION 2: PLAYER OVERVIEW */}
+              <FormSection title="2. PLAYER OVERVIEW" subtitle="Date of birth, calculated age, and player biography">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Date of Birth input with automatic age calculation */}
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-[#FFC400] font-bold uppercase tracking-widest flex items-center justify-between">
-                      <span>Overall Rating / التقييم العام</span>
-                      <span className="text-[7px] text-slate-400 font-normal">AUTO-CALCULATED AVERAGE</span>
+                      <span>Date of Birth / الميلاد</span>
+                      <span className="text-[7px] text-slate-400 font-normal">CALCULATES AGE</span>
                     </label>
                     <input 
-                      type="number"
-                      step="0.1"
-                      readOnly 
-                      value={parseFloat((((editingPlayer.rating_performance ?? 4.4) + (editingPlayer.rating_consistency ?? 4.6) + (editingPlayer.rating_community ?? 4.7)) / 3).toFixed(1))}
-                      placeholder="e.g. 4.6"
-                      className="w-full bg-[#05142B] border border-[#FFC400]/40 p-3 text-[#FFC400] font-syncopate text-xs font-bold focus:outline-none cursor-not-allowed"
+                      type="date" 
+                      value={editingPlayer.birth_date || ''}
+                      onChange={e => {
+                        const bDate = e.target.value;
+                        const autoAge = calculateAgeFromBirthDate(bDate);
+                        setEditingPlayer({
+                          ...editingPlayer,
+                          birth_date: bDate,
+                          age: autoAge !== null ? String(autoAge) : editingPlayer.age
+                        });
+                      }}
+                      className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] [color-scheme:dark]"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">K/D Ratio</label>
-                    <input 
-                      type="number"
-                      step="0.01" 
-                      value={editingPlayer.kd || 1.2}
-                      onChange={e => setEditingPlayer({...editingPlayer, kd: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
-                  </div>
-                </div>
 
-                {/* Sub-ratings */}
-                <div className="p-4 bg-[#040E1E]/80 border border-slate-800/80 rounded-none space-y-3 mt-4">
-                  <span className="font-syncopate text-[9px] text-[#FFC400] font-bold uppercase tracking-widest block">
-                    DETAILED PLAYER RATINGS / تفاصيل التقييمات (Out of 5.0)
-                  </span>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Tournament Performance</label>
+                  {/* Automatically calculated Operative Age */}
+                  <div className="space-y-2">
+                    <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest flex items-center justify-between">
+                      <span>Age / العمر</span>
+                      <span className="text-[7px] text-[#FFC400] font-normal">
+                        {editingPlayer.birth_date ? 'AUTO-CALCULATED' : 'AUTOMATIC'}
+                      </span>
+                    </label>
+                    <div className="relative">
                       <input 
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="5" 
-                        value={editingPlayer.rating_performance ?? 4.4}
-                        onChange={e => {
-                          const perf = parseFloat(e.target.value) || 0;
-                          const cons = editingPlayer.rating_consistency ?? 4.6;
-                          const comm = editingPlayer.rating_community ?? 4.7;
-                          const overall = parseFloat(((perf + cons + comm) / 3).toFixed(1));
-                          setEditingPlayer({...editingPlayer, rating_performance: perf, rating_overall: overall, rating: overall});
-                        }}
-                        placeholder="4.4"
+                        type="text" 
+                        value={editingPlayer.age || ''}
+                        onChange={e => setEditingPlayer({...editingPlayer, age: e.target.value})}
+                        placeholder="e.g. 22"
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Consistency Rating</label>
-                      <input 
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="5" 
-                        value={editingPlayer.rating_consistency ?? 4.6}
-                        onChange={e => {
-                          const perf = editingPlayer.rating_performance ?? 4.4;
-                          const cons = parseFloat(e.target.value) || 0;
-                          const comm = editingPlayer.rating_community ?? 4.7;
-                          const overall = parseFloat(((perf + cons + comm) / 3).toFixed(1));
-                          setEditingPlayer({...editingPlayer, rating_consistency: cons, rating_overall: overall, rating: overall});
-                        }}
-                        placeholder="4.6"
-                        className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Community Approval</label>
-                      <input 
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="5" 
-                        value={editingPlayer.rating_community ?? 4.7}
-                        onChange={e => {
-                          const perf = editingPlayer.rating_performance ?? 4.4;
-                          const cons = editingPlayer.rating_consistency ?? 4.6;
-                          const comm = parseFloat(e.target.value) || 0;
-                          const overall = parseFloat(((perf + cons + comm) / 3).toFixed(1));
-                          setEditingPlayer({...editingPlayer, rating_community: comm, rating_overall: overall, rating: overall});
-                        }}
-                        placeholder="4.7"
-                        className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      />
+                      {editingPlayer.age && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-syncopate text-[#FFC400] font-bold pointer-events-none">
+                          YEARS
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -956,9 +957,9 @@ const AdminTeams = () => {
                 </div>
               </FormSection>
 
-              {/* SECTION 3: CAREER STATS & ACCOLADES CARDS */}
-              <FormSection title="3. CAREER STATS & ACCOLADES CARDS" subtitle="Control trophy cards, championship counts, win rates & matches">
-                <div className="p-4 bg-[#040E1E]/80 border border-slate-800/80 mb-6 space-y-3">
+              {/* SECTION 3: ACHIEVEMENTS & ACCOLADES CARDS */}
+              <FormSection title="3. ACHIEVEMENTS & ACCOLADES" subtitle="Control trophy cards, championship counts, and tournament titles">
+                <div className="p-4 bg-[#040E1E]/80 border border-slate-800/80 space-y-3">
                   <span className="font-syncopate text-[9px] text-[#FFC400] font-bold uppercase tracking-widest block">
                     ACHIEVEMENTS & ACCOLADES CARDS / كروت الإنجازات والبطولات
                   </span>
@@ -1003,36 +1004,6 @@ const AdminTeams = () => {
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Total Matches</label>
-                    <input 
-                      type="number" 
-                      value={editingPlayer.tournaments || editingPlayer.total_matches || 0}
-                      onChange={e => setEditingPlayer({...editingPlayer, tournaments: parseInt(e.target.value) || 0, total_matches: parseInt(e.target.value) || 0})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Win Rate</label>
-                    <input 
-                      type="text" 
-                      value={editingPlayer.win_rate || '75%'}
-                      onChange={e => setEditingPlayer({...editingPlayer, win_rate: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Major Titles / MVPs</label>
-                    <input 
-                      type="number" 
-                      value={editingPlayer.mvps || editingPlayer.major_titles || 0}
-                      onChange={e => setEditingPlayer({...editingPlayer, mvps: parseInt(e.target.value) || 0, major_titles: parseInt(e.target.value) || 0})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
                   </div>
                 </div>
               </FormSection>

@@ -31,6 +31,7 @@ import SEOMeta, { generatePlayerRatingSchema, generateSportsTeamSchema } from '.
 
 // Deterministic player rating generator based on stats and nickname
 import { safeJsonParse } from '../src/utils/json';
+import { getNationalityDetails, calculateAgeFromBirthDate, formatBirthDate } from '../src/utils/nationality';
 
 const getPlayerRatings = (player: Player) => {
   const tournamentPerformance = parseFloat((Number(player.rating_performance) || 4.4).toFixed(1));
@@ -68,21 +69,6 @@ const normalizeSocials = (rawSocials: any): Record<string, string> => {
     return parsed;
   }
   return {};
-};
-
-const getNationalityDetails = (nationality?: string) => {
-  const nat = (nationality || 'Saudi Arabia').trim().toLowerCase();
-  if (nat.includes('saudi') || nat.includes('ksa') || nat === 'sa') return { flag: '🇸🇦', name: 'Saudi Arabia' };
-  if (nat.includes('brazil') || nat === 'br') return { flag: '🇧🇷', name: 'Brazil' };
-  if (nat.includes('germany') || nat === 'de') return { flag: '🇩🇪', name: 'Germany' };
-  if (nat.includes('ireland') || nat.includes('uk') || nat.includes('english') || nat.includes('england')) return { flag: '🇬🇧', name: 'United Kingdom' };
-  if (nat.includes('italy') || nat === 'it') return { flag: '🇮🇹', name: 'Italy' };
-  if (nat.includes('danish') || nat.includes('denmark') || nat === 'dk') return { flag: '🇩🇰', name: 'Denmark' };
-  if (nat.includes('vietnam') || nat === 'vn') return { flag: '🇻🇳', name: 'Vietnam' };
-  if (nat.includes('korea') || nat === 'kr') return { flag: '🇰🇷', name: 'South Korea' };
-  if (nat.includes('poland') || nat === 'pl') return { flag: '🇵🇱', name: 'Poland' };
-  if (nat.includes('mena')) return { flag: '🇸🇦', name: 'MENA Region' };
-  return { flag: '🇸🇦', name: 'Saudi Arabia' }; // default
 };
 
 // Procedural Join Date generator
@@ -142,7 +128,9 @@ export default function PlayerProfile() {
                 photo: p.photo || 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&q=80&w=500&h=600',
                 bio: p.bio || '',
                 age: p.age || '20',
-                nationality: p.nationality || 'Saudi Arabia',
+                birth_date: p.birth_date || '',
+                country: p.country || p.nationality || 'Saudi Arabia',
+                nationality: p.nationality || p.country || 'Saudi Arabia',
                 joined_date: p.joined_date || p.joinedDate || '',
                 socials: normalizeSocials(p.socials),
                 achievements: safeJsonParse(p.achievements, []),
@@ -282,7 +270,9 @@ export default function PlayerProfile() {
     );
   }
 
-  const natDetails = getNationalityDetails(player.nationality);
+  const natDetails = getNationalityDetails(player.nationality || player.country);
+  const calculatedAge = calculateAgeFromBirthDate(player.birth_date);
+  const operativeAge = calculatedAge !== null ? String(calculatedAge) : (player.age || '22');
   const joinDate = getJoinDate(player.id);
 
   // Teammates lookup (excluding current player)
@@ -322,50 +312,50 @@ export default function PlayerProfile() {
   const calculatedMatches = player.stats?.tournaments ? player.stats.tournaments * 8 + 32 : 124;
 
   return (
-    <div className="bg-[#081B3A] min-h-screen selection:bg-[#FFC400] selection:text-black pt-32 pb-40">
+    <div className="bg-[#081B3A] min-h-screen selection:bg-[#FFC400] selection:text-black pt-28 sm:pt-32 pb-32 sm:pb-40 overflow-x-hidden">
       <SEOMeta 
         title={`${player.nickname} - Geekay Esports ${team.game} Professional Player`}
         description={`Meet ${player.nickname} (${player.name}), professional ${team.game} player for Geekay Esports. Read career statistics, tournament achievements, player ratings and background biography.`}
         ogType="profile"
         schemas={seoSchemas}
       />
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <Breadcrumbs />
         
         {/* Back navigation bar */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12 flex justify-between items-center"
+          className="mb-8 sm:mb-12 flex flex-wrap gap-3 justify-between items-center"
         >
           <Link 
             to="/teams" 
-            className="group flex items-center gap-4 text-slate-500 hover:text-[#FFC400] transition-colors font-syncopate text-[10px] tracking-[0.4em] font-bold uppercase"
+            className="group flex items-center gap-2 sm:gap-4 text-slate-500 hover:text-[#FFC400] transition-colors font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] sm:tracking-[0.4em] font-bold uppercase"
           >
             <ChevronLeft size={16} className="group-hover:-translate-x-2 transition-transform" />
             BACK TO WAR ROOM
           </Link>
           
-          <div className="bg-white/5 border border-slate-800 px-4 py-2 font-syncopate text-[9px] text-[#FFC400] tracking-widest uppercase">
+          <div className="bg-white/5 border border-slate-800 px-3 sm:px-4 py-1.5 sm:py-2 font-syncopate text-[8px] sm:text-[9px] text-[#FFC400] tracking-widest uppercase">
             OPERATIVE STATUS: ACTIVE
           </div>
         </motion.div>
 
         {/* ====================================================
-            HERO SECTION
+            HERO SECTION (Optimized for mobile viewports)
             ==================================================== */}
-        <div className="relative border border-slate-800 bg-[#040E1E]/40 overflow-hidden mb-16 p-8 md:p-16 flex flex-col lg:flex-row gap-12 items-center">
+        <div className="relative border border-slate-800 bg-[#040E1E]/40 overflow-hidden mb-12 sm:mb-16 p-5 sm:p-8 md:p-14 lg:p-16 flex flex-col lg:flex-row gap-8 sm:gap-12 items-center lg:items-end">
           {/* Ambient Grid Background */}
           <div className="absolute inset-0 bg-grid opacity-[0.05] pointer-events-none" />
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#FFC400]/5 rounded-full blur-3xl pointer-events-none" />
           
-          {/* Giant background text */}
-          <div className="absolute right-10 bottom-0 font-syncopate text-[12vw] font-black text-white/[0.01] select-none pointer-events-none leading-none tracking-tighter uppercase">
+          {/* Giant background text - hidden on mobile to avoid overflow and visual clutter */}
+          <div className="hidden lg:block absolute right-10 bottom-0 font-syncopate text-[10vw] font-black text-white/[0.015] select-none pointer-events-none leading-none tracking-tighter uppercase truncate max-w-full">
             {player.nickname}
           </div>
 
           {/* Player Image container */}
-          <div className="relative w-72 h-96 md:w-80 md:h-[450px] shrink-0 border border-slate-800/80 bg-slate-950 overflow-hidden group">
+          <div className="relative w-64 h-80 sm:w-72 sm:h-96 md:w-80 md:h-[450px] shrink-0 border border-slate-800/80 bg-slate-950 overflow-hidden group mx-auto lg:mx-0">
             {/* Corner Bracket Accents */}
             <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#FFC400]" />
             <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#FFC400]" />
@@ -374,9 +364,9 @@ export default function PlayerProfile() {
 
             {imgError ? (
               <div className="w-full h-full bg-[#05142B] flex flex-col items-center justify-center p-8 text-center relative">
-                <span className="font-syncopate text-[140px] font-black text-white/[0.02] absolute inset-0 flex items-center justify-center select-none">{player.nickname[0]}</span>
-                <User size={64} className="text-[#FFC400]/40 mb-4" />
-                <span className="font-syncopate text-2xl font-black text-white uppercase tracking-tighter">{player.nickname}</span>
+                <span className="font-syncopate text-[100px] sm:text-[140px] font-black text-white/[0.02] absolute inset-0 flex items-center justify-center select-none">{player.nickname[0]}</span>
+                <User size={56} className="text-[#FFC400]/40 mb-4" />
+                <span className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tight break-words px-2">{player.nickname}</span>
                 <span className="font-syncopate text-[10px] text-yellow-500 mt-2 tracking-widest uppercase">{player.role}</span>
               </div>
             ) : (
@@ -394,31 +384,36 @@ export default function PlayerProfile() {
           </div>
 
           {/* Hero Meta Details */}
-          <div className="flex-grow z-10 self-center lg:self-end">
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <span className="bg-[#FFC400] text-black px-4 py-1.5 font-syncopate text-[10px] font-black tracking-[0.2em] uppercase skew-x-[-10deg]">
+          <div className="flex-grow z-10 w-full min-w-0 max-w-full text-left">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+              <span className="bg-[#FFC400] text-black px-3 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[9px] sm:text-[10px] font-black tracking-wider sm:tracking-[0.2em] uppercase skew-x-[-10deg]">
                 <span className="block skew-x-[10deg]">{team.game} Division</span>
               </span>
-              <div className="h-[1px] w-8 bg-slate-800" />
-              <div className="flex items-center gap-2 text-slate-400 font-syncopate text-[10px] font-bold tracking-widest uppercase">
+              <div className="hidden sm:block h-[1px] w-8 bg-slate-800" />
+              <div className="flex items-center gap-1.5 sm:gap-2 text-slate-400 font-syncopate text-[9px] sm:text-[10px] font-bold tracking-widest uppercase">
                 <MapPin size={12} className="text-[#FFC400]" />
                 {team.region || 'MENA'}
               </div>
             </div>
 
-            <h1 className="font-syncopate text-5xl md:text-8xl font-black text-white uppercase tracking-tighter leading-none mb-4">
+            {/* Mobile-optimized Player Nickname */}
+            <h1 className="font-syncopate text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-[1.05] mb-2 sm:mb-4 break-words hyphens-auto w-full min-w-0 max-w-full">
               {player.nickname}
             </h1>
-            <p className="font-syncopate text-slate-400 text-xs md:text-sm tracking-[0.4em] uppercase mb-8 flex items-center gap-3">
-              <span>{player.name}</span>
-              <span className="text-slate-800">//</span>
+
+            {/* Mobile-optimized Real Name & Role */}
+            <p className="font-syncopate text-slate-400 text-[10px] sm:text-xs md:text-sm tracking-wider sm:tracking-[0.25em] md:tracking-[0.4em] uppercase mb-6 sm:mb-8 flex flex-wrap items-center gap-2 sm:gap-3 leading-relaxed">
+              {player.name && <span className="break-words">{player.name}</span>}
+              {player.name && <span className="text-slate-800">//</span>}
               <span className="text-[#FFC400] font-black">{player.role}</span>
             </p>
 
             {/* Social platform links (Display ONLY available) */}
-            <div className="border-t border-slate-800/80 pt-8 mt-4">
-              <p className="text-slate-500 font-syncopate text-[9px] tracking-[0.3em] uppercase mb-4">CONNECT WITH OPERATIVE</p>
-              <div className="flex flex-wrap gap-5">
+            <div className="border-t border-slate-800/80 pt-6 sm:pt-8 mt-4 w-full min-w-0">
+              <p className="text-slate-500 font-syncopate text-[8px] sm:text-[9px] tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-3 sm:mb-4">
+                CONNECT WITH OPERATIVE
+              </p>
+              <div className="flex flex-wrap gap-2.5 sm:gap-4 w-full">
                 {Object.entries(normalizeSocials(player.socials)).map(([platform, value]) => {
                   if (!value || value === '#') return null;
                   const href = typeof value === 'string' && value.startsWith('http') ? value : `https://${platform}.com`;
@@ -428,17 +423,17 @@ export default function PlayerProfile() {
                       href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-slate-900/60 hover:bg-[#FFC400]/10 border border-slate-800 hover:border-[#FFC400]/40 transition-all group"
+                      className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-900/60 hover:bg-[#FFC400]/10 border border-slate-800 hover:border-[#FFC400]/40 transition-all group max-w-full"
                     >
                       <SocialFollowerIcon 
                         platform={platform} 
                         count="" 
-                        className="text-slate-400 group-hover:text-[#FFC400] transition-colors" 
+                        className="text-slate-400 group-hover:text-[#FFC400] transition-colors shrink-0" 
                       />
-                      <span className="font-syncopate text-[9px] font-bold text-slate-400 group-hover:text-white uppercase tracking-widest">
+                      <span className="font-syncopate text-[8px] sm:text-[9px] font-bold text-slate-400 group-hover:text-white uppercase tracking-wider shrink-0">
                         {platform}
                       </span>
-                      <span className="font-mono text-[9px] text-slate-600 group-hover:text-[#FFC400]">
+                      <span className="font-mono text-[8px] sm:text-[9px] text-slate-600 group-hover:text-[#FFC400] truncate max-w-[140px] sm:max-w-[180px]">
                         {typeof value === 'string' ? value : ''}
                       </span>
                     </a>
@@ -486,12 +481,20 @@ export default function PlayerProfile() {
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-900">
                     <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">OPERATIVE AGE</span>
-                    <span className="font-syncopate text-[11px] font-bold text-white">{player.age || '22'} YEARS</span>
+                    <span className="font-syncopate text-[11px] font-bold text-white flex items-center gap-1.5">
+                      <span>{operativeAge} YEARS</span>
+                      {player.birth_date && (
+                        <span className="text-[9px] text-slate-500 font-mono tracking-normal">
+                          ({formatBirthDate(player.birth_date)})
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-900">
                     <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">NATIONALITY</span>
                     <span className="font-syncopate text-[11px] font-bold text-white flex items-center gap-2">
-                      <span className="text-sm select-none">{natDetails.flag}</span> {natDetails.name}
+                      <span className="text-base select-none leading-none inline-block">{natDetails.flag}</span>
+                      <span className="uppercase">{natDetails.name}</span>
                     </span>
                   </div>
                   <div className="flex justify-between py-2">
@@ -511,149 +514,6 @@ export default function PlayerProfile() {
                   <div className="mt-8 pt-6 border-t border-slate-900 text-slate-600 font-mono text-[9px] tracking-widest uppercase">
                     SYS_LOG_DATED: {joinDate.toUpperCase()} // READY
                   </div>
-                </div>
-
-                {/* Tactical Performance Ratings Bento Card */}
-                <div className="md:col-span-2 border border-slate-800 p-8 bg-[#040E1E]/40 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#FFC400]" />
-                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#FFC400]" />
-                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#FFC400]" />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#FFC400]" />
-                  
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
-                    <div className="max-w-md">
-                      <span className="font-syncopate text-slate-500 text-[8px] tracking-[0.4em] uppercase mb-1 block">TACTICAL RATING HUB</span>
-                      <h3 className="font-syncopate text-white text-lg font-black tracking-wider mb-2 uppercase">PLAYER RATINGS</h3>
-                      <p className="text-slate-400 font-inter text-xs font-light leading-relaxed">
-                        Crawlable and verified search engine performance appraisal ratings across regional and international final competitions.
-                      </p>
-                      
-                      <div className="flex items-baseline gap-2 mt-6">
-                        <span className="font-syncopate text-6xl font-black text-[#FFC400] drop-shadow-[0_0_15px_rgba(255,196,0,0.2)]">{ratings.overall}</span>
-                        <span className="text-[#FFC400] font-syncopate text-sm font-black">/ 5.0</span>
-                        <span className="text-slate-500 font-inter text-xs font-light ml-4">({ratings.reviewCount} Expert Appraisals)</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex-grow space-y-4 max-w-md w-full border-t md:border-t-0 md:border-l border-slate-800/80 pt-6 md:pt-0 md:pl-8">
-                      {/* Metric 1: Tournament Performance */}
-                      <div>
-                        <div className="flex justify-between text-[9px] font-syncopate mb-1.5 text-slate-400 tracking-widest">
-                          <span>TOURNAMENT PERFORMANCE</span>
-                          <span className="text-[#FFC400] font-black">{ratings.tournamentPerformance} / 5.0</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-950 border border-slate-800 rounded-none overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(ratings.tournamentPerformance / 5) * 100}%` }}
-                            transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
-                            className="h-full bg-[#FFC400]" 
-                          />
-                        </div>
-                      </div>
-
-                      {/* Metric 2: Consistency */}
-                      <div>
-                        <div className="flex justify-between text-[9px] font-syncopate mb-1.5 text-slate-400 tracking-widest">
-                          <span>CONSISTENCY RATING</span>
-                          <span className="text-[#FFC400] font-black">{ratings.consistency} / 5.0</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-950 border border-slate-800 rounded-none overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(ratings.consistency / 5) * 100}%` }}
-                            transition={{ duration: 1, ease: 'easeOut', delay: 0.4 }}
-                            className="h-full bg-[#FFC400]" 
-                          />
-                        </div>
-                      </div>
-
-                      {/* Metric 3: Community Rating */}
-                      <div>
-                        <div className="flex justify-between text-[9px] font-syncopate mb-1.5 text-slate-400 tracking-widest">
-                          <span>COMMUNITY APPROVAL</span>
-                          <span className="text-[#FFC400] font-black">{ratings.communityRating} / 5.0</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-950 border border-slate-800 rounded-none overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(ratings.communityRating / 5) * 100}%` }}
-                            transition={{ duration: 1, ease: 'easeOut', delay: 0.6 }}
-                            className="h-full bg-[#FFC400]" 
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* ====================================================
-                STATISTICS SECTION
-                ==================================================== */}
-            <section className="scroll-mt-32">
-              <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                <span className="text-[#FFC400] font-mono">//</span> CAREER STATISTICS
-              </h2>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {/* Matches Card */}
-                <div className="bg-[#05142B] border border-slate-800 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300 overflow-hidden">
-                  <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">MATCHES</span>
-                  <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-white block">
-                      {player.stats?.matches || player.stats?.tournaments || calculatedMatches}
-                    </span>
-                  </div>
-                  <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
-                    <TrendingUp size={10} /> Active Season
-                  </span>
-                </div>
-
-                {/* Win Rate Card */}
-                <div className="bg-[#05142B] border border-slate-800 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300 overflow-hidden">
-                  <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">WIN RATE</span>
-                  <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-[#FFC400] block">
-                      {player.stats?.winRate || '68%'}
-                    </span>
-                  </div>
-                  <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
-                    <Shield size={10} /> High Standard
-                  </span>
-                </div>
-
-                {/* K/D Card */}
-                <div className="bg-[#05142B] border border-slate-800 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300 overflow-hidden">
-                  <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">
-                    K/D RATIO
-                  </span>
-                  <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-white block">
-                      {player.stats?.kd !== undefined && player.stats?.kd !== null ? player.stats.kd : 1.2}
-                    </span>
-                  </div>
-                  <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
-                    <Target size={10} /> Target Master
-                  </span>
-                </div>
-
-                {/* MVPs Card */}
-                <div className="bg-[#05142B] border border-slate-800 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300 overflow-hidden">
-                  <div className="absolute top-0 left-0 w-2 h-2 bg-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="text-slate-500 font-syncopate text-[9px] font-black tracking-widest uppercase">MVPS</span>
-                  <div className="my-6">
-                    <span className="font-syncopate text-4xl md:text-5xl font-black text-[#FFC400] block">
-                      {player.stats?.mvps !== undefined && player.stats?.mvps !== null ? player.stats.mvps : 0}
-                    </span>
-                  </div>
-                  <span className="text-[#FFC400] font-mono text-[8px] tracking-wider uppercase flex items-center gap-1">
-                    <Flame size={10} /> MVP Level
-                  </span>
                 </div>
               </div>
             </section>
