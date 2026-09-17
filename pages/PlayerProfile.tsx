@@ -315,7 +315,7 @@ export default function PlayerProfile() {
         schemas={seoSchemas}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <Breadcrumbs />
+        <Breadcrumbs currentLabel={player?.nickname} />
         
         {/* Back navigation bar */}
         <motion.div 

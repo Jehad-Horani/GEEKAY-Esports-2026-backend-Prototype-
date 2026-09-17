@@ -846,7 +846,7 @@ const Teams = () => {
         ) : (
           <div className="relative">
             <div className="absolute top-32 left-0 right-0 z-50">
-              <Breadcrumbs />
+              <Breadcrumbs currentLabel={selectedTeam?.name || selectedTeam?.game} />
             </div>
             <TeamDetail 
               key="team-detail-view"
