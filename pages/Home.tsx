@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { Player, NewsItem, Product } from '../types';
 import SEOMeta from '../components/SEOMeta';
 import { getDynamicStatus, getMatchDynamicStatus, cleanOpponentName, getMatchResult } from '../src/utils/dateStatus';
+import { getEventSlug } from './Schedule';
 
 const safeFetchJson = async (url: string) => {
   try {
@@ -1244,45 +1245,63 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
                 whileHover={{ y: -4 }}
-                className="group relative bg-[#0A1A31]/40 border border-slate-800 p-6 md:p-8 hover:border-[#FFC400]/30 transition-all overflow-hidden"
+                className="group relative bg-[#0A1A31]/50 border border-slate-800 p-6 md:p-7 hover:border-[#FFC400]/40 transition-all overflow-hidden"
               >
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div className="space-y-4">
-                    <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-widest uppercase">{match.game}</span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                  <div className="space-y-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-widest uppercase">{match.game}</span>
+                      {match.status === 'live' && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 font-syncopate text-[7px] font-bold rounded">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                          LIVE
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-1">
-                      <h4 className="font-syncopate text-lg md:text-xl font-bold text-white uppercase">{match.title}</h4>
-                      <p className="text-slate-400 font-syncopate text-[10px] tracking-widest uppercase">VS {match.opponent}</p>
+                      <h4 className="font-syncopate text-base md:text-lg font-bold text-white uppercase truncate">{match.title}</h4>
+                      <p className="text-slate-400 font-syncopate text-[11px] font-bold tracking-wider uppercase">{match.opponent}</p>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col md:items-end gap-2">
-                    <div className="flex items-center gap-3 text-slate-300 font-syncopate text-[10px] tracking-widest">
-                      <Calendar size={14} className="text-[#FFC400]" />
-                      <span>{match.date}</span>
+                  <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 text-white font-syncopate text-xs font-black tracking-wider bg-[#040E1E] border border-slate-800 px-3.5 py-1.5 whitespace-nowrap">
+                      <Calendar size={13} className="text-[#FFC400] shrink-0" />
+                      <span className="whitespace-nowrap">{match.date}</span>
                     </div>
                     {match.time ? (
-                      <div className="flex items-center gap-3 text-slate-500 font-syncopate text-[10px] tracking-widest">
-                        <Clock size={14} />
-                        <span>{match.time} // {match.region}</span>
+                      <div className="flex items-center gap-2 text-slate-400 font-syncopate text-[9px] tracking-widest uppercase whitespace-nowrap">
+                        <Clock size={12} className="text-slate-500 shrink-0" />
+                        <span>{match.time}</span>
+                        {match.region && <span>// {match.region.toUpperCase()}</span>}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 text-slate-500 font-syncopate text-[10px] tracking-widest">
-                        <span>{match.region}</span>
-                      </div>
+                      match.region && (
+                        <div className="flex items-center gap-1.5 text-slate-400 font-syncopate text-[9px] tracking-widest uppercase whitespace-nowrap">
+                          <MapPin size={11} className="text-slate-500 shrink-0" />
+                          <span className="uppercase">{match.region}</span>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="px-3 py-1 bg-[#FFC400]/10 border border-[#FFC400]/20 text-[#FFC400] font-syncopate text-[8px] font-bold tracking-widest uppercase">
-                      STARTS IN: {match.countdown}
-                    </div>
+                <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-wrap justify-between items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 font-syncopate text-[8px] font-bold tracking-widest uppercase ${
+                      match.status === 'live' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' 
+                        : 'bg-[#FFC400]/10 border border-[#FFC400]/20 text-[#FFC400]'
+                    }`}>
+                      {match.status === 'live' ? '● LIVE OPERATION' : 'CONFIRMED SCHEDULE'}
+                    </span>
                   </div>
-                  <Link to="/events" className="group/link flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-[0.2em] uppercase relative">
-                    VIEW MATCH 
-                    <ArrowRight size={14} className="group-hover/link:translate-x-1 transition-transform" />
-                    <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-[#FFC400] group-hover/link:w-full transition-all duration-300" />
+                  <Link 
+                    to={`/events/${getEventSlug(match.title)}`} 
+                    className="group/link flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-[0.2em] uppercase hover:text-white transition-colors"
+                  >
+                    <span>VIEW MATCH DETAILS</span> 
+                    <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform" />
                   </Link>
                 </div>
 
