@@ -1,7 +1,10 @@
 
 export interface PlayerAchievement {
   year: string;
-  title: string;
+  title?: string;
+  tournament?: string;
+  placement?: string;
+  mvpType?: string;
 }
 
 export interface PlayerTimelineEvent {

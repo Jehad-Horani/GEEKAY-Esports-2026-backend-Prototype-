@@ -1065,35 +1065,62 @@ const AdminTeams = () => {
                 />
               </FormSection>
 
-              {/* SECTION 5: ACHIEVEMENTS REPEATER */}
-              <FormSection title="5. ACHIEVEMENTS & ACCOLADES" subtitle="Individual MVP awards and championship wins">
+              {/* SECTION 5: MVP TITLES REPEATER */}
+              <FormSection title="5. MVP TITLES & ACHIEVEMENTS" subtitle="Individual MVP awards and tournament titles">
                 <FormRepeater
-                  title="Player Hall of Fame"
+                  title="Player MVP Titles"
                   items={playerAchievementsList}
                   onItemsChange={setPlayerAchievementsList}
-                  createDefaultItem={() => ({ tournament: 'RLCS Major', placement: 'MVP', year: '2025' })}
-                  itemTitle={(item) => `${item.tournament || 'Tournament'} (${item.placement || '1st'})`}
+                  createDefaultItem={() => ({ tournament: 'Dew Challenge', placement: 'Tournament MVP', year: '2026' })}
+                  itemTitle={(item) => `${item.tournament || 'Event'} - ${item.placement || 'Tournament MVP'} (${item.year || '2026'})`}
                   renderItemFields={(item, idx, onChange) => (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Tournament</label>
+                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Event / Tournament Name</label>
                         <input 
                           type="text" 
                           value={item.tournament || ''} 
                           onChange={e => onChange({ ...item, tournament: e.target.value })}
-                          placeholder="e.g. Gamers8 Major" 
+                          placeholder="e.g. Dew Challenge" 
                           className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Placement / Award</label>
-                        <input 
-                          type="text" 
-                          value={item.placement || ''} 
-                          onChange={e => onChange({ ...item, placement: e.target.value })}
-                          placeholder="e.g. MVP / 1st Place" 
-                          className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                        />
+                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">MVP Finish / Title</label>
+                        <div className="space-y-2">
+                          <input 
+                            type="text" 
+                            list={`mvp-presets-${idx}`}
+                            value={item.placement || ''} 
+                            onChange={e => onChange({ ...item, placement: e.target.value })}
+                            placeholder="e.g. Tournament MVP" 
+                            className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                          />
+                          <datalist id={`mvp-presets-${idx}`}>
+                            <option value="Tournament MVP" />
+                            <option value="Regular Season MVP" />
+                            <option value="Finals MVP" />
+                            <option value="Season MVP" />
+                            <option value="Grand Finals MVP" />
+                            <option value="Group Stage MVP" />
+                          </datalist>
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {['Tournament MVP', 'Regular Season MVP', 'Finals MVP'].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => onChange({ ...item, placement: preset })}
+                                className={`font-syncopate text-[7px] font-bold px-2 py-1 uppercase tracking-wider transition-colors ${
+                                  item.placement === preset
+                                    ? 'bg-[#FFC400] text-black font-black'
+                                    : 'bg-[#040E1E] text-slate-400 border border-slate-800 hover:text-white hover:border-[#FFC400]/50'
+                                }`}
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Year</label>
@@ -1101,7 +1128,7 @@ const AdminTeams = () => {
                           type="text" 
                           value={item.year || ''} 
                           onChange={e => onChange({ ...item, year: e.target.value })}
-                          placeholder="2025" 
+                          placeholder="2026" 
                           className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                         />
                       </div>

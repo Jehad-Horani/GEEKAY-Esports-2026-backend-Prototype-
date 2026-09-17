@@ -288,18 +288,17 @@ export default function PlayerProfile() {
     ? player.achievements.map((ach: any) => {
         if (typeof ach === 'string') {
           const match = ach.match(/\((\d+(?:st|nd|rd|th))\)/i);
-          const placement = match ? match[1] : 'Qualified';
+          const placement = match ? match[1] : 'Tournament MVP';
           const cleanTitle = ach.replace(/\s*\(\d+(?:st|nd|rd|th)\)\s*$/i, '');
-          return { placement, tournamentName: cleanTitle, year: '2025' };
+          return { placement, tournamentName: cleanTitle, year: '2026' };
         }
-        const rawTitle = ach?.title || ach?.tournament || ach?.name || '';
-        const match = rawTitle ? String(rawTitle).match(/\((\d+(?:st|nd|rd|th))\)/i) : null;
-        const placement = ach?.placement || (match ? match[1] : 'Qualified');
-        const cleanTitle = rawTitle ? String(rawTitle).replace(/\s*\(\d+(?:st|nd|rd|th)\)\s*$/i, '') : 'Tournament Achievement';
+        const rawTitle = ach?.tournament || ach?.title || ach?.name || ach?.event || '';
+        const rawPlacement = ach?.placement || ach?.mvpType || ach?.award || ach?.type || 'Tournament MVP';
+        const cleanTitle = rawTitle ? String(rawTitle).replace(/\s*\(\d+(?:st|nd|rd|th)\)\s*$/i, '') : 'Championship Tournament';
         return {
-          placement,
+          placement: String(rawPlacement),
           tournamentName: cleanTitle,
-          year: ach?.year || ach?.date || '2025'
+          year: String(ach?.year || ach?.date || '2026')
         };
       })
     : [];
@@ -515,20 +514,20 @@ export default function PlayerProfile() {
             </section>
 
             {/* ====================================================
-                TOURNAMENT RESULTS (Strictly database data)
+                MVP TITLES (Strictly database data)
                 ==================================================== */}
             {timelineResults.length > 0 && (
               <section className="scroll-mt-32">
                 <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                  <span className="text-[#FFC400] font-mono">//</span> TOURNAMENT RESULTS
+                  <span className="text-[#FFC400] font-mono">//</span> MVP TITLES
                 </h2>
 
                 <div className="border border-slate-800 bg-[#040E1E]/20 p-8 space-y-6">
                   {timelineResults.map((res, i) => (
                     <div key={i} className="flex gap-6 items-center group">
                       <div className="w-16 h-16 shrink-0 bg-[#0A254D] border border-slate-800 flex items-center justify-center text-center skew-x-[-10deg] group-hover:border-[#FFC400] transition-colors">
-                        <div className="skew-x-[10deg] font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors leading-none">
-                          {res.placement.split(' ')[0]}
+                        <div className="skew-x-[10deg] font-syncopate text-xs font-black text-[#FFC400] group-hover:text-white transition-colors leading-none tracking-widest">
+                          MVP
                         </div>
                       </div>
                       
@@ -537,11 +536,11 @@ export default function PlayerProfile() {
                           <h4 className="font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors uppercase tracking-widest">
                             {res.tournamentName}
                           </h4>
-                          <span className="text-slate-500 font-inter text-xs font-light">
-                            {res.placement.toLowerCase().includes('finish') || res.placement.toLowerCase().includes('place') || res.placement.toLowerCase().includes('award') ? res.placement : `${res.placement} Finish`}
+                          <span className="text-slate-400 font-syncopate text-[10px] font-bold tracking-wider uppercase block mt-1">
+                            {res.placement}
                           </span>
                         </div>
-                        <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right">{res.year}</span>
+                        <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right font-bold">{res.year}</span>
                       </div>
                     </div>
                   ))}
