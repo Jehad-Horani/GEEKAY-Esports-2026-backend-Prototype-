@@ -120,6 +120,16 @@ const EventDetail = () => {
         status: dynStatus,
         start_date: e.start_date || '',
         banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=1200&h=600',
+        overview_title: e.overview_title || 'TACTICAL INTELLIGENCE',
+        prize_pool: e.prize_pool || e.prizePool || '$100,000',
+        total_teams: e.total_teams || '16',
+        broadcast: e.broadcast || 'TWITCH / YOUTUBE',
+        purpose: e.purpose || 'CHAMPIONSHIP VICTORY',
+        format: e.format || 'DOUBLE ELIMINATION BRACKET (BO5/BO7)',
+        timeline: e.timeline || '',
+        venue: e.venue || e.location || 'EMEA CENTER',
+        location: e.location || e.venue || 'EMEA CENTER',
+        broadcast_platforms: e.broadcast_platforms || 'LIVE TWITCH.TV/GEEKAY'
       };
     });
 

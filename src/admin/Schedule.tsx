@@ -29,7 +29,19 @@ const AdminSchedule = () => {
 
   // Open modal handler with safe JSON parsing
   const handleOpenEdit = (item: any) => {
-    setEditingItem(item);
+    setEditingItem({
+      ...item,
+      overview_title: item.overview_title || 'TACTICAL INTELLIGENCE',
+      prize_pool: item.prize_pool || item.prizePool || '$100,000',
+      total_teams: item.total_teams || '16',
+      broadcast: item.broadcast || 'TWITCH / YOUTUBE',
+      purpose: item.purpose || 'CHAMPIONSHIP VICTORY',
+      format: item.format || 'DOUBLE ELIMINATION BRACKET (BO5/BO7)',
+      timeline: item.timeline || '',
+      venue: item.venue || item.location || '',
+      location: item.location || item.venue || '',
+      broadcast_platforms: item.broadcast_platforms || 'LIVE TWITCH.TV/GEEKAY'
+    });
     
     // Parse Teams JSON
     try {
@@ -163,6 +175,15 @@ const AdminSchedule = () => {
     try {
       const payload = {
         ...editingItem,
+        overview_title: editingItem.overview_title || 'TACTICAL INTELLIGENCE',
+        prize_pool: editingItem.prize_pool || '$100,000',
+        total_teams: editingItem.total_teams || '16',
+        broadcast: editingItem.broadcast || 'TWITCH / YOUTUBE',
+        purpose: editingItem.purpose || 'CHAMPIONSHIP VICTORY',
+        format: editingItem.format || 'DOUBLE ELIMINATION BRACKET (BO5/BO7)',
+        venue: editingItem.venue || editingItem.location || '',
+        location: editingItem.location || editingItem.venue || '',
+        broadcast_platforms: editingItem.broadcast_platforms || 'LIVE TWITCH.TV/GEEKAY',
         teams: JSON.stringify(teamsList),
         matches: JSON.stringify(matchesList),
         results: JSON.stringify(podiumResults),

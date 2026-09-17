@@ -76,7 +76,7 @@ const CalendarInterface = () => {
               type: e.type || 'TOURNAMENT',
               date: evDate,
               time: e.time || '18:00 KSA',
-              location: e.region || e.location || 'RIYADH, KSA',
+              location: e.venue || e.location || e.region || 'RIYADH, KSA',
               prizePool: e.prize_pool || e.prizePool || '$50,000',
               status: (dynStatus === 'completed' ? 'FINISHED' : (dynStatus === 'live' ? 'LIVE' : 'UPCOMING')) as 'LIVE' | 'UPCOMING' | 'FINISHED',
               image: e.banner || e.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=500',

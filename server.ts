@@ -554,6 +554,7 @@ addColumnSafely('events', 'purpose', 'TEXT');
 addColumnSafely('events', 'format', 'TEXT');
 addColumnSafely('events', 'timeline', 'TEXT');
 addColumnSafely('events', 'venue', 'TEXT');
+addColumnSafely('events', 'location', 'TEXT');
 addColumnSafely('events', 'broadcast_platforms', 'TEXT');
 
 addColumnSafely('jobs', 'email', 'TEXT');
@@ -2104,6 +2105,17 @@ app.get('/api/auth/me', async (req: any, res: any) => {
           normalizeCreatorRow(rawPayload);
         }
 
+        if (tableName === 'events') {
+          if (rawPayload.venue && !rawPayload.location) rawPayload.location = rawPayload.venue;
+          if (rawPayload.location && !rawPayload.venue) rawPayload.venue = rawPayload.location;
+          if (!rawPayload.overview_title) rawPayload.overview_title = 'TACTICAL INTELLIGENCE';
+          if (!rawPayload.prize_pool) rawPayload.prize_pool = '$100,000';
+          if (!rawPayload.total_teams) rawPayload.total_teams = '16';
+          if (!rawPayload.broadcast) rawPayload.broadcast = 'TWITCH / YOUTUBE';
+          if (!rawPayload.purpose) rawPayload.purpose = 'CHAMPIONSHIP VICTORY';
+          if (!rawPayload.format) rawPayload.format = 'DOUBLE ELIMINATION BRACKET (BO5/BO7)';
+        }
+
         const validCols = getValidColumns(tableName).filter(c => c !== 'id');
         const payload: any = {};
         for (const k of Object.keys(rawPayload)) {
@@ -2119,6 +2131,11 @@ app.get('/api/auth/me', async (req: any, res: any) => {
 
         if (tableName === 'creators') {
           normalizeCreatorRow(payload);
+        }
+
+        if (tableName === 'events') {
+          if (payload.venue && !payload.location) payload.location = payload.venue;
+          if (payload.location && !payload.venue) payload.venue = payload.location;
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
@@ -2190,6 +2207,17 @@ app.get('/api/auth/me', async (req: any, res: any) => {
           normalizeCreatorRow(rawPayload);
         }
 
+        if (tableName === 'events') {
+          if (rawPayload.venue && !rawPayload.location) rawPayload.location = rawPayload.venue;
+          if (rawPayload.location && !rawPayload.venue) rawPayload.venue = rawPayload.location;
+          if (!rawPayload.overview_title) rawPayload.overview_title = 'TACTICAL INTELLIGENCE';
+          if (!rawPayload.prize_pool) rawPayload.prize_pool = '$100,000';
+          if (!rawPayload.total_teams) rawPayload.total_teams = '16';
+          if (!rawPayload.broadcast) rawPayload.broadcast = 'TWITCH / YOUTUBE';
+          if (!rawPayload.purpose) rawPayload.purpose = 'CHAMPIONSHIP VICTORY';
+          if (!rawPayload.format) rawPayload.format = 'DOUBLE ELIMINATION BRACKET (BO5/BO7)';
+        }
+
         const targetId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : req.params.id;
 
         const validCols = getValidColumns(tableName).filter(c => c !== 'id');
@@ -2207,6 +2235,11 @@ app.get('/api/auth/me', async (req: any, res: any) => {
 
         if (tableName === 'creators') {
           normalizeCreatorRow(payload);
+        }
+
+        if (tableName === 'events') {
+          if (payload.venue && !payload.location) payload.location = payload.venue;
+          if (payload.location && !payload.venue) payload.venue = payload.location;
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
