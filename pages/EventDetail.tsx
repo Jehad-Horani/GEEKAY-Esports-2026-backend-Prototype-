@@ -6,11 +6,10 @@ import {
   Clock, Tv, Tag, Radio, ChevronLeft, ChevronRight, Image as ImageIcon, 
   Twitter, Instagram, PlayCircle, Star, ArrowRight, Sparkles 
 } from 'lucide-react';
-import { MOCK_EVENTS } from '../constants';
 import { getEventSlug } from './Schedule';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
-import { getDynamicStatus } from '../src/utils/dateStatus';
+import { getDynamicStatus, getMatchDynamicStatus } from '../src/utils/dateStatus';
 
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -160,43 +159,24 @@ const EventDetail = () => {
     return { teams, matches, results, media, social };
   }, [matchedEvent]);
 
-  // Related events calculation
+  // Related events calculation - strictly from database
   const relatedEvents = useMemo(() => {
     if (!matchedEvent) return [];
     
-    const dbList = (Array.isArray(dbEvents) ? dbEvents : []).filter(e => e.title && getEventSlug(e.title) !== eventName).map(e => {
-      const dynStatus = getDynamicStatus(e.start_date, e.end_date, e.time, e.status);
-      return {
-        ...e,
-        title: e.title || '',
-        status: dynStatus,
-        start_date: e.start_date || '',
-        banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=450'
-      };
-    });
+    const dbList = (Array.isArray(dbEvents) ? dbEvents : [])
+      .filter(e => e.title && getEventSlug(e.title) !== eventName)
+      .map(e => {
+        const dynStatus = getDynamicStatus(e.start_date, e.end_date, e.time, e.status);
+        return {
+          ...e,
+          title: e.title || '',
+          status: dynStatus,
+          start_date: e.start_date || '',
+          banner: e.banner || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=450'
+        };
+      });
 
-    if (dbList.length > 0) {
-      return dbList.slice(0, 3);
-    }
-
-    const mockList: any[] = [];
-    MOCK_EVENTS.forEach(mock => {
-      const slug = getEventSlug(mock.title);
-      const isCurrent = slug === eventName;
-      if (!isCurrent) {
-        mockList.push({
-          id: mock.id,
-          title: mock.title,
-          game: mock.game,
-          status: mock.status.toLowerCase(),
-          start_date: mock.date,
-          banner: mock.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800&h=450',
-          region: mock.location ? (mock.location.split(',')[1]?.trim() || 'GLOBAL') : 'GLOBAL'
-        } as any);
-      }
-    });
-
-    return mockList.slice(0, 3);
+    return dbList.slice(0, 3);
   }, [dbEvents, matchedEvent, eventName]);
 
   if (loading) {
@@ -426,84 +406,89 @@ const EventDetail = () => {
         {/* ====================================================
             4) PARTICIPATING TEAMS
             ==================================================== */}
-        <section className="mb-20">
-          <div className="flex items-center gap-4 mb-8">
-            <h2 className="font-syncopate text-lg font-black text-white tracking-widest uppercase">PARTICIPATING TEAMS</h2>
-            <div className="h-[1px] flex-grow bg-slate-800" />
-          </div>
+        {teams && teams.length > 0 && (
+          <section className="mb-20">
+            <div className="flex items-center gap-4 mb-8">
+              <h2 className="font-syncopate text-lg font-black text-white tracking-widest uppercase">PARTICIPATING TEAMS</h2>
+              <div className="h-[1px] flex-grow bg-slate-800" />
+            </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {teams.map((team: any, i: number) => (
-              <Link 
-                key={i} 
-                to={`/teams`}
-                className="bg-[#081B3A] border border-slate-800 p-6 flex flex-col items-center text-center group hover:border-[#FFC400] hover:shadow-[0_0_20px_rgba(255,196,0,0.1)] transition-all relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-8 h-8 bg-white/5 skew-x-[-45deg] translate-x-4 -translate-y-4" />
-                
-                <img 
-                  src={team.logo || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100&h=100'} 
-                  alt={team.name} 
-                  className="w-16 h-16 object-contain mb-4 grayscale group-hover:grayscale-0 transition-all duration-300"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100&h=100';
-                  }}
-                />
-                
-                <h4 className="font-syncopate text-xs font-black text-white uppercase tracking-tighter mb-1 line-clamp-1">{team.name}</h4>
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">{team.region || 'EMEA'}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {teams.map((team: any, i: number) => (
+                <Link 
+                  key={i} 
+                  to={`/teams`}
+                  className="bg-[#081B3A] border border-slate-800 p-6 flex flex-col items-center text-center group hover:border-[#FFC400] hover:shadow-[0_0_20px_rgba(255,196,0,0.1)] transition-all relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-8 h-8 bg-white/5 skew-x-[-45deg] translate-x-4 -translate-y-4" />
+                  
+                  <img 
+                    src={team.logo || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100&h=100'} 
+                    alt={team.name} 
+                    className="w-16 h-16 object-contain mb-4 grayscale group-hover:grayscale-0 transition-all duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=100&h=100';
+                    }}
+                  />
+                  
+                  <h4 className="font-syncopate text-xs font-black text-white uppercase tracking-tighter mb-1 line-clamp-1">{team.name}</h4>
+                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">{team.region || 'EMEA'}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ====================================================
             5) MATCHES SECTION
             ==================================================== */}
-        <section className="mb-20">
-          <div className="flex items-center gap-4 mb-8">
-            <h2 className="font-syncopate text-lg font-black text-white tracking-widest uppercase">TACTICAL SCHEDULE & MATCHES</h2>
-            <div className="h-[1px] flex-grow bg-slate-800" />
-          </div>
+        {matches && matches.length > 0 && (
+          <section className="mb-20">
+            <div className="flex items-center gap-4 mb-8">
+              <h2 className="font-syncopate text-lg font-black text-white tracking-widest uppercase">TACTICAL SCHEDULE & MATCHES</h2>
+              <div className="h-[1px] flex-grow bg-slate-800" />
+            </div>
 
-          <div className="space-y-4">
-            {matches.map((match: any, i: number) => {
-              const matchIsLive = match.status === 'live';
-              const matchIsCompleted = match.status === 'finished' || match.status === 'completed';
+            <div className="space-y-4">
+              {matches.map((match: any, i: number) => {
+                const dynStatus = getMatchDynamicStatus(match, matchedEvent.start_date);
+                const matchIsLive = dynStatus === 'live';
+                const matchIsCompleted = dynStatus === 'completed';
 
-              return (
-                <div key={i} className="bg-[#081B3A] border border-slate-800 p-6 flex flex-col md:flex-row justify-between items-center gap-6 relative group hover:border-slate-700 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <Calendar size={14} className="text-[#FFC400]" />
-                    <span className="font-syncopate text-[9px] text-slate-500 tracking-widest uppercase">{match.date}</span>
-                  </div>
+                return (
+                  <div key={i} className="bg-[#081B3A] border border-slate-800 p-6 flex flex-col md:flex-row justify-between items-center gap-6 relative group hover:border-slate-700 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <Calendar size={14} className="text-[#FFC400]" />
+                      <span className="font-syncopate text-[9px] text-slate-500 tracking-widest uppercase">{match.date}</span>
+                    </div>
 
-                  <div className="flex items-center gap-8 md:gap-16">
-                    <span className="font-syncopate text-sm md:text-base font-black text-white tracking-tighter uppercase">
-                      {match.teams}
-                    </span>
-                    
-                    <div className="bg-[#040E1E] border border-slate-800 px-6 py-2 min-w-[100px] text-center skew-x-[-10deg]">
-                      <span className="font-syncopate text-sm font-black text-[#FFC400] block skew-x-[10deg]">
-                        {match.score}
+                    <div className="flex items-center gap-8 md:gap-16">
+                      <span className="font-syncopate text-sm md:text-base font-black text-white tracking-tighter uppercase">
+                        {match.teams}
+                      </span>
+                      
+                      <div className="bg-[#040E1E] border border-slate-800 px-6 py-2 min-w-[100px] text-center skew-x-[-10deg]">
+                        <span className="font-syncopate text-sm font-black text-[#FFC400] block skew-x-[10deg]">
+                          {match.score}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className={`px-4 py-1.5 font-syncopate text-[8px] font-black tracking-widest uppercase skew-x-[-10deg] ${
+                        matchIsLive ? 'bg-red-500 text-white animate-pulse' :
+                        matchIsCompleted ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                        'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      }`}>
+                        <span className="block skew-x-[10deg]">{match.status || 'upcoming'}</span>
                       </span>
                     </div>
                   </div>
-
-                  <div>
-                    <span className={`px-4 py-1.5 font-syncopate text-[8px] font-black tracking-widest uppercase skew-x-[-10deg] ${
-                      matchIsLive ? 'bg-red-500 text-white animate-pulse' :
-                      matchIsCompleted ? 'bg-slate-800 text-slate-400 border border-slate-700' :
-                      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    }`}>
-                      <span className="block skew-x-[10deg]">{match.status || 'upcoming'}</span>
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ====================================================
             6) RESULTS SECTION

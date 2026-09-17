@@ -75,7 +75,7 @@ const CalendarInterface = () => {
               game: e.game,
               type: e.type || 'TOURNAMENT',
               date: evDate,
-              time: e.time || '18:00 KSA',
+              time: e.time || '',
               location: e.venue || e.location || e.region || 'RIYADH, KSA',
               prizePool: e.prize_pool || e.prizePool || '$50,000',
               status: (dynStatus === 'completed' ? 'FINISHED' : (dynStatus === 'live' ? 'LIVE' : 'UPCOMING')) as 'LIVE' | 'UPCOMING' | 'FINISHED',
@@ -293,7 +293,7 @@ const CalendarInterface = () => {
                       <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#FFC400]" />
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-syncopate text-[7px] font-black text-[#FFC400] tracking-tighter">{event.game}</span>
-                        <span className="font-syncopate text-[6px] text-slate-500 font-bold">{event.time}</span>
+                        {event.time && <span className="font-syncopate text-[6px] text-slate-500 font-bold">{event.time}</span>}
                       </div>
                       <h4 className="font-syncopate text-[8px] font-bold text-white uppercase truncate leading-tight">{event.title}</h4>
                       <div className="mt-1 flex items-center gap-1">

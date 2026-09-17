@@ -8,7 +8,7 @@ import { MOCK_EVENTS, MOCK_TEAMS, MOCK_NEWS, MOCK_PRODUCTS } from '../constants'
 import { Link } from 'react-router-dom';
 import { Player, NewsItem, Product } from '../types';
 import SEOMeta from '../components/SEOMeta';
-import { getDynamicStatus, cleanOpponentName, getMatchResult } from '../src/utils/dateStatus';
+import { getDynamicStatus, getMatchDynamicStatus, cleanOpponentName, getMatchResult } from '../src/utils/dateStatus';
 
 const safeFetchJson = async (url: string) => {
   try {
@@ -248,8 +248,8 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
         if (parsedMatches.length > 0) {
           parsedMatches.forEach((m: any) => {
             const mDate = m.date || ev.start_date || '';
-            const mTime = ev.time || '18:00';
-            const dynStatus = getDynamicStatus(mDate, ev.end_date || mDate, mTime, m.status || ev.status);
+            const mTime = m.time || ev.time || '';
+            const dynStatus = getMatchDynamicStatus(m, ev.start_date);
 
             if (dynStatus === 'live' || dynStatus === 'upcoming') {
               if (dynStatus === 'live') liveFound = true;
@@ -275,7 +275,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
           });
         } else {
           const evDate = ev.start_date || '';
-          const evTime = ev.time || '18:00';
+          const evTime = ev.time || '';
           const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
 
           if (dynStatus === 'live' || dynStatus === 'upcoming') {
@@ -447,7 +447,6 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                           </div>
                           <div className="text-right">
                             <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
-                            <div className="text-white/40 font-syncopate text-[7px] tracking-widest">{match.time}</div>
                           </div>
                         </div>
                       ))}
@@ -1140,8 +1139,8 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
         if (parsedMatches.length > 0) {
           parsedMatches.forEach((m: any) => {
             const mDate = m.date || ev.start_date || '';
-            const mTime = ev.time || '18:00 GST';
-            const dynStatus = getDynamicStatus(mDate, ev.end_date || mDate, mTime, m.status || ev.status);
+            const mTime = m.time || ev.time || '';
+            const dynStatus = getMatchDynamicStatus(m, ev.start_date);
 
             if (dynStatus === 'upcoming' || dynStatus === 'live') {
               matchesList.push({
@@ -1160,7 +1159,7 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
           });
         } else {
           const evDate = ev.start_date || '';
-          const evTime = ev.time || '18:00 GST';
+          const evTime = ev.time || '';
           const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
 
           if (dynStatus === 'upcoming' || dynStatus === 'live') {
@@ -1261,10 +1260,16 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                       <Calendar size={14} className="text-[#FFC400]" />
                       <span>{match.date}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-slate-500 font-syncopate text-[10px] tracking-widest">
-                      <Clock size={14} />
-                      <span>{match.time} // {match.region}</span>
-                    </div>
+                    {match.time ? (
+                      <div className="flex items-center gap-3 text-slate-500 font-syncopate text-[10px] tracking-widest">
+                        <Clock size={14} />
+                        <span>{match.time} // {match.region}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 text-slate-500 font-syncopate text-[10px] tracking-widest">
+                        <span>{match.region}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

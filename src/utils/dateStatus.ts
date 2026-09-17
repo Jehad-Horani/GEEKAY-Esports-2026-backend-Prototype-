@@ -119,6 +119,67 @@ export function getDynamicStatus(
 }
 
 /**
+ * Determines whether an individual match inside an event is 'live', 'upcoming', or 'completed'.
+ * Unlike full events/tournaments that may span multi-week or multi-month ranges,
+ * individual matches occur on their specific match date.
+ */
+export function getMatchDynamicStatus(
+  match: any,
+  eventFallbackDate?: string | null
+): 'live' | 'upcoming' | 'completed' {
+  if (!match) return 'upcoming';
+
+  const rawStatus = String(match.status || '').toLowerCase().trim();
+  const rawScore = String(match.score || '').trim();
+  const hasScore = Boolean(
+    rawScore &&
+    rawScore !== '0-0' &&
+    rawScore.toLowerCase() !== 'upcoming' &&
+    rawScore.toLowerCase() !== 'tbd' &&
+    !rawScore.toLowerCase().includes('vs')
+  );
+
+  // 1. Explicit finished/completed status OR has valid final score
+  if (
+    rawStatus === 'completed' ||
+    rawStatus === 'finished' ||
+    rawStatus === 'ended' ||
+    rawStatus === 'past' ||
+    (hasScore && rawStatus !== 'live')
+  ) {
+    return 'completed';
+  }
+
+  // 2. Explicit live status
+  if (rawStatus === 'live' || rawStatus === 'ongoing') {
+    return 'live';
+  }
+
+  // 3. Match Date Comparison (matches occur on match.date)
+  const mDate = parseStandardDate(match.date) || parseStandardDate(eventFallbackDate);
+  const todayStr = getTodayDateString();
+
+  if (mDate) {
+    if (mDate < todayStr) {
+      return 'completed';
+    }
+    if (mDate === todayStr) {
+      return rawStatus === 'upcoming' ? 'upcoming' : 'live';
+    }
+    if (mDate > todayStr) {
+      return 'upcoming';
+    }
+  }
+
+  // 4. Fallback to explicit status or upcoming
+  if (rawStatus === 'upcoming') {
+    return 'upcoming';
+  }
+
+  return 'upcoming';
+}
+
+/**
  * Clean up opponent name or title so it cleanly formats as "VS OPPONENT_NAME"
  * and never duplicates "VS" or leaves "Geekay vs".
  */
