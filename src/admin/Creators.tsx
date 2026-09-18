@@ -27,6 +27,7 @@ import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import { safeJsonParse } from '../utils/json';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders, handleAuthError } from './utils/api';
 import SocialFollowerIcon from '../../components/SocialFollowerIcon';
@@ -38,6 +39,7 @@ const AdminCreators = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
   const [activeTab, setActiveTab] = useState<'basic' | 'socials'>('basic');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlatform, setFilterPlatform] = useState('ALL');
@@ -176,12 +178,7 @@ const AdminCreators = () => {
     setActiveTab('basic');
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingItem.alias && !editingItem.name) {
-      alert('Creator Alias / Stage Name is required');
-      return;
-    }
+  const executeSave = async () => {
 
     setSaving(true);
     const controller = new AbortController();
@@ -250,6 +247,10 @@ const AdminCreators = () => {
         gallery_images: typeof editingItem.gallery_images === 'string' ? editingItem.gallery_images : JSON.stringify(editingItem.gallery_images || [])
       };
 
+      if (!editingItem.id) {
+        delete (payload as any).id;
+      }
+
       const res = await fetch(url, {
         method,
         headers: getAuthHeaders(),
@@ -263,14 +264,14 @@ const AdminCreators = () => {
       if (!res.ok) {
         if (res.status === 401) {
           handleAuthError(res);
-          throw new Error('انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول / Session expired. Please log in again.');
+          throw new Error('Session expired. Please log in again.');
         }
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to save creator');
       }
       
       setEditingItem(null);
-      setToastMsg('تم حفظ وتحديث بيانات صانع المحتوى بنجاح! / Creator saved successfully!');
+      setToastMsg('Creator saved successfully!');
       fetchItems();
     } catch (err: any) {
       console.error('Save creator error:', err);
@@ -283,6 +284,28 @@ const AdminCreators = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem.alias && !editingItem.name) {
+      alert('Creator Alias / Stage Name is required');
+      return;
+    }
+    const isCreate = !editingItem?.id;
+    const creatorName = editingItem?.alias || editingItem?.name || 'CONTENT CREATOR';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM CREATOR CREATION' : 'CONFIRM CREATOR UPDATE',
+      itemName: creatorName,
+      description: isCreate
+        ? `Are you sure you want to add content creator "${creatorName}"?`
+        : `Are you sure you want to save changes to content creator "${creatorName}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const executeDelete = async () => {
@@ -811,10 +834,24 @@ const AdminCreators = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title="DELETE_CREATOR"
+        title="DELETE CREATOR"
         itemName={deleteTarget?.name}
-        description="Are you sure you want to delete this content creator? This action cannot be undone."
+        actionType="delete"
+        description="Are you sure you want to permanently delete this content creator? This action cannot be undone."
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

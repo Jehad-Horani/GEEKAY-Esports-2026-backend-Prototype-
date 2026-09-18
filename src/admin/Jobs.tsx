@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Search, Filter, X, Eye } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import { getAuthHeaders } from './utils/api';
 
 const AdminJobs = () => {
@@ -12,6 +13,7 @@ const AdminJobs = () => {
   const [saving, setSaving] = useState(false);
   const [editingJob, setEditingJob] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('ALL');
 
@@ -35,8 +37,7 @@ const AdminJobs = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -59,13 +60,17 @@ const AdminJobs = () => {
         return JSON.stringify([]);
       };
 
-      const payload = {
+      const payload: any = {
         ...editingJob,
         responsibilities: formatArrayField(editingJob.responsibilities),
         requirements: formatArrayField(editingJob.requirements),
         nice_to_have: formatArrayField(editingJob.nice_to_have || editingJob.niceToHave),
         benefits: formatArrayField(editingJob.benefits),
       };
+
+      if (!editingJob.id) {
+        delete payload.id;
+      }
 
       const res = await fetch(url, {
         method,
@@ -95,6 +100,24 @@ const AdminJobs = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingJob?.id;
+    const jobTitle = editingJob?.title || 'CAREER OPENING';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM JOB CREATION' : 'CONFIRM JOB UPDATE',
+      itemName: jobTitle,
+      description: isCreate
+        ? `Are you sure you want to add the job opening "${jobTitle}"?`
+        : `Are you sure you want to save changes to the job opening "${jobTitle}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const executeDelete = async () => {
@@ -383,10 +406,24 @@ const AdminJobs = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title="DELETE_JOB_OPENING"
+        title="DELETE JOB OPENING"
         itemName={deleteTarget?.name}
-        description="Are you sure you want to delete this career opportunity? This action cannot be undone."
+        actionType="delete"
+        description="Are you sure you want to permanently delete this career opportunity? This action cannot be undone."
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

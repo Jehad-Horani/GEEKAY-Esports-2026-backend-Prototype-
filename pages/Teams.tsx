@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 
 import SocialFollowerIcon from '../components/SocialFollowerIcon';
-import { MOCK_TEAMS, MOCK_CREATORS } from '../constants';
+import { MOCK_CREATORS } from '../constants';
 import { Player, Team, Trophy, Creator } from '../types';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -72,10 +72,9 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
     window.scrollTo(0, 0);
   }, [team.id]);
 
-  // Find other teams for "More Teams" section
+  // Find other teams for "More Teams" section - only from database teams
   const moreTeams = useMemo(() => {
-    const list = (allTeams && allTeams.length > 0) ? allTeams : MOCK_TEAMS;
-    return list.filter(t => String(t.id) !== String(team.id));
+    return (allTeams || []).filter(t => String(t.id) !== String(team.id));
   }, [team.id, allTeams]);
 
   const teamSchema = useMemo(() => {
@@ -251,25 +250,25 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                   <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/40 to-transparent group-hover:opacity-0 transition-opacity duration-300" />
 
                   {/* Standard state: Nickname & Role */}
-                  <div className="relative z-10 p-6 transition-opacity duration-300 group-hover:opacity-0">
+                  <div className="relative z-10 p-6 transition-opacity duration-300 group-hover:opacity-0 max-w-full overflow-hidden">
                     <span className="text-[#FFC400] font-syncopate text-[8px] tracking-[0.3em] font-black uppercase mb-1 block">{player.role}</span>
-                    <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none break-words line-clamp-1">{player.nickname}</h3>
+                    <h3 className="font-syncopate text-lg sm:text-xl md:text-2xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none whitespace-nowrap truncate max-w-full block">{player.nickname}</h3>
                   </div>
 
                   {/* Hover overlay with extra stats & info (Country Flag, Nationality, Top Achievement) */}
-                  <div className="absolute inset-0 bg-[#040E1E]/95 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-6 z-10">
+                  <div className="absolute inset-0 bg-[#040E1E]/95 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-6 z-10 max-w-full overflow-hidden">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-[#FFC400]/5 skew-x-[-45deg] translate-x-12 -translate-y-12" />
                     
-                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 max-w-full overflow-hidden">
                       
                       {/* Flag and Nationality */}
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg select-none leading-none">{flag}</span>
-                        <span className="text-slate-400 font-syncopate text-[9px] tracking-widest uppercase">{player.nationality || player.country || 'Saudi Arabia'}</span>
+                        <span className="text-lg select-none leading-none shrink-0">{flag}</span>
+                        <span className="text-slate-400 font-syncopate text-[9px] tracking-widest uppercase truncate">{player.nationality || player.country || 'Saudi Arabia'}</span>
                       </div>
 
-                      <h3 className="font-syncopate text-2xl sm:text-3xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none mb-1 break-words line-clamp-1">{player.nickname}</h3>
-                      <p className="text-[#FFC400] font-syncopate text-[9px] tracking-[0.3em] uppercase font-black mb-4">{player.role}</p>
+                      <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none mb-1 whitespace-nowrap truncate max-w-full block">{player.nickname}</h3>
+                      <p className="text-[#FFC400] font-syncopate text-[9px] tracking-[0.3em] uppercase font-black mb-4 truncate">{player.role}</p>
                       
                       {/* Top Achievement display */}
                       <div className="border-t border-slate-800/80 pt-4 mb-6">
@@ -435,8 +434,8 @@ const DivisionCard: React.FC<{ team: Team; onClick: () => void; index: number }>
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col justify-end">
-        <h3 className="font-syncopate text-2xl md:text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4">
+      <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col justify-end max-w-full overflow-hidden">
+        <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter leading-none mb-4 whitespace-nowrap truncate max-w-full">
           {team.name}
         </h3>
         
@@ -545,8 +544,8 @@ const CreatorCard: React.FC<{ creator: Creator; index: number }> = ({ creator, i
       <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/50 to-transparent opacity-90 transition-opacity duration-300" />
       
       {/* Card Info */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
-        <h3 className="font-syncopate text-2xl md:text-3xl font-black text-white uppercase mb-1 tracking-tighter">
+      <div className="absolute bottom-0 left-0 right-0 p-6 z-20 max-w-full overflow-hidden">
+        <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase mb-1 tracking-tighter whitespace-nowrap truncate max-w-full">
           {creator.nickname}
         </h3>
         <p className="text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-4">
@@ -677,6 +676,7 @@ const Teams = () => {
                   }
                 };
               });
+            // Display strictly what is in the database only
             setTeams(loadedTeams);
           }
 
@@ -736,14 +736,17 @@ const Teams = () => {
     return teamId || searchParams.get('id') || null;
   }, [teamId, searchParams]);
 
-  const selectedTeam = useMemo(() => 
-    teams.find(t => 
+  const selectedTeam = useMemo(() => {
+    if (!selectedTeamId) return null;
+    const cleanParam = String(selectedTeamId).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return teams.find(t => 
       String(t.id) === String(selectedTeamId) || 
       t.name.toLowerCase() === String(selectedTeamId).toLowerCase() || 
-      t.game.toLowerCase() === String(selectedTeamId).toLowerCase()
-    ) || null,
-    [selectedTeamId, teams]
-  );
+      t.game.toLowerCase() === String(selectedTeamId).toLowerCase() ||
+      t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanParam ||
+      t.game.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanParam
+    ) || null;
+  }, [selectedTeamId, teams]);
 
   const directorySchema = useMemo(() => {
     return teams.map(t => {
@@ -767,9 +770,20 @@ const Teams = () => {
     );
   }
 
-  const handleSelectTeam = (id: string | null) => {
-    if (id) {
-      navigate(`/teams/${id}`);
+  const handleSelectTeam = (target: string | Team | null) => {
+    if (target) {
+      if (typeof target === 'object' && target.name) {
+        const slug = (target.name || target.game).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        navigate(`/teams/${slug}`);
+      } else {
+        const found = teams.find(t => String(t.id) === String(target));
+        if (found) {
+          const slug = (found.name || found.game).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          navigate(`/teams/${slug}`);
+        } else {
+          navigate(`/teams/${target}`);
+        }
+      }
     } else {
       navigate('/teams');
     }
@@ -815,7 +829,7 @@ const Teams = () => {
                       key={team.id} 
                       team={team} 
                       index={idx} 
-                      onClick={() => handleSelectTeam(team.id)} 
+                      onClick={() => handleSelectTeam(team)} 
                     />
                   ))}
                 </div>

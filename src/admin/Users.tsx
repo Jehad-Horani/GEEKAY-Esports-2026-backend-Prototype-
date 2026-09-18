@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Plus, Edit2, Trash2, Shield, User, X, ShieldAlert, Search, Mail, Lock, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 
 const AdminUsers = () => {
   const { user: currentUser } = useOutletContext<any>() || {};
@@ -14,6 +15,7 @@ const AdminUsers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   // Check if current active role is Editor (Restricted Access)
   if (currentUser && currentUser.role !== 'admin') {
@@ -98,8 +100,7 @@ const AdminUsers = () => {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     try {
       const method = editingUser.id ? 'PUT' : 'POST';
       const url = editingUser.id ? `/api/users/${editingUser.id}` : '/api/users';
@@ -131,6 +132,24 @@ const AdminUsers = () => {
     } catch (err: any) {
       alert(err.message || 'Failed to save user');
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingUser?.id;
+    const userName = editingUser?.username || 'USER ACCOUNT';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM USER CREATION' : 'CONFIRM USER UPDATE',
+      itemName: userName,
+      description: isCreate
+        ? `Are you sure you want to create the new user account "${userName}"?`
+        : `Are you sure you want to save changes and permissions for "${userName}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const filteredUsers = users.filter(u => {
@@ -390,10 +409,23 @@ const AdminUsers = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title="DELETE_USER_ACCOUNT"
+        title="DELETE USER ACCOUNT"
         itemName={deleteTarget?.name}
-        description="Are you sure you want to delete this operative account? They will immediately lose access to the administrative control center."
+        actionType="delete"
+        description="Are you sure you want to permanently delete this user account? They will lose access immediately."
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+        />
+      )}
     </div>
   );
 };

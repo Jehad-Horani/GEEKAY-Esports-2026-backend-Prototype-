@@ -30,6 +30,7 @@ import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import { safeJsonParse } from '../utils/json';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders } from './utils/api';
 
@@ -43,6 +44,7 @@ const AdminNews = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; type: 'article' | 'category' | 'author' | 'tag'; name?: string } | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
   const [modalTab, setModalTab] = useState<'content' | 'meta' | 'media' | 'seo' | 'preview'>('content');
   
   // Management View Toggles
@@ -160,13 +162,7 @@ const AdminNews = () => {
     });
   };
 
-  const handleSaveArticle = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingItem.title || !editingItem.category) {
-      alert('Article Title and Category are required!');
-      return;
-    }
-
+  const executeSaveArticle = async () => {
     setSaving(true);
     try {
       const method = editingItem.id ? 'PUT' : 'POST';
@@ -192,6 +188,10 @@ const AdminNews = () => {
         gallery_images: typeof editingItem.gallery_images === 'string' ? editingItem.gallery_images : JSON.stringify(editingItem.gallery_images || [])
       };
 
+      if (!editingItem.id) {
+        delete (payload as any).id;
+      }
+
       const res = await fetch(url, {
         method,
         headers: getAuthHeaders(),
@@ -205,7 +205,7 @@ const AdminNews = () => {
       }
 
       setEditingItem(null);
-      setToastMsg('تم حفظ المقال والخبر بنجاح! / Article saved successfully!');
+      setToastMsg('Article saved successfully!');
       fetchData();
     } catch (err: any) {
       console.error('Save news error:', err);
@@ -213,6 +213,27 @@ const AdminNews = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveArticle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem.title || !editingItem.category) {
+      alert('Article Title and Category are required!');
+      return;
+    }
+    const isCreate = !editingItem.id;
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM ARTICLE CREATION' : 'CONFIRM ARTICLE UPDATE',
+      itemName: editingItem.title,
+      description: isCreate
+        ? `Are you sure you want to publish the article "${editingItem.title}"?`
+        : `Are you sure you want to save changes to the article "${editingItem.title}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSaveArticle();
+      }
+    });
   };
 
   const executeDelete = async () => {
@@ -269,16 +290,17 @@ const AdminNews = () => {
   };
 
   // Category Save
-  const handleSaveCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCategory.name) return;
+  const executeSaveCategory = async () => {
     try {
       const method = editingCategory.id ? 'PUT' : 'POST';
       const url = editingCategory.id ? `/api/news_categories/${editingCategory.id}` : '/api/news_categories';
-      const payload = {
+      const payload: any = {
         ...editingCategory,
         slug: editingCategory.slug || handleSlugify(editingCategory.name)
       };
+      if (!editingCategory.id) {
+        delete payload.id;
+      }
       await fetch(url, {
         method,
         headers: getAuthHeaders(),
@@ -286,23 +308,43 @@ const AdminNews = () => {
         body: JSON.stringify(payload)
       });
       setEditingCategory(null);
+      setToastMsg('Category saved successfully!');
       fetchData();
     } catch (err) {
       alert('Failed to save category');
     }
   };
 
-  // Tag Save
-  const handleSaveTag = async (e: React.FormEvent) => {
+  const handleSaveCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTag.name) return;
+    if (!editingCategory.name) return;
+    const isCreate = !editingCategory.id;
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM CATEGORY CREATION' : 'CONFIRM CATEGORY UPDATE',
+      itemName: editingCategory.name,
+      description: isCreate
+        ? `Are you sure you want to add new category "${editingCategory.name}"?`
+        : `Are you sure you want to save changes to category "${editingCategory.name}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSaveCategory();
+      }
+    });
+  };
+
+  // Tag Save
+  const executeSaveTag = async () => {
     try {
       const method = editingTag.id ? 'PUT' : 'POST';
       const url = editingTag.id ? `/api/news_tags/${editingTag.id}` : '/api/news_tags';
-      const payload = {
+      const payload: any = {
         ...editingTag,
         slug: editingTag.slug || handleSlugify(editingTag.name)
       };
+      if (!editingTag.id) {
+        delete payload.id;
+      }
       await fetch(url, {
         method,
         headers: getAuthHeaders(),
@@ -310,10 +352,29 @@ const AdminNews = () => {
         body: JSON.stringify(payload)
       });
       setEditingTag(null);
+      setToastMsg('Tag saved successfully!');
       fetchData();
     } catch (err) {
       alert('Failed to save tag');
     }
+  };
+
+  const handleSaveTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTag.name) return;
+    const isCreate = !editingTag.id;
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM TAG CREATION' : 'CONFIRM TAG UPDATE',
+      itemName: editingTag.name,
+      description: isCreate
+        ? `Are you sure you want to add new tag "${editingTag.name}"?`
+        : `Are you sure you want to save changes to tag "${editingTag.name}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSaveTag();
+      }
+    });
   };
 
   const filteredItems = items.filter(item => {
@@ -984,10 +1045,24 @@ const AdminNews = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title={`DELETE_${deleteTarget?.type?.toUpperCase() || 'ITEM'}`}
+        title={`DELETE ${deleteTarget?.type?.toUpperCase() || 'ITEM'}`}
         itemName={deleteTarget?.name}
-        description={`Are you sure you want to delete this ${deleteTarget?.type || 'item'}? This action cannot be undone.`}
+        actionType="delete"
+        description={`Are you sure you want to permanently delete this ${deleteTarget?.type || 'item'}? This action cannot be undone.`}
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

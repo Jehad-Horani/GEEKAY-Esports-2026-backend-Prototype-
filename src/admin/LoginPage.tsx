@@ -73,7 +73,7 @@ const LoginPage = () => {
     } catch {}
     setFailedCount(MAX_ALLOWED_ATTEMPTS);
     setRemainingCooldown(seconds);
-    setError(`تم حظر محاولات الدخول مؤقتاً بسبب 3 محاولات خاطئة. يرجى الانتظار ${seconds} ثانية.`);
+    setError(`Access temporarily locked due to 3 consecutive failed attempts. Please wait ${seconds} seconds.`);
   };
 
   const registerFailedAttempt = (serverRemainingSecs?: number) => {
@@ -97,7 +97,7 @@ const LoginPage = () => {
         localStorage.setItem('geekay_login_failed_attempts', String(nextCount));
       } catch {}
       const attemptsRemaining = MAX_ALLOWED_ATTEMPTS - nextCount;
-      setError(`اسم المستخدم أو كلمة المرور غير صحيحة. (متبقي لديك ${attemptsRemaining} ${attemptsRemaining === 1 ? 'محاولة واحدة' : 'محاولات'} قبل الحظر)`);
+      setError(`Invalid username or password. (${attemptsRemaining} ${attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before lockout)`);
     }
   };
 
@@ -197,7 +197,7 @@ const LoginPage = () => {
                   </span>
                 </div>
                 <p className="text-slate-200 text-xs font-sans mb-3 font-medium">
-                  تم تجاوز الحد المسموح به (3 محاولات خاطئة). الحساب مغلق للحماية.
+                  Maximum failed login attempts reached (3 errors). Account temporarily locked for security.
                 </p>
                 <div className="inline-flex items-center gap-2.5 bg-red-900/80 border border-red-500/60 px-5 py-2.5 rounded">
                   <Clock size={16} className="text-red-300 animate-spin" />

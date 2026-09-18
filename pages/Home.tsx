@@ -1013,7 +1013,7 @@ const AboutSnapshot = ({ statsObj = null, teams = [] }: { statsObj?: any; teams?
 
   const stats = [
     { label: 'GLOBAL COMMUNITY', value: '24.1M', sub: 'Active network' },
-    { label: 'MAJOR TITLES', value: String(totalChampionships), sub: 'Championship wins' },
+    { label: 'MAJOR WINS', value: String(totalChampionships), sub: 'S and A tier first place finishes' },
     { label: 'WIN RATE', value: '68%', sub: 'Last 100 matches' },
     { label: 'ACTIVE TEAMS', value: String(teamsCount), sub: 'Elite divisions' },
   ];
@@ -1435,7 +1435,7 @@ const ActiveTeamsSection = ({ teams = [] }: { teams?: any[] }) => {
                 <p className="text-slate-500 font-inter text-xs font-light leading-relaxed mb-6">{team.bio}</p>
               </div>
 
-              <Link to={`/teams?id=${team.id}`} className="group/btn flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-widest uppercase mt-4">
+              <Link to={`/teams/${(team.name || team.game).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`} className="group/btn flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-widest uppercase mt-4">
                 VIEW ROSTER <ArrowRight size={14} className="group-hover/btn:translate-x-1.5 transition-transform" />
               </Link>
             </motion.div>

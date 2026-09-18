@@ -4,6 +4,7 @@ import { Plus, Edit2, Trash2, X as CloseIcon, Image as ImageIcon, ExternalLink, 
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders, handleAuthError } from './utils/api';
 
@@ -14,6 +15,7 @@ const AdminLeadership = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -66,8 +68,7 @@ const AdminLeadership = () => {
     });
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -76,13 +77,17 @@ const AdminLeadership = () => {
       const method = editingItem.id ? 'PUT' : 'POST';
       const url = editingItem.id ? `/api/leadership/${editingItem.id}` : '/api/leadership';
       
-      const payload = {
+      const payload: any = {
         ...editingItem,
         twitter: editingItem.x || editingItem.twitter || '',
         x: editingItem.x || editingItem.twitter || '',
         instagram: editingItem.instagram || '',
         linkedin: editingItem.linkedin || ''
       };
+
+      if (!editingItem.id) {
+        delete payload.id;
+      }
 
       const res = await fetch(url, {
         method,
@@ -97,19 +102,19 @@ const AdminLeadership = () => {
       if (!res.ok) {
         if (res.status === 401) {
           handleAuthError(res);
-          throw new Error('انتهت الجلسة، يرجى إعادة تسجيل الدخول / Session expired.');
+          throw new Error('Session expired. Please log in again.');
         }
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to save leadership member');
       }
       
-      showToast(editingItem.id ? 'تم تحديث بيانات القائد بنجاح' : 'تمت إضافة القائد بنجاح', 'success');
+      showToast(editingItem.id ? 'Leadership member updated successfully' : 'Leadership member added successfully', 'success');
       setEditingItem(null);
       fetchItems();
     } catch (err: any) {
       console.error('Save leadership error:', err);
       if (err.name === 'AbortError') {
-        showToast('انتهت مهلة الطلب، يرجى المحاولة مرة أخرى', 'error');
+        showToast('Request timed out, please try again', 'error');
       } else {
         showToast(err.message, 'error');
       }
@@ -117,6 +122,24 @@ const AdminLeadership = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingItem?.id;
+    const memberName = editingItem?.name || 'LEADERSHIP MEMBER';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM MEMBER CREATION' : 'CONFIRM MEMBER UPDATE',
+      itemName: memberName,
+      description: isCreate
+        ? `Are you sure you want to add the new leadership member "${memberName}"?`
+        : `Are you sure you want to save changes to "${memberName}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const executeDelete = async () => {
@@ -130,10 +153,10 @@ const AdminLeadership = () => {
         handleAuthError(res);
         return;
       }
-      showToast('تم حذف العضو بنجاح', 'success');
+      showToast('Member deleted successfully', 'success');
       fetchItems();
     } catch (err: any) {
-      showToast('تعذر حذف العضو', 'error');
+      showToast('Failed to delete member', 'error');
       fetchItems();
     }
   };
@@ -178,7 +201,7 @@ const AdminLeadership = () => {
             LEADERSHIP
           </h1>
           <p className="text-slate-400 font-inter text-xs mt-2">
-            إدارة قيادات المنظمة، حسابات X، وInstagram، والصور الشخصية
+            Manage organization leadership, X, Instagram, LinkedIn, and executive portraits
           </p>
         </div>
         <ArenaButton onClick={handleOpenAdd}>
@@ -188,7 +211,7 @@ const AdminLeadership = () => {
 
       {items.length === 0 ? (
         <div className="p-12 text-center border border-white/5 bg-[#081B3A] text-slate-400 font-inter text-sm">
-          لا يوجد أعضاء قيادة حالياً. اضغط على <strong className="text-[#FFC400]">ADD_MEMBER</strong> لإضافة أول عضو.
+          No leadership members found. Click <strong className="text-[#FFC400]">ADD_MEMBER</strong> to add the first member.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -331,7 +354,7 @@ const AdminLeadership = () => {
                   {editingItem.id ? 'EDIT_LEADERSHIP_MEMBER' : 'ADD_LEADERSHIP_MEMBER'}
                 </h2>
                 <p className="text-slate-400 font-inter text-xs mt-1">
-                  أدخل تفاصيل القائد بما فيها حسابات X (تويتر) و Instagram
+                  Enter leader details including X (Twitter), Instagram, and LinkedIn accounts
                 </p>
               </div>
               <button onClick={() => setEditingItem(null)} className="text-slate-500 hover:text-white p-2">
@@ -385,7 +408,7 @@ const AdminLeadership = () => {
               {/* Social Accounts Section */}
               <div className="border border-white/5 bg-[#040E1E]/50 p-6 space-y-4">
                 <span className="text-[#FFC400] font-syncopate text-[9px] font-bold tracking-widest uppercase block mb-2">
-                  SOCIAL ACCOUNTS // شبكات التواصل الاجتماعي
+                  SOCIAL ACCOUNTS
                 </span>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -438,7 +461,7 @@ const AdminLeadership = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                 <div className="space-y-2">
-                  <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Display Order (ترتيب الظهور)</label>
+                  <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Display Order</label>
                   <input 
                     type="number" 
                     value={editingItem.display_order ?? 0}
@@ -457,7 +480,7 @@ const AdminLeadership = () => {
                       className="w-5 h-5 bg-[#040E1E] border-slate-800 rounded-none checked:bg-[#FFC400] transition-colors"
                     />
                     <span className="font-syncopate text-[10px] font-bold text-white uppercase tracking-widest group-hover:text-[#FFC400]">
-                      Published (ظاهر في الموقع)
+                      Published (Visible on site)
                     </span>
                   </label>
                 </div>
@@ -478,6 +501,30 @@ const AdminLeadership = () => {
             </form>
           </motion.div>
         </div>
+      )}
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          isOpen={!!deleteTarget}
+          title="DELETE LEADERSHIP MEMBER"
+          itemName={deleteTarget.name}
+          actionType="delete"
+          description={`Are you sure you want to permanently remove "${deleteTarget.name}" from the board of leadership? This action cannot be undone.`}
+          onConfirm={executeDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
       )}
     </div>
   );

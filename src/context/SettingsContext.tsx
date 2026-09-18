@@ -86,7 +86,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const fetchSettings = async () => {
+  const fetchSettings = async (retries = 3, delay = 400) => {
     try {
       const res = await fetch('/api/settings');
       if (res.ok) {
@@ -96,7 +96,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
     } catch (err) {
-      console.error('Failed to load settings from API:', err);
+      if (retries > 0) {
+        setTimeout(() => {
+          fetchSettings(retries - 1, delay * 1.5);
+        }, delay);
+      } else {
+        console.warn('Unable to load settings from API (using default configuration fallback):', err);
+      }
     } finally {
       setLoading(false);
     }

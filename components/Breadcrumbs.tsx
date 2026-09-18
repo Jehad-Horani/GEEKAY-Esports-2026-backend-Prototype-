@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import { MOCK_TEAMS, MOCK_NEWS, MOCK_JOBS } from '../constants';
+import { MOCK_NEWS, MOCK_JOBS } from '../constants';
 import { generateBreadcrumbSchema } from './SEOMeta';
 
 let globalTeamsCache: any[] | null = null;
@@ -40,7 +40,7 @@ export default function Breadcrumbs({ currentLabel }: BreadcrumbsProps = {}) {
       return [];
     }
 
-    const allTeams = [...(dbTeams || []), ...MOCK_TEAMS];
+    const allTeams = dbTeams || [];
 
     // Special Case: Player Profiles mapped to Home / Teams / [Team Name] / [Player Name]
     if (pathnames[0] === 'players' && pathnames[1]) {
@@ -63,21 +63,6 @@ export default function Breadcrumbs({ currentLabel }: BreadcrumbsProps = {}) {
       if (foundPlayer && foundPlayer.team_id) {
         foundTeam = allTeams.find(t => String(t.id) === String(foundPlayer.team_id));
       }
-
-      // If not found, check mock rosters
-      if (!foundPlayer) {
-        for (const team of MOCK_TEAMS) {
-          const p = team.players?.find(pl => 
-            pl.nickname.toLowerCase().replace(/[-_]/g, '') === cleanName || 
-            pl.id.toLowerCase() === value.toLowerCase()
-          );
-          if (p) {
-            foundTeam = team;
-            foundPlayer = p;
-            break;
-          }
-        }
-      }
       
       const list = [
         { label: 'HOME', to: '/', isLast: false },
@@ -85,9 +70,10 @@ export default function Breadcrumbs({ currentLabel }: BreadcrumbsProps = {}) {
       ];
       
       if (foundTeam) {
+        const teamSlug = (foundTeam.name || foundTeam.game || String(foundTeam.id)).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         list.push({
           label: (foundTeam.name || foundTeam.game || 'TEAM').toUpperCase(),
-          to: `/teams/${foundTeam.id}`,
+          to: `/teams/${teamSlug}`,
           isLast: false
         });
       }
@@ -118,15 +104,19 @@ export default function Breadcrumbs({ currentLabel }: BreadcrumbsProps = {}) {
         label = 'PLAYERS';
       } else if (index === 1 && pathnames[0] === 'teams') {
         // Teams subcategory or teamId lookup from both DB and Mock
+        const cleanVal = value.toLowerCase().replace(/[^a-z0-9]/g, '');
         const matchedTeam = allTeams.find(t => 
           String(t.id).toLowerCase() === value.toLowerCase() ||
           (t.name && t.name.toLowerCase() === value.toLowerCase()) ||
-          (t.game && t.game.toLowerCase() === value.toLowerCase())
+          (t.game && t.game.toLowerCase() === value.toLowerCase()) ||
+          (t.name && t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanVal) ||
+          (t.game && t.game.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanVal)
         );
         if (matchedTeam) {
           label = (matchedTeam.name || matchedTeam.game || 'TEAM').toUpperCase();
         } else if (/^\d+$/.test(value)) {
-          label = 'TEAM';
+          const byId = allTeams.find(t => String(t.id) === value);
+          label = byId ? (byId.name || byId.game || 'TEAM').toUpperCase() : 'TEAM';
         }
       } else if (index === 1 && pathnames[0] === 'players') {
         // Player Name
@@ -137,15 +127,6 @@ export default function Breadcrumbs({ currentLabel }: BreadcrumbsProps = {}) {
           if (pClean === cleanName || String(p.id).toLowerCase() === value.toLowerCase()) {
             foundPlayer = p.ign || p.nickname;
             break;
-          }
-        }
-        if (!foundPlayer) {
-          for (const team of MOCK_TEAMS) {
-            const p = team.players?.find(pl => pl.nickname.toLowerCase().replace(/[-_]/g, '') === cleanName || pl.id.toLowerCase() === value.toLowerCase());
-            if (p) {
-              foundPlayer = p.nickname;
-              break;
-            }
           }
         }
         if (foundPlayer) {

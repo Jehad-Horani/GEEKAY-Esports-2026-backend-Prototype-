@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Search, Building2, ExternalLink, Eye, EyeOff, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import ImageUploader from '../components/ImageUploader';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders, handleAuthError } from './utils/api';
@@ -36,6 +37,7 @@ const AdminPartners = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -60,24 +62,25 @@ const AdminPartners = () => {
     fetchPartners();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPartner) return;
-
+  const executeSave = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
-      const isEdit = !!editingPartner.id;
-      const url = isEdit ? `/api/partners/${editingPartner.id}` : '/api/partners';
+      const isEdit = !!editingPartner?.id;
+      const url = isEdit ? `/api/partners/${editingPartner?.id}` : '/api/partners';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const payload = {
+      const payload: any = {
         ...editingPartner,
-        display_order: Number(editingPartner.display_order ?? 0),
-        published: editingPartner.published ? 1 : 0
+        display_order: Number(editingPartner?.display_order ?? 0),
+        published: editingPartner?.published ? 1 : 0
       };
+
+      if (!isEdit) {
+        delete payload.id;
+      }
 
       const res = await fetch(url, {
         method,
@@ -92,19 +95,19 @@ const AdminPartners = () => {
       if (!res.ok) {
         if (res.status === 401) {
           handleAuthError(res);
-          throw new Error('انتهت الجلسة، يرجى إعادة تسجيل الدخول / Session expired.');
+          throw new Error('Session expired. Please log in again.');
         }
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'Failed to save partner');
       }
 
-      showToast(isEdit ? 'تم تحديث الشريك بنجاح' : 'تمت إضافة الشريك بنجاح', 'success');
+      showToast(isEdit ? 'Partner updated successfully' : 'Partner added successfully', 'success');
       setEditingPartner(null);
       fetchPartners();
     } catch (err: any) {
       console.error('Error saving partner:', err);
       if (err.name === 'AbortError') {
-        showToast('انتهت مهلة الطلب، يرجى المحاولة مرة أخرى', 'error');
+        showToast('Request timed out, please try again', 'error');
       } else {
         showToast(err.message || 'Error occurred while saving.', 'error');
       }
@@ -112,6 +115,25 @@ const AdminPartners = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPartner) return;
+    const isCreate = !editingPartner?.id;
+    const partnerName = editingPartner?.name || 'PARTNER';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM PARTNER CREATION' : 'CONFIRM PARTNER UPDATE',
+      itemName: partnerName,
+      description: isCreate
+        ? `Are you sure you want to add partner "${partnerName}"?`
+        : `Are you sure you want to save changes to partner "${partnerName}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const togglePublish = async (partner: Partner) => {
@@ -129,7 +151,7 @@ const AdminPartners = () => {
       }
       if (res.ok) {
         setPartners(prev => prev.map(p => p.id === partner.id ? { ...p, published: newStatus } : p));
-        showToast(`تم ${newStatus ? 'نشر' : 'إخفاء'} الشريك بنجاح`, 'success');
+        showToast(`Partner ${newStatus ? 'published' : 'hidden'} successfully`, 'success');
       }
     } catch (err) {
       console.error('Failed to toggle publish status:', err);
@@ -152,7 +174,7 @@ const AdminPartners = () => {
       }
 
       if (res.ok) {
-        showToast('تم حذف الشريك بنجاح', 'success');
+        showToast('Partner deleted successfully', 'success');
         setPartners(prev => prev.filter(p => p.id !== deleteTarget.id));
       } else {
         throw new Error('Failed to delete partner');
@@ -192,7 +214,7 @@ const AdminPartners = () => {
             CORPORATE PARTNERS
           </h1>
           <p className="text-slate-400 font-inter text-xs mt-2">
-            إدارة شركاء ورعاة المنظمة الرسميين، الشعارات، والتصنيفات والروابط
+            Manage official organization partners, sponsors, logos, categories, and links
           </p>
         </div>
         <ArenaButton
@@ -414,7 +436,7 @@ const AdminPartners = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div>
                   <label className="block text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-2">
-                    DISPLAY ORDER (ترتيب العرض)
+                    DISPLAY ORDER
                   </label>
                   <input
                     type="number"
@@ -435,7 +457,7 @@ const AdminPartners = () => {
                     <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FFC400]"></div>
                   </label>
                   <span className="font-syncopate text-xs font-bold text-white uppercase">
-                    PUBLISH SITE-WIDE (ظاهر بالموقع)
+                    PUBLISH SITE-WIDE
                   </span>
                 </div>
               </div>
@@ -463,9 +485,23 @@ const AdminPartners = () => {
           isOpen={!!deleteTarget}
           title="DELETE CORPORATE PARTNER"
           itemName={deleteTarget.name}
-          description={`Are you sure you want to delete corporate partner "${deleteTarget.name}"? This action cannot be undone.`}
+          actionType="delete"
+          description={`Are you sure you want to permanently delete corporate partner "${deleteTarget.name}"? This action cannot be undone.`}
           onConfirm={executeDelete}
           onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
         />
       )}
     </div>

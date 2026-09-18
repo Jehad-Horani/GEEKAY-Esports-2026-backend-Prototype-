@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Users, User, Newspaper, Calendar, Briefcase, CornerDownLeft } from 'lucide-react';
-import { MOCK_TEAMS, MOCK_EVENTS, MOCK_NEWS, MOCK_JOBS } from '../constants';
+import { MOCK_EVENTS, MOCK_NEWS, MOCK_JOBS } from '../constants';
 import { getEventSlug } from '../pages/Schedule';
 
 interface GlobalSearchProps {
@@ -10,11 +10,34 @@ interface GlobalSearchProps {
   onClose: () => void;
 }
 
+let globalSearchTeamsCache: any[] | null = null;
+let globalSearchPlayersCache: any[] | null = null;
+
 export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [dbTeams, setDbTeams] = useState<any[]>(globalSearchTeamsCache || []);
+  const [dbPlayers, setDbPlayers] = useState<any[]>(globalSearchPlayersCache || []);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!globalSearchTeamsCache || !globalSearchPlayersCache) {
+      Promise.all([
+        fetch('/api/teams').then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch('/api/players').then(r => r.ok ? r.json() : []).catch(() => [])
+      ]).then(([teams, players]) => {
+        if (Array.isArray(teams)) {
+          globalSearchTeamsCache = teams;
+          setDbTeams(teams);
+        }
+        if (Array.isArray(players)) {
+          globalSearchPlayersCache = players;
+          setDbPlayers(players);
+        }
+      });
+    }
+  }, []);
 
   // Focus input when search opens
   useEffect(() => {
@@ -45,30 +68,34 @@ export default function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
       link: string;
     }[] = [];
 
-    // 1. Teams search
-    MOCK_TEAMS.forEach(t => {
-      if (t.name.toLowerCase().includes(q) || t.game.toLowerCase().includes(q)) {
+    // 1. Teams search (Strictly from database)
+    dbTeams.forEach(t => {
+      const name = t.name || '';
+      const game = t.game || '';
+      if (name.toLowerCase().includes(q) || game.toLowerCase().includes(q)) {
+        const teamSlug = (name || game).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         list.push({
           type: 'TEAM',
-          title: `GEEKAY ${t.name.toUpperCase()}`,
-          subtitle: `${t.game.toUpperCase()} // ${t.region || 'MENA'}`,
-          link: `/teams/${t.id}`
+          title: `GEEKAY ${name.toUpperCase()}`,
+          subtitle: `${game.toUpperCase()} // ${t.region || 'MENA'}`,
+          link: `/teams/${teamSlug}`
         });
       }
     });
 
-    // 2. Players search
-    MOCK_TEAMS.forEach(t => {
-      t.players.forEach(p => {
-        if (p.nickname.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.role.toLowerCase().includes(q)) {
-          list.push({
-            type: 'PLAYER',
-            title: p.nickname.toUpperCase(),
-            subtitle: `${p.name.toUpperCase()} // ${p.role.toUpperCase()} (${t.game.toUpperCase()})`,
-            link: `/players/${p.nickname.toLowerCase()}`
-          });
-        }
-      });
+    // 2. Players search (Strictly from database)
+    dbPlayers.forEach(p => {
+      const ign = p.ign || p.nickname || '';
+      const fullName = p.name || '';
+      const role = p.role || '';
+      if (ign.toLowerCase().includes(q) || fullName.toLowerCase().includes(q) || role.toLowerCase().includes(q)) {
+        list.push({
+          type: 'PLAYER',
+          title: (ign || fullName).toUpperCase(),
+          subtitle: `${fullName ? fullName.toUpperCase() + ' // ' : ''}${role.toUpperCase()}`,
+          link: `/players/${ign.toLowerCase()}`
+        });
+      }
     });
 
     // 3. News search

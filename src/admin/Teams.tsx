@@ -15,6 +15,7 @@ import {
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
 import { ToastNotification } from './components/Toast';
@@ -32,6 +33,7 @@ const AdminTeams = () => {
   const [editingPlayer, setEditingPlayer] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; type: 'team' | 'player'; name?: string } | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   // Team Repeaters State
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -49,7 +51,11 @@ const AdminTeams = () => {
   });
 
   const handleOpenTeamEdit = (team: any) => {
-    setEditingTeam(team);
+    const cleanTeam = { ...team };
+    if (!cleanTeam.id) {
+      delete cleanTeam.id;
+    }
+    setEditingTeam(cleanTeam);
     
     // Parse Staff JSON
     try {
@@ -87,12 +93,16 @@ const AdminTeams = () => {
 
   const handleOpenPlayerEdit = (player: any) => {
     const computedAge = calculateAgeFromBirthDate(player.birth_date);
+    const cleanPlayer = { ...player };
+    if (!cleanPlayer.id) {
+      delete cleanPlayer.id;
+    }
     setEditingPlayer({
-      ...player,
-      birth_date: player.birth_date || '',
-      age: computedAge !== null ? String(computedAge) : (player.age || ''),
-      nationality: player.nationality || player.country || 'Saudi Arabia',
-      country: player.country || player.nationality || 'Saudi Arabia'
+      ...cleanPlayer,
+      birth_date: cleanPlayer.birth_date || '',
+      age: computedAge !== null ? String(computedAge) : (cleanPlayer.age || ''),
+      nationality: cleanPlayer.nationality || cleanPlayer.country || 'Saudi Arabia',
+      country: cleanPlayer.country || cleanPlayer.nationality || 'Saudi Arabia'
     });
 
     // Parse Match History JSON
@@ -177,14 +187,14 @@ const AdminTeams = () => {
     }
   };
 
-  const handleSaveTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSaveTeam = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     try {
-      const payload = {
+      const isCreate = !editingTeam?.id;
+      const payload: any = {
         ...editingTeam,
         staff: JSON.stringify(staffList),
         achievements: JSON.stringify(trophiesList),
@@ -192,8 +202,12 @@ const AdminTeams = () => {
         socials: JSON.stringify(teamSocialList)
       };
 
-      const method = editingTeam.id ? 'PUT' : 'POST';
-      const url = editingTeam.id ? `/api/teams/${editingTeam.id}` : '/api/teams';
+      if (isCreate) {
+        delete payload.id;
+      }
+
+      const method = isCreate ? 'POST' : 'PUT';
+      const url = isCreate ? '/api/teams' : `/api/teams/${editingTeam.id}`;
       
       const res = await fetch(url, {
         method,
@@ -211,7 +225,7 @@ const AdminTeams = () => {
       }
       
       setIsModalOpen(false);
-      setToastMsg('تم حفظ بيانات الفريق بنجاح! / Team saved successfully!');
+      setToastMsg(isCreate ? 'Team created successfully!' : 'Team updated successfully!');
       fetchTeams();
     } catch (err: any) {
       console.error('Save team error:', err);
@@ -226,6 +240,23 @@ const AdminTeams = () => {
     }
   };
 
+  const handleSaveTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingTeam?.id;
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM TEAM CREATION' : 'CONFIRM TEAM UPDATE',
+      itemName: editingTeam?.name || 'NEW TEAM',
+      description: isCreate
+        ? `Are you sure you want to add the team "${editingTeam?.name || ''}" to the database?`
+        : `Are you sure you want to save modifications to team "${editingTeam?.name || ''}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSaveTeam();
+      }
+    });
+  };
+
   const executeDelete = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
@@ -234,7 +265,7 @@ const AdminTeams = () => {
       try {
         setTeams(prev => prev.filter(t => String(t.id) !== String(id)));
         await fetch(`/api/teams/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
-        setToastMsg('تم حذف الفريق بنجاح! / Team deleted.');
+        setToastMsg('Team deleted successfully.');
         fetchTeams();
       } catch (err: any) {
         fetchTeams();
@@ -243,7 +274,7 @@ const AdminTeams = () => {
       try {
         setPlayers(prev => prev.filter(p => String(p.id) !== String(id)));
         await fetch(`/api/players/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
-        setToastMsg('تم حذف اللاعب بنجاح! / Player deleted.');
+        setToastMsg('Player deleted successfully.');
         if (expandedTeamId) fetchPlayers(expandedTeamId);
       } catch (err: any) {
         if (expandedTeamId) fetchPlayers(expandedTeamId);
@@ -251,8 +282,7 @@ const AdminTeams = () => {
     }
   };
 
-  const handleSavePlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSavePlayer = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -261,9 +291,11 @@ const AdminTeams = () => {
       const calculatedAge = calculateAgeFromBirthDate(editingPlayer.birth_date);
       const resolvedAge = calculatedAge !== null ? String(calculatedAge) : (editingPlayer.age || '22');
 
+      const targetTeamId = editingPlayer?.team_id || expandedTeamId;
+
       const payload = {
         ...editingPlayer,
-        team_id: expandedTeamId,
+        team_id: targetTeamId,
         ign: editingPlayer.nickname || editingPlayer.ign || 'PLAYER',
         nickname: editingPlayer.nickname || editingPlayer.ign || 'PLAYER',
         role: editingPlayer.role || 'ROSTER',
@@ -294,8 +326,13 @@ const AdminTeams = () => {
         socials: JSON.stringify(playerSocialList)
       };
 
-      const method = editingPlayer.id ? 'PUT' : 'POST';
-      const url = editingPlayer.id ? `/api/players/${editingPlayer.id}` : '/api/players';
+      const isCreate = !editingPlayer?.id;
+      if (isCreate) {
+        delete (payload as any).id;
+      }
+
+      const method = isCreate ? 'POST' : 'PUT';
+      const url = isCreate ? '/api/players' : `/api/players/${editingPlayer.id}`;
       
       const res = await fetch(url, {
         method,
@@ -313,8 +350,8 @@ const AdminTeams = () => {
       }
       
       setEditingPlayer(null);
-      setToastMsg('تم حفظ بيانات اللاعب وتحديثها بنجاح! / Player saved successfully!');
-      if (expandedTeamId) fetchPlayers(expandedTeamId);
+      setToastMsg('Player saved successfully!');
+      if (targetTeamId) fetchPlayers(targetTeamId);
     } catch (err: any) {
       console.error('Save player error:', err);
       if (err.name === 'AbortError') {
@@ -326,6 +363,24 @@ const AdminTeams = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSavePlayer = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingPlayer?.id;
+    const athleteName = editingPlayer?.nickname || editingPlayer?.ign || editingPlayer?.name || 'NEW ATHLETE';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM ATHLETE CREATION' : 'CONFIRM ATHLETE UPDATE',
+      itemName: athleteName,
+      description: isCreate
+        ? `Are you sure you want to add athlete "${athleteName}" to the roster?`
+        : `Are you sure you want to save modifications to athlete "${athleteName}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSavePlayer();
+      }
+    });
   };
 
   if (loading) return <div className="p-8 font-syncopate text-[#FFC400] text-xs font-bold">LOADING_TEAMS...</div>;
@@ -730,7 +785,7 @@ const AdminTeams = () => {
                           </>
                         ) : (
                           <ImageUploader
-                            label="Photo File / صورة"
+                            label="Photo File"
                             value={item.url || ''}
                             onChange={url => onChange({ ...item, url })}
                             aspectRatio="banner"
@@ -777,9 +832,21 @@ const AdminTeams = () => {
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-[#FFC400]" />
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
-              <h2 className="font-syncopate text-xl font-black text-white uppercase tracking-tighter">
-                {editingPlayer.id ? 'EDIT_PLAYER' : 'ADD_PLAYER'}
-              </h2>
+              <div>
+                <h2 className="font-syncopate text-xl font-black text-white uppercase tracking-tighter">
+                  {editingPlayer.id ? 'EDIT_PLAYER' : 'ADD_PLAYER'}
+                </h2>
+                {(() => {
+                  const currentTeam = teams.find(t => String(t.id) === String(expandedTeamId || editingPlayer.team_id));
+                  return currentTeam ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="font-syncopate text-[9px] text-slate-400 uppercase tracking-widest font-bold">ASSIGNED TO ROSTER:</span>
+                      <span className="font-syncopate text-xs font-black text-[#FFC400] uppercase tracking-wider">{currentTeam.name}</span>
+                      <span className="px-2 py-0.5 bg-slate-800 text-slate-300 font-syncopate text-[8px] font-bold uppercase">{currentTeam.game}</span>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
               <button onClick={() => setEditingPlayer(null)} className="text-slate-500 hover:text-white"><X size={24} /></button>
             </div>
             
@@ -825,7 +892,7 @@ const AdminTeams = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">
-                        Nationality / Country / الجنسية
+                        Nationality / Country
                       </label>
                       {(editingPlayer.nationality || editingPlayer.country) && (
                         <span className="text-[10px] font-syncopate text-[#FFC400] flex items-center gap-1.5 font-bold">
@@ -901,7 +968,7 @@ const AdminTeams = () => {
                   {/* Date of Birth input with automatic age calculation */}
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-[#FFC400] font-bold uppercase tracking-widest flex items-center justify-between">
-                      <span>Date of Birth / الميلاد</span>
+                      <span>Date of Birth</span>
                       <span className="text-[7px] text-slate-400 font-normal">CALCULATES AGE</span>
                     </label>
                     <input 
@@ -923,7 +990,7 @@ const AdminTeams = () => {
                   {/* Automatically calculated Operative Age */}
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest flex items-center justify-between">
-                      <span>Age / العمر</span>
+                      <span>Age</span>
                       <span className="text-[7px] text-[#FFC400] font-normal">
                         {editingPlayer.birth_date ? 'AUTO-CALCULATED' : 'AUTOMATIC'}
                       </span>
@@ -961,26 +1028,32 @@ const AdminTeams = () => {
               <FormSection title="3. ACHIEVEMENTS & ACCOLADES" subtitle="Control trophy cards, championship counts, and tournament titles">
                 <div className="p-4 bg-[#040E1E]/80 border border-slate-800/80 space-y-3">
                   <span className="font-syncopate text-[9px] text-[#FFC400] font-bold uppercase tracking-widest block">
-                    ACHIEVEMENTS & ACCOLADES CARDS / كروت الإنجازات والبطولات
+                    ACHIEVEMENTS & ACCOLADES CARDS
                   </span>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Championship Wins</label>
+                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest block">
+                        Tournament Wins
+                        <span className="block text-[7px] text-slate-500 font-normal normal-case font-inter mt-0.5">All first place finishes</span>
+                      </label>
                       <input 
                         type="text" 
                         value={editingPlayer.championship_wins ?? '5'}
                         onChange={e => setEditingPlayer({...editingPlayer, championship_wins: e.target.value})}
-                        placeholder="5"
+                        placeholder="5" 
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Major Titles</label>
+                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest block">
+                        Major Wins
+                        <span className="block text-[7px] text-slate-500 font-normal normal-case font-inter mt-0.5">S and A tier first place finishes</span>
+                      </label>
                       <input 
                         type="text" 
                         value={editingPlayer.major_titles ?? '5'}
                         onChange={e => setEditingPlayer({...editingPlayer, major_titles: e.target.value})}
-                        placeholder="5"
+                        placeholder="5" 
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>
@@ -1090,13 +1163,13 @@ const AdminTeams = () => {
                         <div className="space-y-2">
                           <input 
                             type="text" 
-                            list={`mvp-presets-${idx}`}
+                            list={`player-${editingPlayer?.id || 'active'}-mvp-presets-${idx}`}
                             value={item.placement || ''} 
                             onChange={e => onChange({ ...item, placement: e.target.value })}
                             placeholder="e.g. Tournament MVP" 
                             className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                           />
-                          <datalist id={`mvp-presets-${idx}`}>
+                          <datalist id={`player-${editingPlayer?.id || 'active'}-mvp-presets-${idx}`}>
                             <option value="Tournament MVP" />
                             <option value="Regular Season MVP" />
                             <option value="Finals MVP" />
@@ -1149,18 +1222,18 @@ const AdminTeams = () => {
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Media Type / نوع الميديا</label>
+                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Media Type</label>
                           <select 
                             value={item.type || 'photo'}
                             onChange={e => onChange({ ...item, type: e.target.value })}
                             className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] appearance-none"
                           >
-                            <option value="photo">PHOTO / صورة</option>
-                            <option value="video">VIDEO / فيديو</option>
+                            <option value="photo">PHOTO</option>
+                            <option value="video">VIDEO</option>
                           </select>
                         </div>
                         <div className="space-y-2 md:col-span-2">
-                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Media Caption / Title / عنوان الصورة أو الفيديو</label>
+                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Media Caption / Title</label>
                           <input 
                             type="text" 
                             value={item.title || ''} 
@@ -1174,7 +1247,7 @@ const AdminTeams = () => {
                       <div className="space-y-2">
                         {item.type === 'video' ? (
                           <>
-                            <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Video Stream or Embed URL / رابط الفيديو</label>
+                            <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Video Stream or Embed URL</label>
                             <input 
                               type="text" 
                               value={item.url || ''} 
@@ -1186,7 +1259,7 @@ const AdminTeams = () => {
                         ) : (
                           <div>
                             <ImageUploader
-                              label="Upload Photo File / رفع ملف صورة"
+                              label="Upload Photo File"
                               value={item.url || ''}
                               onChange={url => onChange({ ...item, url })}
                               aspectRatio="banner"
@@ -1289,14 +1362,28 @@ const AdminTeams = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title={deleteTarget?.type === 'team' ? "DELETE_TEAM" : "DELETE_PLAYER"}
+        title={deleteTarget?.type === 'team' ? "DELETE TEAM" : "DELETE ATHLETE"}
         itemName={deleteTarget?.name}
+        actionType="delete"
         description={
           deleteTarget?.type === 'team'
             ? "Are you sure you want to delete this team and all associated players? This action cannot be undone."
-            : "Are you sure you want to delete this athlete from the roster? This action cannot be undone."
+            : "Are you sure you want to permanently remove this athlete from the roster? This action cannot be undone."
         }
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

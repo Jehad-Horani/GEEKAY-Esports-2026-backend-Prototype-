@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Save, Globe, Mail, Share2, MapPin, BarChart2, CheckCircle2, AlertCircle, Building2, ArrowRight } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import { useSettings } from '../context/SettingsContext';
 
 const AdminSettings = () => {
@@ -13,6 +15,7 @@ const AdminSettings = () => {
     type: null,
     message: ''
   });
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   useEffect(() => {
     if (globalSettings) {
@@ -24,8 +27,7 @@ const AdminSettings = () => {
     setFormData((prev: any) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     setSaving(true);
     setSaveStatus({ type: null, message: '' });
 
@@ -48,6 +50,20 @@ const AdminSettings = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    requestConfirm({
+      actionType: 'edit',
+      title: 'CONFIRM SETTINGS UPDATE',
+      itemName: 'SITE_GLOBAL_SETTINGS',
+      description: 'Are you sure you want to update global settings across the entire platform?',
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   return (
@@ -343,6 +359,19 @@ const AdminSettings = () => {
           </ArenaButton>
         </div>
       </form>
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

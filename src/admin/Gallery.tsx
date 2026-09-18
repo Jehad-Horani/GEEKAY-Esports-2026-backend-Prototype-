@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, X, Image as ImageIcon, Filter, Search, Share2, Dow
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 import { ToastNotification } from './components/Toast';
 import { getAuthHeaders } from './utils/api';
 
@@ -15,6 +16,7 @@ const AdminGallery = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
   const [filterCat, setFilterCat] = useState('ALL');
 
   // Google Drive Import State
@@ -44,8 +46,7 @@ const AdminGallery = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -53,12 +54,16 @@ const AdminGallery = () => {
     try {
       const method = editingItem.id ? 'PUT' : 'POST';
       const url = editingItem.id ? `/api/gallery/${editingItem.id}` : '/api/gallery';
+      const payload: any = { ...editingItem };
+      if (!editingItem.id) {
+        delete payload.id;
+      }
       
       const res = await fetch(url, {
         method,
         headers: getAuthHeaders(),
         credentials: 'include',
-        body: JSON.stringify(editingItem),
+        body: JSON.stringify(payload),
         signal: controller.signal
       });
       
@@ -70,7 +75,7 @@ const AdminGallery = () => {
       }
       
       setEditingItem(null);
-      setToastMsg('تم حفظ وتحديث عنصر المعرض بنجاح! / Gallery item saved successfully!');
+      setToastMsg('Gallery item saved successfully!');
       fetchItems();
     } catch (err: any) {
       console.error('Save gallery error:', err);
@@ -83,6 +88,24 @@ const AdminGallery = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingItem?.id;
+    const mediaTitle = editingItem?.title || 'GALLERY ITEM';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM ADD MEDIA' : 'CONFIRM UPDATE MEDIA',
+      itemName: mediaTitle,
+      description: isCreate
+        ? `Are you sure you want to add "${mediaTitle}" to the media gallery?`
+        : `Are you sure you want to save changes to "${mediaTitle}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const executeDelete = async () => {
@@ -366,10 +389,24 @@ const AdminGallery = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title="DELETE_GALLERY_ITEM"
+        title="DELETE GALLERY ITEM"
         itemName={deleteTarget?.name}
-        description="Are you sure you want to delete this media item from the gallery? This action cannot be undone."
+        actionType="delete"
+        description="Are you sure you want to permanently delete this media item from the gallery? This action cannot be undone."
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

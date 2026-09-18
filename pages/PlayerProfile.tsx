@@ -83,11 +83,29 @@ const getJoinDate = (playerId: string) => {
 
 // Visual trophy visualizer cards
 const TROPHY_PRESETS = [
-  { title: 'Championship Wins', desc: 'S-Tier international gold medals', icon: <TrophyIcon className="text-[#FFC400]" size={36} />, count: '3' },
-  { title: 'Major Titles', desc: 'Regional division final trophies', icon: <Award className="text-yellow-400" size={36} />, count: '6' },
+  { title: 'Tournament Wins', desc: 'All first place finishes', icon: <TrophyIcon className="text-[#FFC400]" size={36} />, count: '3' },
+  { title: 'Major Wins', desc: 'S and A tier first place finishes', icon: <Award className="text-yellow-400" size={36} />, count: '6' },
   { title: 'Int. Placements', desc: 'Global stage top 3 finishes', icon: <Zap className="text-amber-400" size={36} />, count: '12' },
   { title: 'Trophy Count', desc: 'Total registered organization cups', icon: <Flame className="text-orange-500" size={36} />, count: '21' },
 ];
+
+// Helper to scale player nicknames smoothly so long names strictly fit in one row without wrapping or overflowing
+const getNicknameClasses = (name: string) => {
+  const len = (name || '').length;
+  if (len >= 18) {
+    return 'text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl tracking-normal';
+  }
+  if (len >= 14) {
+    return 'text-xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl tracking-tight';
+  }
+  if (len >= 10) {
+    return 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl tracking-tighter';
+  }
+  if (len >= 7) {
+    return 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-7xl tracking-tighter';
+  }
+  return 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-8xl tracking-tighter';
+};
 
 // Fallback high-quality unsplash imagery for player media gallery
 const GALLERY_PHOTOS = [
@@ -391,16 +409,16 @@ export default function PlayerProfile() {
               </div>
             </div>
 
-            {/* Mobile-optimized Player Nickname */}
-            <h1 className="font-syncopate text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-[1.05] mb-2 sm:mb-4 break-words hyphens-auto w-full min-w-0 max-w-full">
+            {/* Player Nickname (Strict single-line display with dynamic responsive scaling so long names always fit in one row) */}
+            <h1 className={`font-syncopate font-black text-white uppercase leading-none mb-2 sm:mb-4 whitespace-nowrap truncate max-w-full block ${getNicknameClasses(player.nickname)}`}>
               {player.nickname}
             </h1>
 
-            {/* Mobile-optimized Real Name & Role */}
-            <p className="font-syncopate text-slate-400 text-[10px] sm:text-xs md:text-sm tracking-wider sm:tracking-[0.25em] md:tracking-[0.4em] uppercase mb-6 sm:mb-8 flex flex-wrap items-center gap-2 sm:gap-3 leading-relaxed">
-              {player.name && <span className="break-words">{player.name}</span>}
-              {player.name && <span className="text-slate-800">//</span>}
-              <span className="text-[#FFC400] font-black">{player.role}</span>
+            {/* Real Name & Role - strictly kept on one single row with ellipsis if needed */}
+            <p className="font-syncopate text-slate-400 text-[10px] sm:text-xs md:text-sm tracking-wider sm:tracking-[0.2em] uppercase mb-6 sm:mb-8 flex items-center gap-2 sm:gap-3 leading-relaxed max-w-full overflow-hidden whitespace-nowrap">
+              {player.name && <span className="truncate max-w-[70%]">{player.name}</span>}
+              {player.name && <span className="text-slate-800 shrink-0">//</span>}
+              <span className="text-[#FFC400] font-black shrink-0">{player.role}</span>
             </p>
 
             {/* Social platform links (Display ONLY available) */}
@@ -458,21 +476,21 @@ export default function PlayerProfile() {
                 <div className="space-y-4 border border-slate-800 p-8 bg-[#040E1E]/20 relative">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-[#FFC400]/50" />
                   
-                  <div className="flex justify-between py-2 border-b border-slate-900">
-                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">FULL NAME</span>
-                    <span className="font-syncopate text-[11px] font-bold text-white">{player.name}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-900 gap-2">
+                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider shrink-0">FULL NAME</span>
+                    <span className="font-syncopate text-[11px] font-bold text-white text-right truncate max-w-[65%]">{player.name}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-slate-900">
-                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">NICKNAME</span>
-                    <span className="font-syncopate text-[11px] font-bold text-[#FFC400]">{player.nickname}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-900 gap-2">
+                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider shrink-0">NICKNAME</span>
+                    <span className="font-syncopate text-[11px] font-bold text-[#FFC400] text-right truncate max-w-[65%]">{player.nickname}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-slate-900">
-                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">ROSTER UNIT</span>
-                    <span className="font-syncopate text-[11px] font-bold text-white uppercase">{team.name}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-900 gap-2">
+                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider shrink-0">ROSTER UNIT</span>
+                    <span className="font-syncopate text-[11px] font-bold text-white uppercase text-right truncate max-w-[65%]">{team.name}</span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-slate-900">
-                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">TACTICAL ROLE</span>
-                    <span className="font-syncopate text-[11px] font-bold text-white">{player.role}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-900 gap-2">
+                    <span className="font-syncopate text-[10px] text-slate-500 tracking-wider shrink-0">TACTICAL ROLE</span>
+                    <span className="font-syncopate text-[11px] font-bold text-white text-right truncate max-w-[65%]">{player.role}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-slate-900">
                     <span className="font-syncopate text-[10px] text-slate-500 tracking-wider">OPERATIVE AGE</span>
@@ -531,16 +549,16 @@ export default function PlayerProfile() {
                         </div>
                       </div>
                       
-                      <div className="flex-grow border-b border-slate-900 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                        <div>
-                          <h4 className="font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors uppercase tracking-widest">
+                      <div className="flex-grow border-b border-slate-900 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-syncopate text-xs font-black text-white group-hover:text-[#FFC400] transition-colors uppercase tracking-widest truncate">
                             {res.tournamentName}
                           </h4>
-                          <span className="text-slate-400 font-syncopate text-[10px] font-bold tracking-wider uppercase block mt-1">
+                          <span className="text-slate-400 font-syncopate text-[10px] font-bold tracking-wider uppercase block mt-1 truncate">
                             {res.placement}
                           </span>
                         </div>
-                        <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right font-bold">{res.year}</span>
+                        <span className="font-syncopate text-[10px] text-slate-500 tracking-wider md:text-right font-bold shrink-0">{res.year}</span>
                       </div>
                     </div>
                   ))}
@@ -559,8 +577,8 @@ export default function PlayerProfile() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {[
                   { 
-                    title: 'Championship Wins', 
-                    desc: 'S-Tier international gold medals', 
+                    title: 'Tournament Wins', 
+                    desc: 'All first place finishes', 
                     icon: <TrophyIcon className="text-[#FFC400]" size={36} />, 
                     count: (player.championship_wins !== undefined && player.championship_wins !== null && String(player.championship_wins).trim() !== '')
                       ? player.championship_wins
@@ -569,8 +587,8 @@ export default function PlayerProfile() {
                           : (player.stats?.mvps || 5))
                   },
                   { 
-                    title: 'Major Titles', 
-                    desc: 'Regional division final trophies', 
+                    title: 'Major Wins', 
+                    desc: 'S and A tier first place finishes', 
                     icon: <Award className="text-yellow-400" size={36} />, 
                     count: (player.major_titles !== undefined && player.major_titles !== null && String(player.major_titles).trim() !== '')
                       ? player.major_titles
@@ -723,7 +741,7 @@ export default function PlayerProfile() {
                 </div>
               </div>
 
-              <Link to={`/teams?id=${team.id}`} className="block w-full">
+              <Link to={`/teams/${(team.name || team.game).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`} className="block w-full">
                 <ArenaButton className="w-full h-16 group relative overflow-hidden">
                   <span className="relative z-10 flex items-center justify-center gap-2 font-syncopate text-[10px] font-black uppercase tracking-widest">
                     VIEW TEAM <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />

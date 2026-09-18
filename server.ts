@@ -1161,15 +1161,25 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 app.use('/uploads', express.static('public/uploads'));
 
-// --- Security Headers Middleware ---
+// --- CORS & Security Headers Middleware ---
 app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
   }
   next();
 });
@@ -1638,14 +1648,174 @@ app.get('/api/auth/me', async (req: any, res: any) => {
     return payload;
   };
 
+  function sanitizeSqliteValue(val: any): any {
+    if (val === undefined || val === null) return null;
+    if (typeof val === 'boolean') return val ? 1 : 0;
+    if (typeof val === 'number' || typeof val === 'string' || typeof val === 'bigint' || Buffer.isBuffer(val)) return val;
+    if (typeof val === 'object') return JSON.stringify(val);
+    return String(val);
+  }
+
+  // Helper to safely merge Supabase and SQLite records, giving strict priority to SQLite local edits
+  const mergeRecords = (sqlItem: any, sbItem: any) => {
+    if (sqlItem) return sqlItem;
+    return sbItem || {};
+  };
+
+  // Helper to sync Supabase rows to SQLite and purge deleted SQLite records ONLY when full table is explicitly requested
+  const syncSupabaseToSqlite = (tableName: string, sbItems: any[], isFullTable = false) => {
+    if (!Array.isArray(sbItems)) return;
+    const validCols = getValidColumns(tableName);
+    if (validCols.length === 0) return;
+
+    try {
+      // ONLY delete records if this is an explicit full table sync with items
+      if (isFullTable && sbItems.length > 0) {
+        const sbIds = new Set(sbItems.map((item: any) => String(item?.id)).filter(Boolean));
+        const sqliteRows = db.prepare(`SELECT id FROM ${tableName}`).all() as any[];
+
+        for (const row of sqliteRows) {
+          if (!sbIds.has(String(row.id))) {
+            db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).run(row.id);
+          }
+        }
+      }
+
+      // Upsert Supabase records into SQLite
+      for (const item of sbItems) {
+        if (!item || item.id === undefined || item.id === null) continue;
+        const payload: any = {};
+        for (const k of Object.keys(item)) {
+          if (validCols.includes(k)) {
+            payload[k] = item[k];
+          }
+        }
+        const fields = Object.keys(payload);
+        if (fields.length > 0) {
+          const placeholders = fields.map(() => '?').join(',');
+          const values = fields.map(f => sanitizeSqliteValue(payload[f]));
+          db.prepare(`INSERT OR REPLACE INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
+        }
+      }
+    } catch (e) {
+      console.error(`Error in syncSupabaseToSqlite for ${tableName}:`, e);
+    }
+  };
+
+  // Helper to ensure an ID does not already exist in SQLite or Supabase before adding
+  const checkIdExists = async (tableName: string, checkId: any): Promise<boolean> => {
+    if (checkId === undefined || checkId === null || checkId === '') return false;
+    try {
+      const row = db.prepare(`SELECT id FROM ${tableName} WHERE id = ?`).get(checkId);
+      if (row) return true;
+    } catch (e) {}
+
+    if (supabase) {
+      try {
+        const { data } = await supabase.from(tableName).select('id').eq('id', checkId).maybeSingle();
+        if (data && data.id) return true;
+      } catch (e) {}
+    }
+    return false;
+  };
+
+  // Helper to calculate a guaranteed non-colliding numeric ID across both SQLite and Supabase
+  const getNextSafeId = async (tableName: string): Promise<number> => {
+    let maxId = 0;
+
+    // 1. Check max numeric ID in SQLite
+    try {
+      const row = db.prepare(`SELECT MAX(CAST(id AS INTEGER)) as maxId FROM ${tableName}`).get() as any;
+      if (row && row.maxId !== null && row.maxId !== undefined && !isNaN(Number(row.maxId))) {
+        maxId = Math.max(maxId, Number(row.maxId));
+      }
+    } catch (e) {
+      console.error(`Error querying max SQLite ID for ${tableName}:`, e);
+    }
+
+    // 2. Check max numeric ID in Supabase
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('id');
+        if (!error && Array.isArray(data) && data.length > 0) {
+          for (const item of data) {
+            const num = Number(item?.id);
+            if (!isNaN(num) && num > 0) {
+              maxId = Math.max(maxId, num);
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`Error querying Supabase IDs for ${tableName}:`, e);
+      }
+    }
+
+    // 3. Find first candidate starting strictly above maxId that is confirmed NOT to exist anywhere
+    let candidate = maxId + 1;
+    while (true) {
+      let conflict = false;
+      try {
+        const row = db.prepare(`SELECT 1 FROM ${tableName} WHERE id = ?`).get(candidate);
+        if (row) conflict = true;
+      } catch (e) {}
+
+      if (!conflict && supabase) {
+        try {
+          const { data } = await supabase.from(tableName).select('id').eq('id', candidate).maybeSingle();
+          if (data && data.id) conflict = true;
+        } catch (e) {}
+      }
+
+      if (!conflict) {
+        return candidate;
+      }
+      candidate++;
+    }
+  };
+
+  // Startup data sync from Supabase into SQLite for all tables
+  const syncStartupData = async () => {
+    if (!supabase) return;
+    try {
+      const allTables = [
+        'teams', 'players', 'creators', 'news', 'events', 'matches', 'achievements',
+        'partners', 'leadership', 'gallery', 'jobs', 'news_categories', 'news_tags',
+        'news_authors', 'game_titles', 'subscribers', 'settings'
+      ];
+      for (const table of allTables) {
+        try {
+          const { data, error } = await supabase.from(table).select('*');
+          if (!error && Array.isArray(data) && data.length > 0) {
+            syncSupabaseToSqlite(table, data, false);
+            console.log(`[Supabase Boot Sync] Synced ${data.length} ${table} into local SQLite.`);
+          }
+        } catch (tableErr) {
+          console.warn(`[Supabase Boot Sync] Could not sync ${table}:`, tableErr);
+        }
+      }
+    } catch (e) {
+      console.error('Exception in syncStartupData:', e);
+    }
+  };
+  syncStartupData();
+
   // Helper functions for safe Supabase mutation with column fallback
-  const safeInsertSupabase = async (tableName: string, rawPayload: any) => {
+  const safeInsertSupabase = async (tableName: string, rawPayload: any, forceId = false) => {
     if (!supabase) return null;
     let payload = prepareSupabasePayload(rawPayload);
 
+    // CRITICAL: When inserting a new record, NEVER specify an ID unless explicitly forced.
+    if (!forceId) {
+      delete payload.id;
+    }
+
     for (let attempts = 0; attempts < 25; attempts++) {
       try {
-        const { data, error } = await supabase.from(tableName).upsert([payload]).select().maybeSingle();
+        const query = supabase.from(tableName).insert([payload]).select().maybeSingle();
+
+        const { data, error } = await query;
         if (!error && data) return data;
 
         if (error) {
@@ -1759,7 +1929,7 @@ app.get('/api/auth/me', async (req: any, res: any) => {
         if (!error && data && data.length > 0) return true;
 
         if (!error && data && data.length === 0) {
-          const inserted = await safeInsertSupabase(tableName, { id: targetId, ...rawPayload });
+          const inserted = await safeInsertSupabase(tableName, { id: targetId, ...rawPayload }, true);
           return !!inserted;
         }
 
@@ -1838,58 +2008,6 @@ app.get('/api/auth/me', async (req: any, res: any) => {
       }
     }
     return false;
-  };
-
-  // Helper to safely merge Supabase and SQLite records, giving strict priority to SQLite local edits
-  const mergeRecords = (sqlItem: any, sbItem: any) => {
-    if (sqlItem) return sqlItem;
-    return sbItem || {};
-  };
-
-  function sanitizeSqliteValue(val: any): any {
-    if (val === undefined || val === null) return null;
-    if (typeof val === 'boolean') return val ? 1 : 0;
-    if (typeof val === 'number' || typeof val === 'string' || typeof val === 'bigint' || Buffer.isBuffer(val)) return val;
-    if (typeof val === 'object') return JSON.stringify(val);
-    return String(val);
-  }
-
-  // Helper to sync Supabase rows to SQLite and purge deleted SQLite records
-  const syncSupabaseToSqlite = (tableName: string, sbItems: any[]) => {
-    if (!Array.isArray(sbItems)) return;
-    const validCols = getValidColumns(tableName);
-    if (validCols.length === 0) return;
-
-    try {
-      const sbIds = new Set(sbItems.map((item: any) => String(item?.id)).filter(Boolean));
-      const sqliteRows = db.prepare(`SELECT id FROM ${tableName}`).all() as any[];
-
-      // Delete SQLite records that no longer exist in Supabase
-      for (const row of sqliteRows) {
-        if (!sbIds.has(String(row.id))) {
-          db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).run(row.id);
-        }
-      }
-
-      // Upsert Supabase records into SQLite
-      for (const item of sbItems) {
-        if (!item || item.id === undefined || item.id === null) continue;
-        const payload: any = {};
-        for (const k of Object.keys(item)) {
-          if (validCols.includes(k)) {
-            payload[k] = item[k];
-          }
-        }
-        const fields = Object.keys(payload);
-        if (fields.length > 0) {
-          const placeholders = fields.map(() => '?').join(',');
-          const values = fields.map(f => sanitizeSqliteValue(payload[f]));
-          db.prepare(`INSERT OR REPLACE INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
-        }
-      }
-    } catch (e) {
-      console.error(`Error in syncSupabaseToSqlite for ${tableName}:`, e);
-    }
   };
 
   // Helper to ensure creator socials and platforms are fully synchronized and never lost
@@ -2145,31 +2263,44 @@ app.get('/api/auth/me', async (req: any, res: any) => {
           }
         }
 
+        // Delete any client-provided ID to ensure a guaranteed unique fresh primary key
+        delete rawPayload.id;
+        delete payload.id;
+
         const fields = Object.keys(payload);
         if (fields.length === 0) {
           return res.status(400).json({ error: 'No valid fields provided for insertion' });
         }
-        const placeholders = fields.map(() => '?').join(',');
-        const values = fields.map(f => sanitizeSqliteValue(payload[f]));
-        
-        const info = db.prepare(`INSERT INTO ${tableName} (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
-        const newId = info.lastInsertRowid;
-        const insertedObj = { id: newId, ...payload };
-        if (tableName === 'users') delete insertedObj.password;
 
-        try {
-          const sbRes = await safeInsertSupabase(tableName, { ...rawPayload, id: newId });
-          if (sbRes && sbRes.id) {
-            insertedObj.id = sbRes.id;
-            try {
-              if (sbRes.id !== newId) {
-                db.prepare(`UPDATE ${tableName} SET id = ? WHERE id = ?`).run(sbRes.id, newId);
-              }
-            } catch (syncErr) {}
+        // Generate a guaranteed safe, non-colliding numeric ID across both SQLite and Supabase
+        const newId = await getNextSafeId(tableName);
+        payload.id = newId;
+
+        let insertedId = newId;
+        let insertedObj: any = { ...payload, id: newId };
+
+        // 1. Mirror into Supabase first with the exact verified unique ID
+        if (supabase) {
+          try {
+            const sbRes = await safeInsertSupabase(tableName, { ...rawPayload, id: newId }, true);
+            if (sbRes && sbRes.id) {
+              insertedId = sbRes.id;
+              insertedObj = { ...insertedObj, ...sbRes, id: insertedId };
+            }
+          } catch (sbErr) {
+            console.error(`Supabase sync error on POST /api/${tableName}:`, sbErr);
           }
-        } catch (sbErr) {
-          console.error(`Supabase sync error on POST /api/${tableName}:`, sbErr);
         }
+
+        // 2. Insert into SQLite with strict INSERT INTO (never INSERT OR REPLACE) using insertedId
+        payload.id = insertedId;
+        const fieldsWithId = Object.keys(payload);
+        const placeholdersWithId = fieldsWithId.map(() => '?').join(',');
+        const valuesWithId = fieldsWithId.map(f => sanitizeSqliteValue(payload[f]));
+
+        db.prepare(`INSERT INTO ${tableName} (${fieldsWithId.join(',')}) VALUES (${placeholdersWithId})`).run(...valuesWithId);
+
+        if (tableName === 'users' && insertedObj) delete insertedObj.password;
 
         try {
           db.prepare('INSERT INTO activity_log (user_id, action, entity_type, entity_id) VALUES (?, ?, ?, ?)')
@@ -2537,6 +2668,7 @@ app.get('/api/auth/me', async (req: any, res: any) => {
     try {
       console.log('POST /api/players payload:', JSON.stringify(req.body));
       const rawPayload = { ...req.body };
+      
       delete rawPayload.id;
 
       const validCols = getValidColumns('players').filter(c => c !== 'id');
@@ -2550,16 +2682,33 @@ app.get('/api/auth/me', async (req: any, res: any) => {
       const fields = Object.keys(payload);
       if (fields.length === 0) return res.status(400).json({ error: 'No valid player fields provided' });
 
-      const placeholders = fields.map(() => '?').join(',');
-      const values = fields.map(f => sanitizeSqliteValue(payload[f]));
-      const info = db.prepare(`INSERT INTO players (${fields.join(',')}) VALUES (${placeholders})`).run(...values);
-      const newId = info.lastInsertRowid;
-      const insertedObj = { id: newId, ...payload };
+      // Generate a guaranteed safe, non-colliding numeric ID across both SQLite and Supabase
+      const newId = await getNextSafeId('players');
+      payload.id = newId;
 
-      const sbRes = await safeInsertSupabase('players', { ...rawPayload, id: newId });
-      if (sbRes && sbRes.id) {
-        insertedObj.id = sbRes.id;
+      let insertedId = newId;
+      let insertedObj: any = { ...payload, id: newId };
+
+      // 1. Mirror into Supabase first with the exact verified unique ID
+      if (supabase) {
+        try {
+          const sbRes = await safeInsertSupabase('players', { ...rawPayload, id: newId }, true);
+          if (sbRes && sbRes.id) {
+            insertedId = sbRes.id;
+            insertedObj = { ...insertedObj, ...sbRes, id: insertedId };
+          }
+        } catch (sbErr) {
+          console.error('Supabase sync error on POST /api/players:', sbErr);
+        }
       }
+
+      // 2. Insert into SQLite with strict INSERT INTO (never INSERT OR REPLACE) using insertedId
+      payload.id = insertedId;
+      const fieldsWithId = Object.keys(payload);
+      const placeholdersWithId = fieldsWithId.map(() => '?').join(',');
+      const valuesWithId = fieldsWithId.map(f => sanitizeSqliteValue(payload[f]));
+
+      db.prepare(`INSERT INTO players (${fieldsWithId.join(',')}) VALUES (${placeholdersWithId})`).run(...valuesWithId);
 
       res.json(insertedObj);
     } catch (err: any) {

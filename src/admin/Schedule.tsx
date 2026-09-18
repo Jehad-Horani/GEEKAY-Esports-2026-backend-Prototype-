@@ -6,6 +6,7 @@ import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import * as XLSX from 'xlsx';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import useConfirmDialog from './utils/useConfirmDialog';
 
 import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
@@ -19,6 +20,7 @@ const AdminSchedule = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [filterGame, setFilterGame] = useState('ALL');
+  const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   // Parsed sub-structures for repeater management
   const [teamsList, setTeamsList] = useState<any[]>([]);
@@ -166,8 +168,7 @@ const AdminSchedule = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     setSaving(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -190,6 +191,10 @@ const AdminSchedule = () => {
         media: JSON.stringify(mediaList),
         social: JSON.stringify(socialList)
       };
+
+      if (!editingItem.id) {
+        delete (payload as any).id;
+      }
 
       const method = editingItem.id ? 'PUT' : 'POST';
       const url = editingItem.id ? `/api/events/${editingItem.id}` : '/api/events';
@@ -222,6 +227,24 @@ const AdminSchedule = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isCreate = !editingItem?.id;
+    const eventName = editingItem?.title || editingItem?.name || 'EVENT SCHEDULE';
+    requestConfirm({
+      actionType: isCreate ? 'create' : 'edit',
+      title: isCreate ? 'CONFIRM EVENT CREATION' : 'CONFIRM EVENT UPDATE',
+      itemName: eventName,
+      description: isCreate
+        ? `Are you sure you want to add the event schedule "${eventName}"?`
+        : `Are you sure you want to save changes to event "${eventName}"?`,
+      onConfirm: async () => {
+        closeConfirm();
+        await executeSave();
+      }
+    });
   };
 
   const executeDelete = async () => {
@@ -362,7 +385,7 @@ const AdminSchedule = () => {
               onClick={() => setIsManageTitlesOpen(true)}
               className="h-10 text-[10px] border-[#FFC400]/40 text-[#FFC400] hover:bg-[#FFC400]/10"
             >
-              GAME TITLES (إدارة الألعاب)
+              GAME TITLES
             </ArenaButton>
           </div>
           <ArenaButton onClick={() => handleOpenEdit({ title: '', game: 'RL', type: 'match', start_date: '', end_date: '', time: '', region: 'GLOBAL', status: 'upcoming', link: '', featured: 0, description: '', banner: '', organizer: '', location: '', venue: '', overview_title: 'TACTICAL INTELLIGENCE', prize_pool: '$100,000', total_teams: '16', broadcast: 'TWITCH / YOUTUBE', purpose: 'CHAMPIONSHIP VICTORY', format: 'DOUBLE ELIMINATION BRACKET', timeline: 'FEBRUARY 2026', broadcast_platforms: 'LIVE TWITCH.TV/GEEKAY', published: 1 })}>
@@ -693,7 +716,7 @@ const AdminSchedule = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Venue / Location (مكان / مركز الفعالية)</label>
+                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Venue / Location</label>
                     <input 
                       type="text" 
                       value={editingItem.venue || editingItem.location || ''}
@@ -757,7 +780,7 @@ const AdminSchedule = () => {
                       </div>
                       <div className="space-y-2">
                         <ImageUploader
-                          label="Team Logo / شعار الفريق"
+                          label="Team Logo"
                           value={item.logo || ''}
                           onChange={url => onChange({ ...item, logo: url })}
                           aspectRatio="square"
@@ -895,7 +918,7 @@ const AdminSchedule = () => {
                           </>
                         ) : (
                           <ImageUploader
-                            label="Photo File / صورة"
+                            label="Photo File"
                             value={item.url || ''}
                             onChange={url => onChange({ ...item, url })}
                             aspectRatio="banner"
@@ -994,7 +1017,7 @@ const AdminSchedule = () => {
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
                   <span className="text-[#FFC400] font-syncopate text-[9px] tracking-widest font-bold block uppercase">GAME_TITLES_MANAGER</span>
-                  <h2 className="font-syncopate text-xl font-bold text-white uppercase">إدارة عناوين الألعاب</h2>
+                  <h2 className="font-syncopate text-xl font-bold text-white uppercase">MANAGE GAME TITLES</h2>
                 </div>
                 <button 
                   onClick={() => setIsManageTitlesOpen(false)}
@@ -1050,7 +1073,7 @@ const AdminSchedule = () => {
                             title="Delete Game Title"
                           >
                             <Trash2 size={13} />
-                            <span>DELETE (حذف)</span>
+                            <span>DELETE</span>
                           </button>
                         </div>
                       );
@@ -1077,10 +1100,24 @@ const AdminSchedule = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
-        title="DELETE_EVENT"
+        title="DELETE EVENT"
         itemName={deleteTarget?.name}
-        description="Are you sure you want to delete this event schedule? This action cannot be undone."
+        actionType="delete"
+        description="Are you sure you want to permanently delete this event schedule? This action cannot be undone."
       />
+
+      {confirmDialog && (
+        <ConfirmDeleteModal
+          isOpen={confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmDialog.onConfirm}
+          actionType={confirmDialog.actionType}
+          title={confirmDialog.title}
+          itemName={confirmDialog.itemName}
+          description={confirmDialog.description}
+          loading={saving}
+        />
+      )}
     </div>
   );
 };

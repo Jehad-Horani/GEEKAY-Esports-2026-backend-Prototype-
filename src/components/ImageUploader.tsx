@@ -155,7 +155,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           {label}
         </label>
         <span className="text-[9px] font-syncopate text-slate-500 font-bold uppercase tracking-wider">
-          رفع ملف صورة / Image File
+          IMAGE FILE ASSET
         </span>
       </div>
 
