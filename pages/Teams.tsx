@@ -228,12 +228,12 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                   if (first && typeof first === 'object') {
                     if (first.title && String(first.title).trim()) return String(first.title).trim();
                     if (first.placement && first.tournament) return `${first.placement} - ${first.tournament}`;
-                    if (first.placement) return String(first.placement).trim();
-                    if (first.tournament) return String(first.tournament).trim();
-                    if (first.name) return String(first.name).trim();
+                    if (first.placement && String(first.placement).trim()) return String(first.placement).trim();
+                    if (first.tournament && String(first.tournament).trim()) return String(first.tournament).trim();
+                    if (first.name && String(first.name).trim()) return String(first.name).trim();
                   }
                 }
-                return 'PRO LEAGUE CONTENDER';
+                return null;
               };
               const topAchievement = getTopAchievement(player);
 
@@ -280,13 +280,15 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                       </div>
 
                       <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tight sm:tracking-tighter leading-none mb-1 whitespace-nowrap truncate max-w-full block">{player.nickname}</h3>
-                      <p className="text-[#FFC400] font-syncopate text-[9px] tracking-[0.3em] uppercase font-black mb-4 truncate">{player.role}</p>
+                      <p className={`text-[#FFC400] font-syncopate text-[9px] tracking-[0.3em] uppercase font-black truncate ${topAchievement ? 'mb-4' : 'mb-6'}`}>{player.role}</p>
                       
-                      {/* Top Achievement display */}
-                      <div className="border-t border-slate-800/80 pt-4 mb-6">
-                        <span className="text-slate-500 font-syncopate text-[7px] tracking-widest block uppercase mb-1">TOP ACHIEVEMENT</span>
-                        <p className="text-slate-300 font-inter text-xs font-semibold leading-tight line-clamp-2 uppercase">{topAchievement}</p>
-                      </div>
+                      {/* Top Achievement display - only if the player has personal achievements */}
+                      {topAchievement && (
+                        <div className="border-t border-slate-800/80 pt-4 mb-6">
+                          <span className="text-slate-500 font-syncopate text-[7px] tracking-widest block uppercase mb-1">TOP ACHIEVEMENT</span>
+                          <p className="text-slate-300 font-inter text-xs font-semibold leading-tight line-clamp-2 uppercase">{topAchievement}</p>
+                        </div>
+                      )}
 
                       {/* CTA */}
                       <div className="flex items-center justify-between text-[#FFC400] font-syncopate text-[8px] font-black tracking-[0.3em] uppercase pt-4 border-t border-slate-900">
