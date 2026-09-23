@@ -221,9 +221,21 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {team.players.map((player, pIdx) => {
               const flag = getFlagEmoji(player.nationality);
-              const topAchievement = player.achievements && player.achievements.length > 0
-                ? player.achievements[0].title
-                : 'Pro League Contender';
+              const getTopAchievement = (p: typeof player) => {
+                if (p.achievements && Array.isArray(p.achievements) && p.achievements.length > 0) {
+                  const first: any = p.achievements[0];
+                  if (typeof first === 'string' && first.trim()) return first.trim();
+                  if (first && typeof first === 'object') {
+                    if (first.title && String(first.title).trim()) return String(first.title).trim();
+                    if (first.placement && first.tournament) return `${first.placement} - ${first.tournament}`;
+                    if (first.placement) return String(first.placement).trim();
+                    if (first.tournament) return String(first.tournament).trim();
+                    if (first.name) return String(first.name).trim();
+                  }
+                }
+                return 'PRO LEAGUE CONTENDER';
+              };
+              const topAchievement = getTopAchievement(player);
 
               return (
                 <Link 

@@ -1139,13 +1139,13 @@ const AdminTeams = () => {
               </FormSection>
 
               {/* SECTION 5: MVP TITLES REPEATER */}
-              <FormSection title="5. MVP TITLES & ACHIEVEMENTS" subtitle="Individual MVP awards and tournament titles">
+              <FormSection title="5. MVP TITLES & ACHIEVEMENTS" subtitle="Individual MVP awards and tournament titles (The 1st item here is displayed as 'TOP ACHIEVEMENT' on the team roster card)">
                 <FormRepeater
                   title="Player MVP Titles"
                   items={playerAchievementsList}
                   onItemsChange={setPlayerAchievementsList}
-                  createDefaultItem={() => ({ tournament: 'Dew Challenge', placement: 'Tournament MVP', year: '2026' })}
-                  itemTitle={(item) => `${item.tournament || 'Event'} - ${item.placement || 'Tournament MVP'} (${item.year || '2026'})`}
+                  createDefaultItem={() => ({ tournament: 'Dew Challenge', placement: 'Tournament MVP', year: '2026', title: 'Tournament MVP - Dew Challenge' })}
+                  itemTitle={(item) => `${item.placement || item.title || 'Tournament MVP'} - ${item.tournament || 'Event'} (${item.year || '2026'})`}
                   renderItemFields={(item, idx, onChange) => (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
@@ -1153,19 +1153,29 @@ const AdminTeams = () => {
                         <input 
                           type="text" 
                           value={item.tournament || ''} 
-                          onChange={e => onChange({ ...item, tournament: e.target.value })}
+                          onChange={e => {
+                            const tournament = e.target.value;
+                            const placement = item.placement || '';
+                            const title = placement && tournament ? `${placement} - ${tournament}` : (placement || tournament);
+                            onChange({ ...item, tournament, title });
+                          }}
                           placeholder="e.g. Dew Challenge" 
                           className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">MVP Finish / Title</label>
+                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">MVP Finish / Title (Top Achievement)</label>
                         <div className="space-y-2">
                           <input 
                             type="text" 
                             list={`player-${editingPlayer?.id || 'active'}-mvp-presets-${idx}`}
                             value={item.placement || ''} 
-                            onChange={e => onChange({ ...item, placement: e.target.value })}
+                            onChange={e => {
+                              const placement = e.target.value;
+                              const tournament = item.tournament || '';
+                              const title = placement && tournament ? `${placement} - ${tournament}` : (placement || tournament);
+                              onChange({ ...item, placement, title });
+                            }}
                             placeholder="e.g. Tournament MVP" 
                             className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                           />
@@ -1182,7 +1192,11 @@ const AdminTeams = () => {
                               <button
                                 key={preset}
                                 type="button"
-                                onClick={() => onChange({ ...item, placement: preset })}
+                                onClick={() => {
+                                  const tournament = item.tournament || '';
+                                  const title = tournament ? `${preset} - ${tournament}` : preset;
+                                  onChange({ ...item, placement: preset, title });
+                                }}
                                 className={`font-syncopate text-[7px] font-bold px-2 py-1 uppercase tracking-wider transition-colors ${
                                   item.placement === preset
                                     ? 'bg-[#FFC400] text-black font-black'
