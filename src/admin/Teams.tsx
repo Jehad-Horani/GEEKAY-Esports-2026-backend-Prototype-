@@ -97,8 +97,12 @@ const AdminTeams = () => {
     if (!cleanPlayer.id) {
       delete cleanPlayer.id;
     }
+    const currentIgn = cleanPlayer.ign || cleanPlayer.nickname || '';
     setEditingPlayer({
       ...cleanPlayer,
+      ign: currentIgn,
+      nickname: currentIgn,
+      name: cleanPlayer.name || '',
       birth_date: cleanPlayer.birth_date || '',
       age: computedAge !== null ? String(computedAge) : (cleanPlayer.age || ''),
       nationality: cleanPlayer.nationality || cleanPlayer.country || 'Saudi Arabia',
@@ -293,13 +297,16 @@ const AdminTeams = () => {
 
       const targetTeamId = editingPlayer?.team_id || expandedTeamId;
 
+      const finalIgn = (editingPlayer.ign || editingPlayer.nickname || 'PLAYER').trim();
+      const finalName = (editingPlayer.name || '').trim();
+
       const payload = {
         ...editingPlayer,
         team_id: targetTeamId,
-        ign: editingPlayer.nickname || editingPlayer.ign || 'PLAYER',
-        nickname: editingPlayer.nickname || editingPlayer.ign || 'PLAYER',
+        ign: finalIgn,
+        nickname: finalIgn,
         role: editingPlayer.role || 'ROSTER',
-        name: editingPlayer.name || '',
+        name: finalName,
         age: resolvedAge,
         birth_date: editingPlayer.birth_date || '',
         country: editingPlayer.nationality || editingPlayer.country || 'Saudi Arabia',
@@ -859,8 +866,8 @@ const AdminTeams = () => {
                     <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">In-Game Nickname (IGN)</label>
                     <input 
                       type="text" 
-                      value={editingPlayer.ign || ''}
-                      onChange={e => setEditingPlayer({...editingPlayer, ign: e.target.value})}
+                      value={editingPlayer.ign !== undefined ? editingPlayer.ign : (editingPlayer.nickname || '')}
+                      onChange={e => setEditingPlayer({ ...editingPlayer, ign: e.target.value, nickname: e.target.value })}
                       placeholder="e.g. TRK511"
                       className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       required
