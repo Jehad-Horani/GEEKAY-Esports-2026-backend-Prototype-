@@ -367,63 +367,86 @@ const About = () => {
                 viewport={{ once: true }}
                 className="group relative aspect-[3/4] sm:aspect-[2/3] overflow-hidden border border-slate-800 bg-[#081B3A] cursor-default transition-all duration-500 hover:border-[#FFC400] hover:shadow-[0_0_40px_rgba(255,196,0,0.2)]"
               >
+                {/* Corner accents */}
+                <div className="absolute top-0 left-0 w-2.5 h-2.5 border-t-2 border-l-2 border-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-2.5 h-2.5 border-t-2 border-r-2 border-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-2.5 h-2.5 border-b-2 border-l-2 border-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none" />
+                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 border-b-2 border-r-2 border-[#FFC400] opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none" />
+
                 <img 
                   src={leader.photo} 
                   alt={leader.name} 
                   className="w-full h-full object-cover grayscale transition-transform duration-700 group-hover:scale-110 group-hover:grayscale-0" 
                 />
                 
-                {/* Permanent gradient on mobile so names are always legible */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/60 to-transparent sm:via-transparent sm:to-transparent sm:bg-[#040E1E]/0 group-hover:bg-[#040E1E]/95 transition-all duration-500 flex flex-col justify-end p-5 sm:p-6 md:p-8">
-                  <div className="transform translate-y-0 sm:translate-y-8 sm:group-hover:translate-y-0 transition-transform duration-500">
-                    <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white mb-1 uppercase tracking-tight leading-none drop-shadow-md">{leader.name}</h3>
-                    <span className="text-[#FFC400] font-syncopate text-[9px] sm:text-[10px] tracking-[0.2em] font-bold uppercase block mb-2 sm:mb-4 drop-shadow-sm">{leader.role}</span>
+                {/* Permanent gradient so resting state is clear and high-contrast */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/50 to-transparent pointer-events-none" />
+
+                {/* Resting State: Pinned to bottom, perfectly aligned across cards */}
+                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 md:p-8 z-10 pointer-events-none group-hover:opacity-0 transition-opacity duration-300">
+                  <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white mb-1.5 uppercase tracking-tight leading-none drop-shadow-md truncate">
+                    {leader.name}
+                  </h3>
+                  <span className="text-[#FFC400] font-syncopate text-[9px] sm:text-[10px] tracking-[0.2em] font-bold uppercase block drop-shadow-sm truncate">
+                    {leader.role}
+                  </span>
+                </div>
+
+                {/* Hover Overlay: Revealing bio and social links without affecting resting alignment */}
+                <div className="absolute inset-0 bg-[#040E1E]/95 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-5 sm:p-6 md:p-8 z-20 pointer-events-none group-hover:pointer-events-auto">
+                  <div className="transform translate-y-3 group-hover:translate-y-0 transition-transform duration-300">
+                    <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white mb-1.5 uppercase tracking-tight leading-none drop-shadow-md">
+                      {leader.name}
+                    </h3>
+                    <span className="text-[#FFC400] font-syncopate text-[9px] sm:text-[10px] tracking-[0.2em] font-bold uppercase block mb-3 sm:mb-4 drop-shadow-sm">
+                      {leader.role}
+                    </span>
                     
-                    <div className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-500 sm:delay-100">
+                    {leader.desc && (
                       <p className="text-slate-300 text-xs sm:text-sm font-light leading-relaxed mb-4 line-clamp-3 sm:line-clamp-none">
                         {leader.desc}
                       </p>
-                      
-                      <div className="flex flex-wrap items-center gap-3">
-                        {leader.linkedin && formatSocialLink(leader.linkedin, 'linkedin') && (
-                          <a 
-                            href={formatSocialLink(leader.linkedin, 'linkedin')} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[9px] sm:text-[10px] font-syncopate tracking-wider"
-                            title="LinkedIn"
-                          >
-                            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                            <span>LINKEDIN</span>
-                          </a>
-                        )}
+                    )}
+                    
+                    <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-800">
+                      {leader.linkedin && formatSocialLink(leader.linkedin, 'linkedin') && (
+                        <a 
+                          href={formatSocialLink(leader.linkedin, 'linkedin')} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[9px] sm:text-[10px] font-syncopate tracking-wider"
+                          title="LinkedIn"
+                        >
+                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                          <span>LINKEDIN</span>
+                        </a>
+                      )}
 
-                        {leader.x && formatSocialLink(leader.x, 'x') && (
-                          <a 
-                            href={formatSocialLink(leader.x, 'x')} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[9px] sm:text-[10px] font-syncopate tracking-wider"
-                            title="X (Twitter)"
-                          >
-                            <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                            <span>X</span>
-                          </a>
-                        )}
+                      {leader.x && formatSocialLink(leader.x, 'x') && (
+                        <a 
+                          href={formatSocialLink(leader.x, 'x')} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[9px] sm:text-[10px] font-syncopate tracking-wider"
+                          title="X (Twitter)"
+                        >
+                          <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                          <span>X</span>
+                        </a>
+                      )}
 
-                        {leader.instagram && formatSocialLink(leader.instagram, 'instagram') && (
-                          <a 
-                            href={formatSocialLink(leader.instagram, 'instagram')} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[9px] sm:text-[10px] font-syncopate tracking-wider"
-                            title="Instagram"
-                          >
-                            <Instagram className="w-3.5 h-3.5 text-current" />
-                            <span>INSTA</span>
-                          </a>
-                        )}
-                      </div>
+                      {leader.instagram && formatSocialLink(leader.instagram, 'instagram') && (
+                        <a 
+                          href={formatSocialLink(leader.instagram, 'instagram')} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-white hover:text-[#FFC400] transition-colors text-[9px] sm:text-[10px] font-syncopate tracking-wider"
+                          title="Instagram"
+                        >
+                          <Instagram className="w-3.5 h-3.5 text-current" />
+                          <span>INSTA</span>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
