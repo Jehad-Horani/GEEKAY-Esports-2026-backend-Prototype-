@@ -541,18 +541,19 @@ const ProductCard = ({ product }: { product: Product }) => {
         }}
       >
         {/* Product Image */}
-        <div className="aspect-square overflow-hidden relative">
+        <div className="aspect-square overflow-hidden relative bg-[#061428]/60 flex items-center justify-center p-3">
           <motion.img
             src={product.image}
             alt={product.name}
-            animate={{ scale: isHovered ? 1.1 : 1 }}
-            transition={{ duration: 0.6 }}
-            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+            referrerPolicy="no-referrer"
+            animate={{ scale: isHovered ? 1.08 : 1 }}
+            transition={{ duration: 0.4 }}
+            className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] transition-transform duration-500"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = `https://picsum.photos/seed/${product.id}/600/600`;
+              (e.target as HTMLImageElement).src = '/assets/jersey.png';
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#081B3A] via-transparent to-transparent opacity-60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#081B3A]/80 via-transparent to-transparent opacity-40 pointer-events-none" />
           
           {/* Region Selector Overlay (Desktop) */}
           <AnimatePresence>
@@ -660,23 +661,23 @@ const ProductCard = ({ product }: { product: Product }) => {
 
 const ShopSection = () => {
   return (
-    <section className="py-32 px-6 bg-[#030C1A] border-b border-slate-900 relative z-50 overflow-visible">
+    <section className="py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 bg-[#030C1A] border-b border-slate-900 relative z-50 overflow-visible">
       <div className="absolute inset-0 bg-grid opacity-[0.03] pointer-events-none" />
       <div className="max-w-7xl mx-auto overflow-visible relative">
-        <div className="mb-20 flex flex-col items-center text-center">
+        <div className="mb-12 sm:mb-20 flex flex-col items-center text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="font-syncopate text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-6"
+            className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight mb-4 sm:mb-6 break-words"
           >
             SHOP THE <span className="text-[#FFC400]">GEEKAY COLLECTION</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0 }}
-            whileInView={{ opacity: 0.5 }}
+            whileInView={{ opacity: 0.8 }}
             viewport={{ once: true }}
-            className="text-white font-syncopate text-[10px] md:text-sm tracking-[0.5em] uppercase font-light"
+            className="text-slate-300 font-syncopate text-[9px] sm:text-xs md:text-sm tracking-wider sm:tracking-[0.4em] uppercase font-light"
           >
             Official Gear. Built for Performance.
           </motion.p>
@@ -735,9 +736,9 @@ const PlayerDetailModal: React.FC<{ player: Player; onClose: () => void }> = ({ 
         <div className="h-[300px] lg:h-[600px] relative overflow-hidden">
           <img src={player.photo} alt={player.nickname} className="w-full h-full object-cover grayscale" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-transparent to-transparent" />
-          <div className="absolute bottom-10 left-10">
-            <span className="text-[#FFC400] font-syncopate text-[10px] tracking-[0.4em] font-bold block mb-2 uppercase">{player.role}</span>
-            <h2 className="font-syncopate text-5xl md:text-7xl font-bold leading-none">{player.nickname}</h2>
+          <div className="absolute bottom-6 sm:bottom-10 left-6 sm:left-10 right-6">
+            <span className="text-[#FFC400] font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] sm:tracking-[0.4em] font-bold block mb-2 uppercase">{player.role}</span>
+            <h2 className="font-syncopate text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-black leading-none text-white break-words">{player.nickname}</h2>
           </div>
         </div>
 
@@ -845,18 +846,24 @@ const NewsAnnouncements = ({ newsList = [] }: { newsList?: any[] }) => {
   const others = news.slice(1); // Secondary news
 
   return (
-    <section className="py-32 px-6 bg-[#081B3A] relative z-10 overflow-hidden border-t border-white/5 border-b border-slate-800/50">
+    <section className="py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 bg-[#081B3A] relative z-10 overflow-hidden border-t border-white/5 border-b border-slate-800/50">
       <div className="absolute inset-0 bg-grid opacity-[0.03] pointer-events-none" />
       <div className="max-w-7xl mx-auto">
         {/* Header Row */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-16">
-          <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 sm:gap-8 mb-10 sm:mb-16">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+              <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                INTELLIGENCE FEED
+              </span>
+            </div>
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="font-syncopate text-4xl md:text-6xl font-bold text-white uppercase tracking-tighter relative inline-block"
+              className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight relative inline-block break-words"
             >
               LATEST <span className="text-[#FFC400]">NEWS</span>
               <motion.div 
@@ -1037,12 +1044,18 @@ const AboutSnapshot = ({ statsObj = null, teams = [] }: { statsObj?: any; teams?
           style={{ y: leftY }}
           className="flex flex-col items-start"
         >
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+            <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+              ABOUT THE FRANCHISE
+            </span>
+          </div>
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="font-syncopate text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tighter leading-[1.1] mb-8"
+            className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-tight sm:leading-[1.1] mb-6 sm:mb-8 break-words"
           >
             WHO IS <span className="text-[#FFC400]">GEEKAY ESPORTS?</span>
           </motion.h2>
@@ -1052,7 +1065,7 @@ const AboutSnapshot = ({ statsObj = null, teams = [] }: { statsObj?: any; teams?
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-slate-400 text-base md:text-lg font-light leading-relaxed mb-10 max-w-md"
+            className="text-slate-300 text-sm sm:text-base md:text-lg font-light leading-relaxed mb-8 sm:mb-10 max-w-md"
           >
             A premier multi-division organization dedicated to competitive excellence, 
             maintaining a relentless focus on regional dominance and international prestige.
@@ -1210,24 +1223,30 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
   if (upcomingMatches.length === 0 && !featuredTournament) return null;
 
   return (
-    <section className="py-32 px-6 bg-[#081B3A] relative z-10 overflow-hidden border-t border-slate-800/50">
+    <section className="py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 bg-[#081B3A] relative z-10 overflow-hidden border-t border-slate-800/50">
       <div className="absolute inset-0 bg-grid opacity-[0.03] pointer-events-none" />
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
-        <div className="mb-16">
+        <div className="mb-10 sm:mb-16">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+            <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+              COMPETITIVE CALENDAR
+            </span>
+          </div>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="font-syncopate text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4"
+            className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight mb-3 sm:mb-4 break-words"
           >
             UPCOMING <span className="text-[#FFC400]">MATCHES</span>
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0 }}
-            whileInView={{ opacity: 0.6 }}
+            whileInView={{ opacity: 0.8 }}
             viewport={{ once: true }}
-            className="text-slate-400 font-syncopate text-[10px] tracking-[0.2em] uppercase"
+            className="text-slate-300 font-syncopate text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.2em] uppercase"
           >
             Upcoming matches and featured tournaments.
           </motion.p>
@@ -1395,23 +1414,29 @@ const ActiveTeamsSection = ({ teams = [] }: { teams?: any[] }) => {
   if (displayTeams.length === 0) return null;
 
   return (
-    <section className="py-32 px-6 bg-[#030C1A] relative z-10 overflow-hidden border-t border-slate-900">
+    <section className="py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 bg-[#030C1A] relative z-10 overflow-hidden border-t border-slate-900">
       <div className="absolute inset-0 bg-grid opacity-[0.03] pointer-events-none" />
       <div className="max-w-7xl mx-auto">
-        <div className="mb-16">
+        <div className="mb-10 sm:mb-16">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+            <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+              ELITE ROSTERS
+            </span>
+          </div>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="font-syncopate text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4"
+            className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight mb-3 sm:mb-4 break-words"
           >
             ACTIVE <span className="text-[#FFC400]">TEAMS</span>
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0 }}
-            whileInView={{ opacity: 0.6 }}
+            whileInView={{ opacity: 0.8 }}
             viewport={{ once: true }}
-            className="text-slate-400 font-syncopate text-[10px] tracking-[0.2em] uppercase"
+            className="text-slate-300 font-syncopate text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.2em] uppercase"
           >
             Our elite multi-gaming professional divisions.
           </motion.p>

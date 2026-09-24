@@ -152,7 +152,7 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
             transition={{ delay: 0.2 }}
             className="font-syncopate text-3xl md:text-6xl font-black text-white uppercase tracking-tighter leading-none"
           >
-            {team.name} <span className="text-[#FFC400]">- GEEKAY ESPORTS ROSTER</span>
+            {team.name}
           </motion.h1>
         </div>
       </div>
@@ -208,17 +208,17 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
         {/* ====================================================
             ACTIVE ROSTER SECTION
             ==================================================== */}
-        <section className="mb-32">
-          <div className="flex items-end justify-between mb-12">
+        <section className="mb-16 sm:mb-32">
+          <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
-              <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">TACTICAL PERSONNEL</span>
-              <h2 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">ACTIVE PLAYERS</h2>
+              <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.5em] font-black mb-1 sm:mb-2 block uppercase">TACTICAL PERSONNEL</span>
+              <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl font-black text-white uppercase tracking-tight">ACTIVE PLAYERS</h2>
             </div>
             <div className="hidden md:block h-[1px] flex-grow mx-12 bg-slate-800/80" />
-            <span className="font-syncopate text-slate-500 text-xs tracking-widest uppercase">{team.players.length} OPERATIVES</span>
+            <span className="font-syncopate text-slate-400 text-[10px] sm:text-xs tracking-wider sm:tracking-widest uppercase">{team.players.length} OPERATIVES</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
             {team.players.map((player, pIdx) => {
               const flag = getFlagEmoji(player.nationality);
               const getTopAchievement = (p: typeof player) => {
@@ -307,10 +307,10 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
             TEAM ACHIEVEMENTS SECTION
             ==================================================== */}
         <section className="py-20 border-t border-slate-800/40 mb-20">
-          <div className="flex items-end justify-between mb-12">
+          <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
-              <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">TROPHY HALL</span>
-              <h2 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">TEAM ACHIEVEMENTS</h2>
+              <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.5em] font-black mb-1 sm:mb-2 block uppercase">TROPHY HALL</span>
+              <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl font-black text-white uppercase tracking-tight">TEAM ACHIEVEMENTS</h2>
             </div>
             <div className="hidden md:block h-[1px] flex-grow mx-12 bg-slate-800/80" />
             <TrophyIcon size={32} className="text-slate-700" />
@@ -328,17 +328,14 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
         </section>
 
         {/* ====================================================
-            TEAM MEDIA SECTION
-            ==================================================== */}
-        {/* ====================================================
             TEAM MEDIA SECTION (Strictly database data)
             ==================================================== */}
         {team.media && Array.isArray(team.media) && team.media.length > 0 && (
-          <section className="py-20 border-t border-slate-800/40 mb-20">
-            <div className="flex items-end justify-between mb-12">
+          <section className="py-12 sm:py-20 border-t border-slate-800/40 mb-12 sm:mb-20">
+            <div className="flex items-end justify-between mb-8 sm:mb-12">
               <div>
-                <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">VISUAL ARCHIVES</span>
-                <h2 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">RECENT MEDIA</h2>
+                <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.5em] font-black mb-1 sm:mb-2 block uppercase">VISUAL ARCHIVES</span>
+                <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl font-black text-white uppercase tracking-tight">RECENT MEDIA</h2>
               </div>
               <div className="hidden md:block h-[1px] flex-grow mx-12 bg-slate-800/80" />
               <ImageIcon size={32} className="text-slate-700" />
@@ -369,11 +366,11 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
         {/* ====================================================
             RELATED TEAMS (MORE TEAMS) SECTION
             ==================================================== */}
-        <section className="py-20 border-t border-slate-800/40">
-          <div className="flex items-end justify-between mb-12">
+        <section className="py-12 sm:py-20 border-t border-slate-800/40">
+          <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
-              <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">OTHER OPERATIONS</span>
-              <h2 className="font-syncopate text-4xl md:text-5xl font-black text-white uppercase tracking-tighter">MORE TEAMS</h2>
+              <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.5em] font-black mb-1 sm:mb-2 block uppercase">OTHER OPERATIONS</span>
+              <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl font-black text-white uppercase tracking-tight">MORE TEAMS</h2>
             </div>
             <div className="hidden md:block h-[1px] flex-grow mx-12 bg-slate-800/80" />
           </div>
@@ -820,24 +817,27 @@ const Teams = () => {
               schemas={directorySchema}
             />
             {/* ⚔ DIVISION GRID — “ACTIVE TEAMS” */}
-            <section className="py-24 md:py-32 px-6 bg-[#081B3A] relative border-b border-white/5 pt-36">
+            <section className="py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 bg-[#081B3A] relative border-b border-white/5 pt-24 sm:pt-36">
               <div className="max-w-7xl mx-auto">
                 <Breadcrumbs />
-                <div className="mb-16 flex items-end justify-between">
+                <div className="mb-10 sm:mb-16 flex items-end justify-between">
                   <div className="max-w-2xl">
-                    <h2 className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">ELITE DIVISIONS</h2>
-                    <h1 className="font-syncopate text-4xl md:text-7xl font-black uppercase tracking-tighter text-white leading-[0.85]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                      <h2 className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.5em] font-black block uppercase">ELITE DIVISIONS</h2>
+                    </div>
+                    <h1 className="font-syncopate text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-tight sm:leading-[0.9] break-words">
                       GEEKAY ESPORTS <br /> <span className="text-[#FFC400]">ROSTERS</span>
                     </h1>
                   </div>
                   <div className="hidden md:block h-[1px] flex-grow mx-20 bg-slate-800" />
                 </div>
 
-                <div className="mb-8">
-                  <h2 className="font-syncopate text-lg font-black text-slate-400 uppercase tracking-widest">ACTIVE ROSTERS</h2>
+                <div className="mb-6 sm:mb-8">
+                  <h2 className="font-syncopate text-base sm:text-lg font-black text-slate-300 uppercase tracking-wider sm:tracking-widest">ACTIVE ROSTERS</h2>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                   {teams.map((team, idx) => (
                     <DivisionCard 
                       key={team.id} 
@@ -851,14 +851,17 @@ const Teams = () => {
             </section>
 
             {/* 🎬 CONTENT CREATORS SECTION */}
-            <section className="py-32 md:py-48 px-6 bg-[#081B3A] relative border-b border-white/5">
+            <section className="py-16 sm:py-24 md:py-36 px-4 sm:px-6 md:px-12 bg-[#081B3A] relative border-b border-white/5">
               <div className="max-w-7xl mx-auto">
-                <div className="mb-24">
-                  <span className="font-syncopate text-[#FFC400] text-[10px] tracking-[0.5em] font-black mb-2 block uppercase">INFLUENCERS</span>
-                  <h2 className="font-syncopate text-4xl md:text-7xl font-bold uppercase tracking-tighter text-white leading-[0.85] mb-6">
+                <div className="mb-12 sm:mb-20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                    <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.5em] font-black block uppercase">INFLUENCERS</span>
+                  </div>
+                  <h2 className="font-syncopate text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-tight sm:leading-[0.9] mb-4 sm:mb-6 break-words">
                     CONTENT <br /> <span className="text-[#FFC400]">CREATORS</span>
                   </h2>
-                  <p className="text-slate-400 font-inter text-xl font-light tracking-wide max-w-2xl uppercase">
+                  <p className="text-slate-300 font-inter text-sm sm:text-lg font-light tracking-wide max-w-2xl uppercase">
                     Creators representing the Geekay brand across platforms.
                   </p>
                 </div>

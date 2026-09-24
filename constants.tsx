@@ -1689,7 +1689,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Geekay Esports Jersey 2025',
     price: '119.00',
     link: 'https://www.geekay.com/en/geekay-esports-jersey-2025',
-    image: '/assets/jearsy.png',
+    image: '/assets/jersey.png',
     category: 'Apparel'
   },
   {

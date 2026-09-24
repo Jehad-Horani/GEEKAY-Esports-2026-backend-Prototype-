@@ -89,24 +89,24 @@ const JobDetail = () => {
       />
       <div className="absolute inset-0 bg-grid opacity-5 pointer-events-none" />
       
-      <div className="container mx-auto px-6 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 md:px-12 relative z-10">
         <Breadcrumbs />
         {/* Navigation */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="mb-16"
+          className="mb-8 sm:mb-16"
         >
           <Link 
             to="/careers" 
-            className="group flex items-center gap-4 text-slate-500 hover:text-[#FFC400] transition-colors font-syncopate text-[10px] tracking-[0.4em] font-bold uppercase"
+            className="group flex items-center gap-2 sm:gap-4 text-slate-400 hover:text-[#FFC400] transition-colors font-syncopate text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.4em] font-bold uppercase"
           >
             <ChevronLeft size={16} className="group-hover:-translate-x-2 transition-transform" />
             BACK TO JOB OPENINGS
           </Link>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-16 lg:gap-24">
           {/* Main Content */}
           <div className="lg:col-span-8">
             <motion.div
@@ -114,42 +114,42 @@ const JobDetail = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <div className="flex flex-wrap items-center gap-6 mb-8">
-                <span className="bg-[#FFC400] text-black px-6 py-2 font-syncopate text-[10px] font-black tracking-[0.3em] uppercase skew-x-[-15deg]">
-                  <span className="block skew-x-[15deg]">{job.department}</span>
+              <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-6 sm:mb-8">
+                <span className="bg-[#FFC400] text-black px-4 sm:px-6 py-1.5 sm:py-2 font-syncopate text-[9px] sm:text-[10px] font-black tracking-wider sm:tracking-[0.3em] uppercase">
+                  <span>{job.department}</span>
                 </span>
                 <div className="h-[1px] w-12 bg-slate-800 hidden md:block" />
-                <div className="flex gap-8 text-slate-400">
-                  <span className="flex items-center gap-3 font-syncopate text-[10px] font-bold tracking-[0.3em] uppercase"><MapPin size={14} className="text-[#FFC400]" /> {job.location}</span>
-                  <span className="flex items-center gap-3 font-syncopate text-[10px] font-bold tracking-[0.3em] uppercase"><Briefcase size={14} className="text-[#FFC400]" /> {job.type}</span>
+                <div className="flex flex-wrap gap-4 sm:gap-8 text-slate-300">
+                  <span className="flex items-center gap-2 sm:gap-3 font-syncopate text-[9px] sm:text-[10px] font-bold tracking-wider uppercase"><MapPin size={14} className="text-[#FFC400]" /> {job.location}</span>
+                  <span className="flex items-center gap-2 sm:gap-3 font-syncopate text-[9px] sm:text-[10px] font-bold tracking-wider uppercase"><Briefcase size={14} className="text-[#FFC400]" /> {job.type}</span>
                 </div>
               </div>
 
-              <h1 className="font-syncopate text-5xl md:text-7xl lg:text-8xl font-black text-white uppercase tracking-tighter leading-none mb-12">
+              <h1 className="font-syncopate text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white uppercase tracking-tight leading-tight sm:leading-none mb-8 sm:mb-12 break-words">
                 {job.title}
               </h1>
 
-              <div className="space-y-20">
+              <div className="space-y-12 sm:space-y-20">
                 {/* OVERVIEW */}
                 <section>
-                  <h2 className="font-syncopate text-xl text-white font-bold tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                    OVERVIEW
+                  <h2 className="font-syncopate text-base sm:text-xl text-white font-bold tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                    <span className="text-[#FFC400] font-mono shrink-0">//</span> OVERVIEW
                   </h2>
-                  <p className="text-slate-400 font-inter text-xl md:text-2xl font-light leading-relaxed border-l-2 border-[#FFC400] pl-8">
+                  <p className="text-slate-300 font-inter text-base sm:text-xl md:text-2xl font-light leading-relaxed border-l-2 border-[#FFC400] pl-4 sm:pl-8">
                     {job.summary}
                   </p>
                 </section>
 
                 {/* Responsibilities */}
                 <section>
-                  <h2 className="font-syncopate text-xl text-white font-bold tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                    RESPONSIBILITIES
+                  <h2 className="font-syncopate text-base sm:text-xl text-white font-bold tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                    <span className="text-[#FFC400] font-mono shrink-0">//</span> RESPONSIBILITIES
                   </h2>
-                  <ul className="space-y-6">
+                  <ul className="space-y-4 sm:space-y-6">
                     {job.responsibilities.map((item: string, i: number) => (
-                      <li key={i} className="flex gap-6 group">
+                      <li key={i} className="flex gap-4 sm:gap-6 group">
                         <div className="mt-1.5 w-1.5 h-1.5 bg-[#FFC400] shrink-0 group-hover:scale-150 transition-transform" />
-                        <p className="text-slate-400 font-inter text-lg leading-relaxed group-hover:text-white transition-colors">{item}</p>
+                        <p className="text-slate-300 font-inter text-sm sm:text-lg leading-relaxed group-hover:text-white transition-colors">{item}</p>
                       </li>
                     ))}
                   </ul>
@@ -157,14 +157,14 @@ const JobDetail = () => {
 
                 {/* Requirements */}
                 <section>
-                  <h2 className="font-syncopate text-xl text-white font-bold tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                    REQUIREMENTS
+                  <h2 className="font-syncopate text-base sm:text-xl text-white font-bold tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                    <span className="text-[#FFC400] font-mono shrink-0">//</span> REQUIREMENTS
                   </h2>
-                  <ul className="space-y-6">
+                  <ul className="space-y-4 sm:space-y-6">
                     {job.requirements.map((item: string, i: number) => (
-                      <li key={i} className="flex gap-6 group">
+                      <li key={i} className="flex gap-4 sm:gap-6 group">
                         <div className="mt-1.5 w-1.5 h-1.5 bg-[#FFC400] shrink-0 group-hover:scale-150 transition-transform" />
-                        <p className="text-slate-400 font-inter text-lg leading-relaxed group-hover:text-white transition-colors">{item}</p>
+                        <p className="text-slate-300 font-inter text-sm sm:text-lg leading-relaxed group-hover:text-white transition-colors">{item}</p>
                       </li>
                     ))}
                   </ul>
@@ -173,14 +173,14 @@ const JobDetail = () => {
                 {/* Nice to have */}
                 {job.niceToHave && job.niceToHave.length > 0 && (
                   <section>
-                    <h2 className="font-syncopate text-xl text-white font-bold tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                      NICE TO HAVE
+                    <h2 className="font-syncopate text-base sm:text-xl text-white font-bold tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                      <span className="text-[#FFC400] font-mono shrink-0">//</span> NICE TO HAVE
                     </h2>
-                    <ul className="space-y-6">
+                    <ul className="space-y-4 sm:space-y-6">
                       {job.niceToHave.map((item: string, i: number) => (
-                        <li key={i} className="flex gap-6 group">
+                        <li key={i} className="flex gap-4 sm:gap-6 group">
                           <div className="mt-1.5 w-1.5 h-1.5 bg-slate-700 shrink-0 group-hover:bg-[#FFC400] transition-colors" />
-                          <p className="text-slate-500 font-inter text-lg leading-relaxed group-hover:text-slate-300 transition-colors">{item}</p>
+                          <p className="text-slate-400 font-inter text-sm sm:text-lg leading-relaxed group-hover:text-slate-200 transition-colors">{item}</p>
                         </li>
                       ))}
                     </ul>
@@ -189,8 +189,8 @@ const JobDetail = () => {
 
                 {/* Benefits */}
                 <section>
-                  <h2 className="font-syncopate text-xl text-white font-bold tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                    BENEFITS
+                  <h2 className="font-syncopate text-base sm:text-xl text-white font-bold tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                    <span className="text-[#FFC400] font-mono shrink-0">//</span> BENEFITS
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {job.benefits.map((item: string, i: number) => (

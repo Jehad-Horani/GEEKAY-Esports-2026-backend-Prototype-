@@ -37,23 +37,26 @@ const Information = () => {
   const { settings } = useSettings();
 
   return (
-    <div className="min-h-screen pt-32 pb-24">
+    <div className="min-h-screen pt-24 sm:pt-32 pb-16 sm:pb-24">
       <SEOMeta 
         title="Resources & FAQ - Geekay Esports"
         description="Access official Geekay Esports resources, contact information, frequently asked questions, and office locations in Riyadh."
         ogType="website"
       />
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12">
         <Breadcrumbs />
-        <header className="mb-24">
-           <span className="font-syncopate text-yellow-500 text-[10px] tracking-widest font-bold mb-4 block uppercase">INTEL</span>
-           <h1 className="font-syncopate text-5xl md:text-7xl font-bold uppercase">Resources & FAQ</h1>
+        <header className="mb-12 sm:mb-20">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+            <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-[10px] tracking-wider sm:tracking-[0.25em] font-bold block uppercase">INTEL & SUPPORT</span>
+          </div>
+          <h1 className="font-syncopate text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-tight break-words">Resources & FAQ</h1>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-24">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 sm:gap-16 lg:gap-24">
           {/* FAQ SECTION */}
           <div className="lg:col-span-2 space-y-4">
-             <h2 className="font-syncopate text-xl font-bold mb-12 uppercase tracking-tight">Frequently Asked</h2>
+             <h2 className="font-syncopate text-lg sm:text-xl font-black mb-8 sm:mb-12 uppercase tracking-tight text-white">Frequently Asked</h2>
              <FAQItem 
                 question="What is Geekay Esports?" 
                 answer="Geekay Esports is a leading esports organization operating across the MENA region, competing in multiple global titles and representing top-tier talent." 

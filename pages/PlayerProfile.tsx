@@ -467,8 +467,8 @@ export default function PlayerProfile() {
                 PLAYER OVERVIEW
                 ==================================================== */}
             <section className="scroll-mt-32">
-              <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                <span className="text-[#FFC400] font-mono">//</span> PLAYER OVERVIEW
+              <h2 className="font-syncopate text-base sm:text-xl text-white font-black tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                <span className="text-[#FFC400] font-mono shrink-0">//</span> <span>PLAYER OVERVIEW</span>
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
@@ -536,8 +536,8 @@ export default function PlayerProfile() {
                 ==================================================== */}
             {timelineResults.length > 0 && (
               <section className="scroll-mt-32">
-                <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                  <span className="text-[#FFC400] font-mono">//</span> MVP TITLES
+                <h2 className="font-syncopate text-base sm:text-xl text-white font-black tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                  <span className="text-[#FFC400] font-mono shrink-0">//</span> <span>MVP TITLES</span>
                 </h2>
 
                 <div className="border border-slate-800 bg-[#040E1E]/20 p-8 space-y-6">
@@ -570,8 +570,8 @@ export default function PlayerProfile() {
                 ACHIEVEMENTS SECTION
                 ==================================================== */}
             <section className="scroll-mt-32">
-              <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                <span className="text-[#FFC400] font-mono">//</span> ACHIEVEMENTS & ACCOLADES
+              <h2 className="font-syncopate text-base sm:text-xl text-white font-black tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                <span className="text-[#FFC400] font-mono shrink-0">//</span> <span>ACHIEVEMENTS & ACCOLADES</span>
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -641,8 +641,8 @@ export default function PlayerProfile() {
                 ==================================================== */}
             {player.media && Array.isArray(player.media) && player.media.length > 0 && (
               <section className="scroll-mt-32">
-                <h2 className="font-syncopate text-xl text-white font-black tracking-[0.4em] uppercase mb-10 flex items-center gap-4">
-                  <span className="text-[#FFC400] font-mono">//</span> MEDIA
+                <h2 className="font-syncopate text-base sm:text-xl text-white font-black tracking-wider sm:tracking-[0.3em] uppercase mb-6 sm:mb-10 flex items-center gap-3 sm:gap-4 break-words">
+                  <span className="text-[#FFC400] font-mono shrink-0">//</span> <span>MEDIA</span>
                 </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">

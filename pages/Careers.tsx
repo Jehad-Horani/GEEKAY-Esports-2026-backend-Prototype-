@@ -95,27 +95,28 @@ const Careers = () => {
           <div className="absolute inset-0 bg-grid opacity-10 z-10" />
         </div>
 
-        <div className="container mx-auto px-6 relative z-20 flex flex-col items-center text-center pt-24">
+        <div className="container mx-auto px-4 sm:px-6 relative z-20 flex flex-col items-center text-center pt-24 sm:pt-32">
           <Breadcrumbs />
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1 }}
+            className="w-full max-w-5xl"
           >
             <motion.div 
               initial={{ scaleY: 0 }}
               animate={{ scaleY: 1 }}
               transition={{ duration: 1, delay: 0.5 }}
-              className="w-[1px] h-20 bg-[#FFC400] mx-auto mb-10 origin-top"
+              className="w-[1px] h-12 sm:h-20 bg-[#FFC400] mx-auto mb-6 sm:mb-10 origin-top"
             />
 
-            <div className="flex flex-col gap-2 mb-12 items-center">
-              <div className="relative inline-block mt-4">
+            <div className="flex flex-col gap-2 mb-8 sm:mb-12 items-center">
+              <div className="relative inline-block mt-2 sm:mt-4 max-w-full">
                 <motion.h1 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 1, delay: 0.7, ease: "circOut" }}
-                  className="font-syncopate text-white text-6xl md:text-[140px] font-black leading-[0.85] tracking-tighter uppercase"
+                  className="font-syncopate text-white text-3xl sm:text-5xl md:text-7xl lg:text-9xl font-black leading-tight sm:leading-[0.85] tracking-tight uppercase break-words"
                 >
                   CAREERS<span className="text-[#FFC400] drop-shadow-[0_0_50px_rgba(255,196,0,0.4)]">.</span>
                 </motion.h1>
@@ -123,16 +124,16 @@ const Careers = () => {
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
                   transition={{ duration: 1.5, delay: 1.2, ease: "circOut" }}
-                  className="absolute -bottom-4 left-0 right-0 h-2 bg-[#FFC400] origin-left shadow-[0_0_20px_rgba(255,196,0,0.5)]"
+                  className="absolute -bottom-2 sm:-bottom-4 left-0 right-0 h-1 sm:h-2 bg-[#FFC400] origin-left shadow-[0_0_20px_rgba(255,196,0,0.5)]"
                 />
               </div>
             </div>
 
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 0.6, y: 0 }}
+              animate={{ opacity: 0.8, y: 0 }}
               transition={{ duration: 1, delay: 1.5 }}
-              className="text-white font-syncopate text-xs md:text-xl mb-16 font-light leading-loose max-w-3xl mx-auto tracking-[0.2em]"
+              className="text-slate-200 font-syncopate text-xs sm:text-sm md:text-lg mb-10 sm:mb-16 font-light leading-relaxed sm:leading-loose max-w-3xl mx-auto tracking-wide sm:tracking-[0.2em] px-2"
             >
               WE DON’T HIRE EMPLOYEES. <br className="hidden md:block" />
               WE RECRUIT ARCHITECTS OF <span className="text-white font-bold opacity-100 underline decoration-[#FFC400]/50 underline-offset-8">DOMINANCE.</span>
@@ -144,7 +145,7 @@ const Careers = () => {
               transition={{ delay: 2 }}
               className="flex justify-center items-center"
             >
-              <ArenaButton className="h-20 min-w-[280px]" onClick={() => document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' })}>View</ArenaButton>
+              <ArenaButton className="h-14 sm:h-20 min-w-[200px] sm:min-w-[280px]" onClick={() => document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' })}>View Openings</ArenaButton>
             </motion.div>
           </motion.div>
         </div>
@@ -152,43 +153,55 @@ const Careers = () => {
         <motion.div 
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-40"
+          className="absolute bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-40"
         >
-          <div className="w-[1px] h-12 bg-gradient-to-b from-[#FFC400] to-transparent" />
+          <div className="w-[1px] h-8 sm:h-12 bg-gradient-to-b from-[#FFC400] to-transparent" />
         </motion.div>
       </section>
 
       {/* 🏛 SECTION 2: STAFF BENEFITS */}
-      <section className="py-32 md:py-48 px-6 bg-[#040E1E]">
+      <section className="py-16 sm:py-24 md:py-36 px-4 sm:px-6 md:px-12 bg-[#040E1E]">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 mb-24">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 sm:gap-12 mb-12 sm:mb-20">
             <div>
-              <h2 className="font-syncopate text-4xl md:text-7xl font-bold uppercase tracking-tighter text-white">WHY JOIN GEEKAY?</h2>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                  WHY JOIN GEEKAY
+                </span>
+              </div>
+              <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-tight break-words">WHY JOIN GEEKAY?</h2>
             </div>
             <div className="h-[2px] hidden lg:block flex-grow mx-16 bg-slate-800" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <BenefitCard icon={<Trophy size={40} />} title="Performance Bonuses" index={0} />
-            <BenefitCard icon={<Globe size={40} />} title="Global Exposure" index={1} />
-            <BenefitCard icon={<Users size={40} />} title="Elite Network" index={2} />
-            <BenefitCard icon={<DollarSign size={40} />} title="Competitive Comp" index={3} />
-            <BenefitCard icon={<Activity size={40} />} title="High-Perf Culture" index={4} />
-            <BenefitCard icon={<TrendingUp size={40} />} title="Career Acceleration" index={5} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
+            <BenefitCard icon={<Trophy size={36} />} title="Performance Bonuses" index={0} />
+            <BenefitCard icon={<Globe size={36} />} title="Global Exposure" index={1} />
+            <BenefitCard icon={<Users size={36} />} title="Elite Network" index={2} />
+            <BenefitCard icon={<DollarSign size={36} />} title="Competitive Comp" index={3} />
+            <BenefitCard icon={<Activity size={36} />} title="High-Perf Culture" index={4} />
+            <BenefitCard icon={<TrendingUp size={36} />} title="Career Acceleration" index={5} />
           </div>
         </div>
       </section>
 
       {/* 🎯 SECTION 3: JOB OPENINGS */}
-      <section id="jobs-section" className="py-32 md:py-60 px-6 bg-[#040E1E] border-t border-white/5 relative">
+      <section id="jobs-section" className="py-16 sm:py-24 md:py-36 px-4 sm:px-6 md:px-12 bg-[#040E1E] border-t border-white/5 relative">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-12">
+          <div className="mb-12 sm:mb-20 flex flex-col md:flex-row md:items-end justify-between gap-6 sm:gap-12">
             <div>
-              <h2 className="font-syncopate text-4xl md:text-8xl font-bold uppercase tracking-tighter text-white">JOB OPENINGS</h2>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                  ACTIVE RECRUITMENT
+                </span>
+              </div>
+              <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-tight break-words">JOB OPENINGS</h2>
             </div>
 
             {/* Department Filter Dropdown */}
-            <div className="relative min-w-[240px]">
+            <div className="relative min-w-[200px] sm:min-w-[240px]">
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="w-full bg-[#0A254D]/20 border border-slate-800 px-6 py-4 flex items-center justify-between text-white font-syncopate text-[10px] font-bold tracking-widest uppercase hover:border-[#FFC400]/40 transition-all"
@@ -234,36 +247,36 @@ const Careers = () => {
                 className="group relative"
               >
                 <Link to={`/careers/${job.slug}`}>
-                  <div className="bg-[#0A254D]/10 border border-slate-800 p-10 md:p-16 flex flex-col lg:flex-row lg:items-center justify-between gap-10 transition-all duration-500 hover:border-[#FFC400]/40 hover:bg-[#FFC400]/[0.02] overflow-hidden">
+                  <div className="bg-[#0A254D]/10 border border-slate-800 p-5 sm:p-8 md:p-14 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-10 transition-all duration-500 hover:border-[#FFC400]/40 hover:bg-[#FFC400]/[0.02] overflow-hidden">
                     <div className="absolute top-0 left-0 w-2 h-0 bg-[#FFC400] group-hover:h-full transition-all duration-500" />
                     
                     <div className="relative z-10 flex-grow">
-                      <div className="flex items-center gap-6 mb-8">
-                        <span className="bg-[#FFC400] text-black px-6 py-2 font-syncopate text-[10px] font-black tracking-[0.3em] uppercase skew-x-[-15deg]">
-                          <span className="block skew-x-[15deg]">{job.department}</span>
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-4 sm:mb-8">
+                        <span className="bg-[#FFC400] text-black px-4 sm:px-6 py-1.5 sm:py-2 font-syncopate text-[9px] sm:text-[10px] font-black tracking-wider sm:tracking-[0.3em] uppercase">
+                          <span>{job.department}</span>
                         </span>
-                        <div className="h-[1px] w-12 bg-slate-800" />
-                        <div className="flex gap-8 text-slate-500">
-                          <span className="flex items-center gap-3 font-syncopate text-[10px] font-bold tracking-[0.3em] uppercase transition-colors group-hover:text-white">
-                            <MapPin size={14} className="text-[#FFC400]" /> {job.location}
+                        <div className="h-[1px] w-8 sm:w-12 bg-slate-800 hidden sm:block" />
+                        <div className="flex flex-wrap gap-4 sm:gap-8 text-slate-300">
+                          <span className="flex items-center gap-2 font-syncopate text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-colors group-hover:text-white">
+                            <MapPin size={13} className="text-[#FFC400] shrink-0" /> {job.location}
                           </span>
-                          <span className="flex items-center gap-3 font-syncopate text-[10px] font-bold tracking-[0.3em] uppercase transition-colors group-hover:text-white">
-                            <Briefcase size={14} className="text-[#FFC400]" /> 
-                            <span className="px-3 py-1 border border-slate-800 rounded-full text-[8px] group-hover:border-[#FFC400]/50 transition-colors">
+                          <span className="flex items-center gap-2 font-syncopate text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-colors group-hover:text-white">
+                            <Briefcase size={13} className="text-[#FFC400] shrink-0" /> 
+                            <span className="px-2.5 py-0.5 border border-slate-800 rounded-full text-[8px] group-hover:border-[#FFC400]/50 transition-colors">
                               {job.type}
                             </span>
                           </span>
                         </div>
                       </div>
                       
-                      <h3 className="font-syncopate text-4xl md:text-5xl font-bold text-white uppercase tracking-tighter group-hover:text-[#FFC400] transition-colors leading-none">
+                      <h3 className="font-syncopate text-xl sm:text-2xl md:text-4xl font-black text-white uppercase tracking-tight group-hover:text-[#FFC400] transition-colors leading-tight break-words">
                         {job.title}
                       </h3>
                     </div>
 
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-4 font-syncopate text-[10px] font-bold text-[#FFC400] tracking-[0.4em] group-hover:translate-x-4 transition-transform duration-500">
-                        VIEW_DETAILS <ChevronRight size={20} />
+                    <div className="relative z-10 pt-2 sm:pt-0">
+                      <div className="flex items-center gap-2 sm:gap-4 font-syncopate text-[9px] sm:text-[10px] font-bold text-[#FFC400] tracking-wider sm:tracking-[0.4em] group-hover:translate-x-2 transition-transform duration-500">
+                        VIEW DETAILS <ChevronRight size={16} />
                       </div>
                     </div>
                   </div>

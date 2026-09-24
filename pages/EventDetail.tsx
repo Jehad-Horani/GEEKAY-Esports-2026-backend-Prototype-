@@ -237,11 +237,11 @@ const EventDetail = () => {
         </div>
 
         {/* Back navigation and Breadcrumbs */}
-        <div className="absolute top-28 left-8 md:left-12 z-50 flex flex-col gap-4">
+        <div className="absolute top-24 sm:top-28 left-4 sm:left-8 md:left-12 z-50 flex flex-col gap-3 sm:gap-4">
           <Breadcrumbs />
           <Link 
             to="/events" 
-            className="flex items-center gap-3 text-slate-400 hover:text-[#FFC400] transition-all font-syncopate text-[10px] font-black uppercase tracking-[0.4em] group"
+            className="flex items-center gap-2 sm:gap-3 text-slate-400 hover:text-[#FFC400] transition-all font-syncopate text-[9px] sm:text-[10px] font-black uppercase tracking-wider sm:tracking-[0.4em] group"
           >
             <ChevronLeft size={16} className="group-hover:-translate-x-2 transition-transform" />
             <span>← BACK TO EVENTS</span>
@@ -249,24 +249,24 @@ const EventDetail = () => {
         </div>
 
         {/* Hero content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 mt-16 z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 sm:px-6 mt-16 z-10">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-wrap items-center justify-center gap-3 mb-6"
+            className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-4 sm:mb-6"
           >
-            <span className="bg-[#FFC400] text-black px-4 py-1.5 font-syncopate text-[9px] font-black tracking-[0.2em] uppercase skew-x-[-10deg]">
-              <span className="block skew-x-[10deg]">{matchedEvent.game}</span>
+            <span className="bg-[#FFC400] text-black px-3 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider sm:tracking-[0.2em] uppercase">
+              <span>{matchedEvent.game}</span>
             </span>
-            <span className="bg-white/10 backdrop-blur-sm text-white px-4 py-1.5 font-syncopate text-[9px] font-bold tracking-[0.2em] uppercase border border-white/10 skew-x-[-10deg]">
-              <span className="block skew-x-[10deg]">{matchedEvent.region || 'GLOBAL'}</span>
+            <span className="bg-white/10 backdrop-blur-sm text-white px-3 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-wider sm:tracking-[0.2em] uppercase border border-white/10">
+              <span>{matchedEvent.region || 'GLOBAL'}</span>
             </span>
-            <span className={`px-4 py-1.5 font-syncopate text-[9px] font-black tracking-[0.2em] uppercase border skew-x-[-10deg] ${
+            <span className={`px-3 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider sm:tracking-[0.2em] uppercase border ${
               isLive ? 'bg-red-500 text-white border-red-500 animate-pulse' :
               isUpcoming ? 'bg-[#FFC400]/10 text-[#FFC400] border-[#FFC400]' :
               'bg-slate-800 text-slate-400 border-slate-700'
             }`}>
-              <span className="block skew-x-[10deg]">{matchedEvent.status}</span>
+              <span>{matchedEvent.status}</span>
             </span>
           </motion.div>
 
@@ -274,7 +274,7 @@ const EventDetail = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="font-syncopate text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-none max-w-4xl mb-6"
+            className="font-syncopate text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white uppercase tracking-tight leading-tight sm:leading-none max-w-4xl mb-4 sm:mb-6 break-words"
           >
             {matchedEvent.title}
           </motion.h1>
@@ -283,7 +283,7 @@ const EventDetail = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-wrap items-center justify-center gap-8 text-slate-400 font-syncopate text-[10px] tracking-widest uppercase mb-12"
+            className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-slate-300 font-syncopate text-[9px] sm:text-[10px] tracking-wider sm:tracking-widest uppercase mb-8 sm:mb-12"
           >
             <div className="flex items-center gap-2">
               <Calendar size={14} className="text-[#FFC400]" />
@@ -306,7 +306,7 @@ const EventDetail = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 relative z-10 -mt-12 pb-32">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 relative z-10 -mt-12 pb-32">
 
         {/* ====================================================
             2) EVENT INFORMATION OVERVIEW

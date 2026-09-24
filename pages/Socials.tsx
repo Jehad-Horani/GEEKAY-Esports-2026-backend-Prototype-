@@ -414,15 +414,21 @@ const Media = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-6 relative z-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-24">
+        <div className="container mx-auto px-4 sm:px-6 relative z-20 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 items-center pt-24 sm:pt-32">
           <div className="lg:col-span-8">
             <Breadcrumbs />
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
+              <div className="flex items-center gap-2 mb-4 sm:mb-6">
+                <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                  SOCIAL ECOSYSTEM
+                </span>
+              </div>
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: 60 }}
                 transition={{ duration: 1, delay: 0.5 }}
-                className="h-[2px] bg-[#FFC400] mb-8"
+                className="h-[2px] bg-[#FFC400] mb-6 sm:mb-8"
               />
               
               <div className="overflow-hidden mb-2">
@@ -430,17 +436,17 @@ const Media = () => {
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   transition={{ duration: 0.8, delay: 0.7, ease: "circOut" }}
-                  className="font-syncopate text-white text-4xl md:text-8xl font-black uppercase tracking-tighter leading-[0.9]"
+                  className="font-syncopate text-white text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tight leading-tight sm:leading-[0.9] break-words"
                 >
                   WE DON’T POST.
                 </motion.h1>
               </div>
-              <div className="overflow-hidden mb-12">
+              <div className="overflow-hidden mb-8 sm:mb-12">
                 <motion.h1 
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   transition={{ duration: 1.2, delay: 1, ease: [0.16, 1, 0.3, 1] }}
-                  className="font-syncopate text-[#FFC400] text-4xl md:text-8xl font-black uppercase tracking-tighter leading-[0.9] drop-shadow-[0_0_30px_rgba(255,196,0,0.3)]"
+                  className="font-syncopate text-[#FFC400] text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tight leading-tight sm:leading-[0.9] drop-shadow-[0_0_30px_rgba(255,196,0,0.3)] break-words"
                 >
                   WE COMMAND <br /> ATTENTION.
                 </motion.h1>
@@ -479,12 +485,18 @@ const Media = () => {
       </section>
 
       {/* 📊 SECTION 2: GLOBAL MEDIA REACH */}
-      <section className="py-32 md:py-60 px-6 bg-[#040E1E] relative border-y border-white/5">
+      <section className="py-16 sm:py-24 md:py-36 px-4 sm:px-6 md:px-12 bg-[#040E1E] relative border-y border-white/5">
         <div className="absolute inset-0 bg-grid opacity-5 pointer-events-none" />
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-24">
-            <h2 className="font-syncopate text-4xl md:text-7xl font-black text-white uppercase tracking-tighter mb-6">GLOBAL MEDIA REACH</h2>
-            <p className="text-slate-400 font-inter text-xl font-light tracking-wide max-w-2xl mx-auto uppercase">
+          <div className="text-center mb-12 sm:mb-20">
+            <div className="inline-flex items-center gap-2 mb-2">
+              <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+              <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                GLOBAL FOOTPRINT
+              </span>
+            </div>
+            <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight mb-3 sm:mb-6 break-words">GLOBAL MEDIA REACH</h2>
+            <p className="text-slate-300 font-inter text-sm sm:text-lg font-light tracking-wide max-w-2xl mx-auto uppercase">
               Audience reach across Geekay platforms, teams, and creators.
             </p>
           </div>
@@ -596,11 +608,17 @@ const Media = () => {
       </section>
 
       {/* 📱 SECTION 4: PLATFORM BREAKDOWN */}
-      <section className="py-32 md:py-60 px-6 bg-[#081B3A] relative border-b border-white/5">
+      <section className="py-16 sm:py-24 md:py-36 px-4 sm:px-6 md:px-12 bg-[#081B3A] relative border-b border-white/5">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-24">
-            <h2 className="font-syncopate text-4xl md:text-7xl font-bold uppercase tracking-tighter text-white mb-6">TOTAL PLATFORM BREAKDOWN</h2>
-            <p className="text-slate-400 font-inter text-xl font-light tracking-wide max-w-2xl uppercase">
+          <div className="mb-12 sm:mb-20">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+              <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                DISTRIBUTION CHANNELS
+              </span>
+            </div>
+            <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white mb-3 sm:mb-6 break-words">TOTAL PLATFORM BREAKDOWN</h2>
+            <p className="text-slate-300 font-inter text-sm sm:text-lg font-light tracking-wide max-w-2xl uppercase">
               Performance metrics by platform.
             </p>
           </div>
@@ -616,10 +634,16 @@ const Media = () => {
       </section>
 
       {/* 🖼 SECTION 5: MEDIA GALLERY */}
-      <section className="py-32 md:py-60 bg-[#040E1E] relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 mb-24">
-          <h2 className="font-syncopate text-4xl md:text-7xl font-bold uppercase tracking-tighter text-white mb-6">MEDIA GALLERY</h2>
-          <p className="text-slate-400 font-inter text-xl font-light tracking-wide max-w-2xl uppercase">
+      <section className="py-16 sm:py-24 md:py-36 bg-[#040E1E] relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 mb-12 sm:mb-20">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+            <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+              VISUAL ASSETS
+            </span>
+          </div>
+          <h2 className="font-syncopate text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white mb-3 sm:mb-6 break-words">MEDIA GALLERY</h2>
+          <p className="text-slate-300 font-inter text-sm sm:text-lg font-light tracking-wide max-w-2xl uppercase">
             Team moments, competition highlights, and behind-the-scenes media.
           </p>
         </div>

@@ -222,20 +222,23 @@ const CalendarInterface = () => {
       </div>
 
       {/* 📅 CALENDAR HEADER */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 bg-[#081B3A] border border-slate-800 p-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 mb-8 sm:mb-12 bg-[#081B3A] border border-slate-800 p-4 sm:p-8">
         <div>
-          <h2 className="font-syncopate text-lg md:text-xl font-black text-white uppercase tracking-widest mb-1">UPCOMING MATCHES</h2>
-          <span className="text-slate-500 font-inter text-xs uppercase">Live Operations Feed</span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+            <h2 className="font-syncopate text-sm sm:text-lg md:text-xl font-black text-white uppercase tracking-wider sm:tracking-widest">UPCOMING MATCHES</h2>
+          </div>
+          <span className="text-slate-400 font-inter text-[10px] sm:text-xs uppercase">Live Operations Feed</span>
         </div>
-        <div className="flex items-center gap-6">
-          <button onClick={prevMonth} className="p-2 hover:text-[#FFC400] transition-colors text-slate-500">
-            <ChevronLeft size={24} />
+        <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
+          <button onClick={prevMonth} className="p-2 hover:text-[#FFC400] transition-colors text-slate-400">
+            <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
           </button>
-          <span className="font-syncopate text-xl md:text-2xl font-black text-[#FFC400] tracking-tighter">
+          <span className="font-syncopate text-base sm:text-xl md:text-2xl font-black text-[#FFC400] tracking-tight">
             {monthName} <span className="text-white">{year}</span>
           </span>
-          <button onClick={nextMonth} className="p-2 hover:text-[#FFC400] transition-colors text-slate-500">
-            <ChevronRight size={24} />
+          <button onClick={nextMonth} className="p-2 hover:text-[#FFC400] transition-colors text-slate-400">
+            <ChevronRight size={20} className="sm:w-6 sm:h-6" />
           </button>
         </div>
       </div>
@@ -343,7 +346,7 @@ const Schedule = () => {
   }, []);
 
   return (
-    <div className="bg-[#0B1C2D] min-h-screen selection:bg-[#FFC400] selection:text-black pt-32 overflow-x-hidden" ref={containerRef}>
+    <div className="bg-[#0B1C2D] min-h-screen selection:bg-[#FFC400] selection:text-black pt-24 sm:pt-32 overflow-x-hidden" ref={containerRef}>
       <BlueprintBackground />
       <SEOMeta 
         title="Geekay Esports Schedule - Match Calendar & Events"
@@ -353,27 +356,33 @@ const Schedule = () => {
       />
       
       {/* 🧩 MAIN OPERATIONS LAYOUT — CALENDAR INTERFACE */}
-      <section className="py-24 px-6 bg-[#0B1C2D] relative">
+      <section className="py-12 sm:py-16 md:py-24 px-4 sm:px-6 md:px-12 bg-[#0B1C2D] relative">
         <div className="max-w-screen-2xl mx-auto">
           <Breadcrumbs />
-          <div className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="mb-12 sm:mb-20 flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="font-syncopate text-4xl md:text-7xl font-black uppercase tracking-tighter text-white leading-[0.85] mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
+                  OPERATIONAL CALENDAR
+                </span>
+              </div>
+              <h1 className="font-syncopate text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-tight sm:leading-[0.95] mb-4 sm:mb-6 break-words">
                 GEEKAY ESPORTS <br /> <span className="text-[#FFC400]">SCHEDULE</span>
               </h1>
-              <p className="text-slate-400 font-inter text-base font-light tracking-wide max-w-2xl uppercase">
+              <p className="text-slate-300 font-inter text-sm sm:text-base font-light tracking-wide max-w-2xl uppercase">
                 Track our global operations and upcoming tournament appearances.
               </p>
             </div>
             
-            <div className="flex gap-4">
-              <div className="border border-slate-800 p-4 bg-[#081B3A]/40">
-                <h2 className="font-syncopate text-xs font-black text-[#FFC400] tracking-wider uppercase mb-1">{new Date().getFullYear()} SCHEDULE</h2>
-                <span className="text-slate-500 font-inter text-[10px] uppercase">Active Season</span>
+            <div className="flex gap-3 sm:gap-4">
+              <div className="border border-slate-800 p-3 sm:p-4 bg-[#081B3A]/40">
+                <h2 className="font-syncopate text-[10px] sm:text-xs font-black text-[#FFC400] tracking-wider uppercase mb-1">{new Date().getFullYear()} SCHEDULE</h2>
+                <span className="text-slate-400 font-inter text-[9px] sm:text-[10px] uppercase">Active Season</span>
               </div>
-              <div className="border border-slate-900 p-4 bg-[#081B3A]/20 opacity-60">
-                <h2 className="font-syncopate text-xs font-black text-slate-400 tracking-wider uppercase mb-1">{new Date().getFullYear() - 1} SCHEDULE</h2>
-                <span className="text-slate-500 font-inter text-[10px] uppercase">Archived</span>
+              <div className="border border-slate-900 p-3 sm:p-4 bg-[#081B3A]/20 opacity-80">
+                <h2 className="font-syncopate text-[10px] sm:text-xs font-black text-slate-300 tracking-wider uppercase mb-1">{new Date().getFullYear() - 1} SCHEDULE</h2>
+                <span className="text-slate-400 font-inter text-[9px] sm:text-[10px] uppercase">Archived</span>
               </div>
             </div>
           </div>

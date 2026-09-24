@@ -177,7 +177,7 @@ const News = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#081B3A] pt-32 pb-20 px-6 md:px-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#081B3A] pt-24 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 md:px-12 relative overflow-hidden">
       {/* Background Grid Pattern & Gradient Overlay */}
       <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none" />
       <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-[#FFC400]/5 to-transparent pointer-events-none" />
@@ -192,44 +192,44 @@ const News = () => {
       <div className="max-w-7xl mx-auto relative z-10">
         <Breadcrumbs />
         {/* News Hero Header */}
-        <div className="mb-16 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+        <div className="mb-10 sm:mb-16 flex flex-col lg:flex-row lg:items-end justify-between gap-6 sm:gap-8">
           <div>
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-4 mb-6"
+              className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6"
             >
-              <div className="w-12 h-[2px] bg-[#FFC400]" />
-              <span className="font-syncopate text-[#FFC400] text-xs tracking-[0.5em] font-bold uppercase">COMMAND_FEED // INTEL</span>
+              <div className="w-8 sm:w-12 h-[2px] bg-[#FFC400]" />
+              <span className="font-syncopate text-[#FFC400] text-[9px] sm:text-xs tracking-wider sm:tracking-[0.5em] font-bold uppercase">COMMAND_FEED // INTEL</span>
             </motion.div>
             
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="font-syncopate text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-none"
+              className="font-syncopate text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-white uppercase tracking-tight leading-tight sm:leading-none break-words"
             >
               GEEKAY ESPORTS <br /> <span className="text-[#FFC400]">NEWS</span>
             </motion.h1>
           </div>
 
-          <div className="flex gap-4">
-            <div className="border border-slate-800 p-4 bg-[#0A1A31]/80">
-              <h2 className="font-syncopate text-xs font-black text-[#FFC400] tracking-wider uppercase mb-1">2026 NEWS</h2>
-              <span className="text-slate-500 font-inter text-[10px] uppercase">Current Hub</span>
+          <div className="flex gap-3 sm:gap-4">
+            <div className="border border-slate-800 p-3 sm:p-4 bg-[#0A1A31]/80">
+              <h2 className="font-syncopate text-[10px] sm:text-xs font-black text-[#FFC400] tracking-wider uppercase mb-1">2026 NEWS</h2>
+              <span className="text-slate-400 font-inter text-[9px] sm:text-[10px] uppercase">Current Hub</span>
             </div>
-            <div className="border border-slate-900 p-4 bg-[#0A1A31]/20 opacity-60">
-              <h2 className="font-syncopate text-xs font-black text-slate-400 tracking-wider uppercase mb-1">2025 NEWS</h2>
-              <span className="text-slate-500 font-inter text-[10px] uppercase">Archives</span>
+            <div className="border border-slate-900 p-3 sm:p-4 bg-[#0A1A31]/20 opacity-80">
+              <h2 className="font-syncopate text-[10px] sm:text-xs font-black text-slate-300 tracking-wider uppercase mb-1">2025 NEWS</h2>
+              <span className="text-slate-400 font-inter text-[9px] sm:text-[10px] uppercase">Archives</span>
             </div>
           </div>
         </div>
 
         <motion.p
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
+          animate={{ opacity: 0.8 }}
           transition={{ delay: 0.2 }}
-          className="max-w-2xl text-lg md:text-xl text-slate-300 font-light leading-relaxed mb-16"
+          className="max-w-2xl text-base sm:text-lg md:text-xl text-slate-200 font-light leading-relaxed mb-10 sm:mb-16"
         >
           Official updates, roster moves, tournament news, and organization announcements from the GEEKAY command center.
         </motion.p>
