@@ -486,7 +486,7 @@ export default function PlayerProfile() {
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-slate-900 gap-2">
                     <span className="font-syncopate text-[10px] text-slate-500 tracking-wider shrink-0">ROSTER UNIT</span>
-                    <span className="font-syncopate text-[11px] font-bold text-white uppercase text-right truncate max-w-[65%]">{team.name}</span>
+                    <span className="font-syncopate text-[10px] sm:text-[11px] font-bold text-white uppercase text-right max-w-[70%] leading-tight break-words">{team.name}</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-slate-900 gap-2">
                     <span className="font-syncopate text-[10px] text-slate-500 tracking-wider shrink-0">TACTICAL ROLE</span>
@@ -721,7 +721,9 @@ export default function PlayerProfile() {
                     <span className="bg-[#FFC400] text-black px-3 py-1 font-syncopate text-[8px] font-black tracking-widest uppercase inline-block mb-2">
                       {team.game}
                     </span>
-                    <h4 className="font-syncopate text-xl font-black text-white uppercase tracking-tighter block">{team.name}</h4>
+                    <h4 className={`font-syncopate font-black text-white uppercase tracking-tight block leading-tight ${
+                      team.name.length > 15 ? 'text-base sm:text-lg' : team.name.length > 10 ? 'text-lg sm:text-xl' : 'text-xl'
+                    }`}>{team.name}</h4>
                   </div>
                 </div>
               </div>

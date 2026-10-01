@@ -79,7 +79,7 @@ const Careers = () => {
       />
       
       {/* 🎬 SECTION 1: HERO */}
-      <section className="relative h-screen w-full flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden py-24 sm:py-32 md:py-36">
         <div className="absolute inset-0 z-0">
           <motion.div 
             initial={{ scale: 1.1 }}
@@ -95,7 +95,7 @@ const Careers = () => {
           <div className="absolute inset-0 bg-grid opacity-10 z-10" />
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 relative z-20 flex flex-col items-center text-center pt-24 sm:pt-32">
+        <div className="container mx-auto px-4 sm:px-6 relative z-20 flex flex-col items-center text-center">
           <Breadcrumbs />
           <motion.div
             initial={{ opacity: 0 }}
@@ -107,10 +107,10 @@ const Careers = () => {
               initial={{ scaleY: 0 }}
               animate={{ scaleY: 1 }}
               transition={{ duration: 1, delay: 0.5 }}
-              className="w-[1px] h-12 sm:h-20 bg-[#FFC400] mx-auto mb-6 sm:mb-10 origin-top"
+              className="w-[1px] h-10 sm:h-16 bg-[#FFC400] mx-auto mb-6 sm:mb-8 origin-top"
             />
 
-            <div className="flex flex-col gap-2 mb-8 sm:mb-12 items-center">
+            <div className="flex flex-col gap-2 mb-6 sm:mb-10 items-center">
               <div className="relative inline-block mt-2 sm:mt-4 max-w-full">
                 <motion.h1 
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -133,7 +133,7 @@ const Careers = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 0.8, y: 0 }}
               transition={{ duration: 1, delay: 1.5 }}
-              className="text-slate-200 font-syncopate text-xs sm:text-sm md:text-lg mb-10 sm:mb-16 font-light leading-relaxed sm:leading-loose max-w-3xl mx-auto tracking-wide sm:tracking-[0.2em] px-2"
+              className="text-slate-200 font-syncopate text-xs sm:text-sm md:text-lg mb-8 sm:mb-12 font-light leading-relaxed sm:leading-loose max-w-3xl mx-auto tracking-wide sm:tracking-[0.2em] px-2"
             >
               WE DON’T HIRE EMPLOYEES. <br className="hidden md:block" />
               WE RECRUIT ARCHITECTS OF <span className="text-white font-bold opacity-100 underline decoration-[#FFC400]/50 underline-offset-8">DOMINANCE.</span>
@@ -143,20 +143,23 @@ const Careers = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 2 }}
-              className="flex justify-center items-center"
+              className="flex justify-center items-center mb-8 sm:mb-12"
             >
-              <ArenaButton className="h-14 sm:h-20 min-w-[200px] sm:min-w-[280px]" onClick={() => document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' })}>View Openings</ArenaButton>
+              <ArenaButton className="h-14 sm:h-16 min-w-[200px] sm:min-w-[260px] shadow-[0_0_30px_rgba(255,196,0,0.25)]" onClick={() => document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' })}>View Openings</ArenaButton>
+            </motion.div>
+
+            {/* Scroll Indicator placed cleanly beneath the button */}
+            <motion.div 
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="flex flex-col items-center gap-2 opacity-40 hover:opacity-100 transition-opacity cursor-pointer mx-auto"
+              onClick={() => document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              <span className="font-syncopate text-[8px] text-slate-400 tracking-[0.3em] uppercase">EXPLORE ROLES</span>
+              <div className="w-[1px] h-8 sm:h-10 bg-gradient-to-b from-[#FFC400] to-transparent" />
             </motion.div>
           </motion.div>
         </div>
-
-        <motion.div 
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-40"
-        >
-          <div className="w-[1px] h-8 sm:h-12 bg-gradient-to-b from-[#FFC400] to-transparent" />
-        </motion.div>
       </section>
 
       {/* 🏛 SECTION 2: STAFF BENEFITS */}

@@ -170,7 +170,6 @@ const AdminSettings = () => {
               { id: 'youtube_url', label: 'YOUTUBE URL', placeholder: 'https://youtube.com/geekayesports' },
               { id: 'tiktok_url', label: 'TIKTOK URL', placeholder: 'https://tiktok.com/@geekayesports' },
               { id: 'facebook_url', label: 'FACEBOOK URL', placeholder: 'https://facebook.com/geekayesports' },
-              { id: 'snapchat_url', label: 'SNAPCHAT URL', placeholder: 'https://snapchat.com/add/geekayesports' },
               { id: 'discord_url', label: 'DISCORD / COMMUNITY URL', placeholder: 'https://discord.gg/geekayesports' },
             ].map(item => (
               <div key={item.id} className="space-y-2">

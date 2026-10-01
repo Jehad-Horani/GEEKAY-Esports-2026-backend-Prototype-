@@ -150,7 +150,13 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="font-syncopate text-3xl md:text-6xl font-black text-white uppercase tracking-tighter leading-none"
+            className={`font-syncopate font-black text-white uppercase tracking-tight leading-tight max-w-5xl mx-auto ${
+              team.name.length > 15 
+                ? 'text-2xl sm:text-4xl md:text-5xl' 
+                : team.name.length > 10 
+                  ? 'text-3xl sm:text-5xl md:text-6xl' 
+                  : 'text-3xl md:text-6xl'
+            }`}
           >
             {team.name}
           </motion.h1>
@@ -390,12 +396,20 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                 <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] to-transparent" />
                 
                 <div className="relative z-10">
-                  <span className="bg-[#FFC400] text-black px-2 py-0.5 font-syncopate text-[8px] font-black tracking-widest uppercase inline-block mb-2">
+                  <span className="bg-[#FFC400] text-black px-2 py-0.5 font-syncopate text-[8px] font-black tracking-widest uppercase inline-block mb-2 max-w-full truncate">
                     {otherTeam.game}
                   </span>
-                  <h3 className="font-syncopate text-xl font-black text-white uppercase tracking-tighter leading-none mb-3">
-                    {otherTeam.name}
-                  </h3>
+                  <div className="min-h-[2.5rem] flex items-end mb-3">
+                    <h3 className={`font-syncopate font-black text-white uppercase tracking-tight leading-tight ${
+                      otherTeam.name.length > 15 
+                        ? 'text-sm sm:text-base' 
+                        : otherTeam.name.length > 10 
+                          ? 'text-base sm:text-lg' 
+                          : 'text-lg sm:text-xl'
+                    }`}>
+                      {otherTeam.name}
+                    </h3>
+                  </div>
                   
                   <div className="flex items-center gap-1 text-[#FFC400] font-syncopate text-[8px] font-black tracking-widest group-hover:gap-2 transition-all">
                     <span>VIEW UNIT</span>
@@ -435,7 +449,7 @@ const DivisionCard: React.FC<{ team: Team; onClick: () => void; index: number }>
       <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/60 to-transparent opacity-90 group-hover:opacity-80 transition-opacity duration-300" />
       
       <div className="absolute top-6 left-6 flex flex-col gap-2">
-        <div className="bg-[#FFC400] text-black px-3 py-1 font-syncopate text-[9px] font-black tracking-widest uppercase inline-block w-max">
+        <div className="bg-[#FFC400] text-black px-3 py-1 font-syncopate text-[9px] font-black tracking-widest uppercase inline-block max-w-[calc(100%-2rem)] truncate">
           {team.game}
         </div>
         {team.region && (
@@ -445,10 +459,18 @@ const DivisionCard: React.FC<{ team: Team; onClick: () => void; index: number }>
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col justify-end max-w-full overflow-hidden">
-        <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter leading-none mb-4 whitespace-nowrap truncate max-w-full">
-          {team.name}
-        </h3>
+      <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 flex flex-col justify-end max-w-full overflow-hidden">
+        <div className="min-h-[2.5rem] sm:min-h-[2.75rem] flex items-end mb-3 sm:mb-4">
+          <h3 className={`font-syncopate font-black text-white uppercase tracking-tight leading-tight break-words ${
+            team.name.length > 15 
+              ? 'text-sm sm:text-base lg:text-lg' 
+              : team.name.length > 10 
+                ? 'text-base sm:text-lg lg:text-xl' 
+                : 'text-lg sm:text-xl lg:text-2xl'
+          }`}>
+            {team.name}
+          </h3>
+        </div>
         
         <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center gap-1.5 text-[#FFC400]">

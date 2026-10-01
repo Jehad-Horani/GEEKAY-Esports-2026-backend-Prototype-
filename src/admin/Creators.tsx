@@ -531,7 +531,7 @@ const AdminCreators = () => {
       {/* Full Creator Modal with Live Preview */}
       {editingItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 overflow-y-auto">
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setEditingItem(null)} />
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
           
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}

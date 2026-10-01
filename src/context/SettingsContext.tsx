@@ -10,7 +10,7 @@ export interface SiteSettings {
   twitch_url: string;
   instagram_url: string;
   youtube_url: string;
-  snapchat_url: string;
+  snapchat_url?: string;
   tiktok_url: string;
   facebook_url: string;
   discord_url: string;
@@ -44,7 +44,6 @@ const DEFAULT_SETTINGS: SiteSettings = {
   twitch_url: 'https://twitch.tv/geekayesports',
   instagram_url: 'https://instagram.com/geekayesports',
   youtube_url: 'https://youtube.com/geekayesports',
-  snapchat_url: 'https://snapchat.com/add/geekayesports',
   tiktok_url: 'https://tiktok.com/@geekayesports',
   facebook_url: 'https://facebook.com/geekayesports',
   discord_url: 'https://discord.gg/geekayesports',

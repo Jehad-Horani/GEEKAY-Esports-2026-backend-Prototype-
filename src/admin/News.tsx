@@ -609,7 +609,7 @@ const AdminNews = () => {
       {/* ARTICLE EDITOR MODAL */}
       {editingItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 overflow-y-auto">
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={() => setEditingItem(null)} />
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
           
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -1022,7 +1022,7 @@ const AdminNews = () => {
       {/* CATEGORY MODAL */}
       {editingCategory && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80" onClick={() => setEditingCategory(null)} />
+          <div className="absolute inset-0 bg-black/80" />
           <div className="bg-[#081B3A] border border-white/10 w-full max-w-md relative z-10 p-6 space-y-4">
             <h3 className="font-syncopate text-lg font-bold text-white uppercase">{editingCategory.id ? 'EDIT CATEGORY' : 'ADD CATEGORY'}</h3>
             <form onSubmit={handleSaveCategory} className="space-y-4">

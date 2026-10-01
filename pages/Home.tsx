@@ -1456,7 +1456,17 @@ const ActiveTeamsSection = ({ teams = [] }: { teams?: any[] }) => {
               <div className="absolute top-0 right-0 w-16 h-16 bg-[#FFC400]/5 skew-x-[-45deg] translate-x-8 -translate-y-8" />
               <div>
                 <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-widest uppercase mb-2 block">{team.game}</span>
-                <h3 className="font-syncopate text-xl font-black text-white uppercase mb-4 group-hover:text-[#FFC400] transition-colors">{team.name}</h3>
+                <div className="min-h-[2.5rem] flex items-center mb-3">
+                  <h3 className={`font-syncopate font-black text-white uppercase tracking-tight leading-tight group-hover:text-[#FFC400] transition-colors ${
+                    team.name.length > 15 
+                      ? 'text-sm sm:text-base' 
+                      : team.name.length > 10 
+                        ? 'text-base sm:text-lg' 
+                        : 'text-lg sm:text-xl'
+                  }`}>
+                    {team.name}
+                  </h3>
+                </div>
                 <p className="text-slate-500 font-inter text-xs font-light leading-relaxed mb-6">{team.bio}</p>
               </div>
 

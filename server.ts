@@ -424,7 +424,6 @@ async function initializeSettings() {
         twitch_url: 'https://twitch.tv/geekayesports',
         instagram_url: 'https://instagram.com/geekayesports',
         youtube_url: 'https://youtube.com/geekayesports',
-        snapchat_url: 'https://snapchat.com/add/geekayesports',
         tiktok_url: 'https://tiktok.com/@geekayesports',
         facebook_url: 'https://facebook.com/geekayesports',
         discord_url: 'https://discord.gg/geekayesports',
