@@ -203,66 +203,42 @@ const TikTokIcon = ({ size = 24, className = "" }) => (
   </svg>
 );
 
-const SocialDropdown = ({ platform, accounts, icon: Icon, isCustom = false }: any) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const isMulti = Array.isArray(accounts);
+const SocialButton = ({ 
+  platform, 
+  url, 
+  icon: Icon,
+  followers
+}: { 
+  platform: string; 
+  url?: string; 
+  icon: any; 
+  followers?: string;
+  isCustom?: boolean; 
+}) => {
+  const targetUrl = url && url.trim() !== '' && url !== '#' ? url : '#';
+  const hasUrl = targetUrl !== '#';
 
   return (
-    <div className="relative" ref={containerRef}>
-      <motion.button
-        whileHover={{ scale: 1.1, boxShadow: "0 0 20px rgba(255, 196, 0, 0.4)" }}
+    <div className="relative group">
+      <motion.a
+        href={targetUrl}
+        target={hasUrl ? "_blank" : undefined}
+        rel={hasUrl ? "noopener noreferrer" : undefined}
+        whileHover={{ scale: 1.15, boxShadow: "0 0 25px rgba(255, 196, 0, 0.4)" }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => isMulti ? setIsOpen(!isOpen) : window.open(accounts.url, '_blank')}
-        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border ${isOpen ? 'bg-[#FFC400] border-[#FFC400] text-black' : 'bg-white/5 border-white/10 text-white hover:border-[#FFC400]/50'}`}
+        aria-label={platform}
+        className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border bg-white/5 border-white/10 text-white hover:border-[#FFC400] hover:text-[#FFC400] hover:bg-[#FFC400]/10 cursor-pointer"
       >
-        {isCustom ? <Icon size={24} /> : <Icon size={24} />}
-      </motion.button>
+        <Icon size={24} className="transition-transform group-hover:scale-110" />
+      </motion.a>
 
-      <AnimatePresence>
-        {isOpen && isMulti && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 z-50"
-          >
-            <div className="bg-[#040E1E]/95 backdrop-blur-xl border border-white/10 p-2 shadow-2xl">
-              <div className="px-3 py-2 border-b border-white/5 mb-1">
-                <span className="font-syncopate text-[8px] text-slate-500 tracking-widest uppercase">{platform} ACCOUNTS</span>
-              </div>
-              {accounts.map((acc: any, i: number) => (
-                <a
-                  key={i}
-                  href={acc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 hover:bg-white/5 transition-colors group"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-syncopate text-[10px] font-bold text-white group-hover:text-[#FFC400] transition-colors">{acc.name}</span>
-                    <span className="font-inter text-[9px] text-slate-500">{acc.handle}</span>
-                  </div>
-                  <ExternalLink size={12} className="text-slate-600 group-hover:text-[#FFC400] transition-colors" />
-                </a>
-              ))}
-            </div>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-[#040E1E]/95" />
-          </motion.div>
+      {/* Tooltip on hover */}
+      <div className="pointer-events-none absolute -top-11 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#040E1E] border border-[#FFC400]/40 text-[#FFC400] font-syncopate text-[8px] font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap shadow-xl rounded-sm z-30 flex items-center gap-1.5 -translate-y-1 group-hover:translate-y-0">
+        <span>{platform}</span>
+        {followers && (
+          <span className="text-white/60">• {followers}</span>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 };
@@ -334,23 +310,6 @@ const Media = () => {
       .catch(err => console.error('Failed to fetch gallery images:', err));
     return () => { isMounted = false; };
   }, []);
-
-  const socialAccounts = {
-    instagram: [
-      { name: 'GEEKAY ESPORTS', handle: '@geekayesports', url: '#' },
-      { name: 'GEEKAY ACADEMY', handle: '@geekayacademy', url: '#' },
-    ],
-    tiktok: [
-      { name: 'GEEKAY MAIN', handle: '@geekayesports', url: '#' },
-      { name: 'GEEKAY CLIPS', handle: '@geekayclips', url: '#' },
-    ],
-    x: [
-      { name: 'GEEKAY EN', handle: '@Geekay_Esports', url: '#' },
-      { name: 'GEEKAY AR', handle: '@Geekay_AR', url: '#' },
-    ],
-    facebook: { name: 'GEEKAY ESPORTS', handle: 'GeekayEsports', url: '#' },
-    youtube: { name: 'GEEKAY ESPORTS', handle: 'GeekayEsports', url: '#' },
-  };
 
   const row1 = useMemo(() => galleryImages.slice(0, Math.ceil(galleryImages.length / 3)), [galleryImages]);
   const row2 = useMemo(() => galleryImages.slice(Math.ceil(galleryImages.length / 3), Math.ceil((galleryImages.length / 3) * 2)), [galleryImages]);
@@ -440,11 +399,36 @@ const Media = () => {
                 transition={{ delay: 1.5, duration: 1 }}
                 className="flex flex-wrap gap-6 items-center"
               >
-                <SocialDropdown platform="INSTAGRAM" accounts={socialAccounts.instagram} icon={Instagram} />
-                <SocialDropdown platform="TIKTOK" accounts={socialAccounts.tiktok} icon={TikTokIcon} isCustom />
-                <SocialDropdown platform="X (TWITTER)" accounts={socialAccounts.x} icon={Twitter} />
-                <SocialDropdown platform="FACEBOOK" accounts={socialAccounts.facebook} icon={Facebook} />
-                <SocialDropdown platform="YOUTUBE" accounts={socialAccounts.youtube} icon={Youtube} />
+                <SocialButton 
+                  platform="INSTAGRAM" 
+                  url={settings.instagram_url} 
+                  followers={settings.instagram_count || "240K"} 
+                  icon={Instagram} 
+                />
+                <SocialButton 
+                  platform="TIKTOK" 
+                  url={settings.tiktok_url} 
+                  followers={settings.tiktok_count || "481K"} 
+                  icon={TikTokIcon} 
+                />
+                <SocialButton 
+                  platform="X (TWITTER)" 
+                  url={settings.twitter_url} 
+                  followers={settings.twitter_count || "399K"} 
+                  icon={Twitter} 
+                />
+                <SocialButton 
+                  platform="FACEBOOK" 
+                  url={settings.facebook_url} 
+                  followers={settings.facebook_count || "8.7K"} 
+                  icon={Facebook} 
+                />
+                <SocialButton 
+                  platform="YOUTUBE" 
+                  url={settings.youtube_url} 
+                  followers={settings.youtube_count || "523K"} 
+                  icon={Youtube} 
+                />
               </motion.div>
             </motion.div>
           </div>
