@@ -184,7 +184,7 @@ export default function PlayerProfile() {
                 achievements: safeJsonParse(t.achievements, []),
                 winRate: t.win_rate || t.winRate || '75%',
                 globalRank: t.global_rank || t.globalRank || '#1 GLOBAL',
-                championships: t.championships || 3
+                championships: (t.championships !== undefined && t.championships !== null && String(t.championships).trim() !== '') ? t.championships : 'N/A'
               };
             })
           );

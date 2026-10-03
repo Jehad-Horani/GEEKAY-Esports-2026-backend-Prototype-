@@ -201,7 +201,11 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
               </div>
               <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">CHAMPIONSHIPS</span>
-                <span className="font-syncopate text-3xl font-black text-white mt-4">{team.stats?.championships || '5'}</span>
+                <span className="font-syncopate text-3xl font-black text-white mt-4">
+                  {team.stats?.championships !== undefined && team.stats?.championships !== null && String(team.stats.championships).trim() !== ''
+                    ? team.stats.championships 
+                    : 'N/A'}
+                </span>
               </div>
               <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">SEASON RECORD</span>
@@ -699,12 +703,12 @@ const Teams = () => {
                   media: parseMedia,
                   winRate: t.win_rate || t.winRate || '75%',
                   globalRank: t.global_rank || t.globalRank || '#1 GLOBAL',
-                  championships: t.championships || 3,
+                  championships: (t.championships !== undefined && t.championships !== null && String(t.championships).trim() !== '') ? t.championships : 'N/A',
                   seasonRecord: t.season_record || t.seasonRecord || '18-4',
                   stats: {
                     winRate: t.win_rate || t.winRate || '75%',
                     rank: t.global_rank || t.globalRank || '#1 GLOBAL',
-                    championships: t.championships || 3,
+                    championships: (t.championships !== undefined && t.championships !== null && String(t.championships).trim() !== '') ? t.championships : 'N/A',
                     seasonRecord: t.season_record || t.seasonRecord || '18-4'
                   }
                 };

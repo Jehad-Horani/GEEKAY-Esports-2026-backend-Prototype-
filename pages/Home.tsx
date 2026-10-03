@@ -744,17 +744,31 @@ const PlayerDetailModal: React.FC<{ player: Player; onClose: () => void }> = ({ 
 
         <div className="p-8 md:p-16 flex flex-col justify-center">
           <div className="flex gap-5 mb-10">
-            {Object.entries(player.socials).map(([platform, count]) => (
-              count && count !== '#' && (
-                <SocialFollowerIcon 
+            {Object.entries(player.socials).map(([platform, count]) => {
+              if (!count || count === '#') return null;
+              const strVal = String(count);
+              const href = strVal.startsWith('http') 
+                ? strVal 
+                : strVal.startsWith('@') 
+                ? `https://${platform.toLowerCase()}.com/${strVal.replace('@', '')}`
+                : `https://${platform.toLowerCase()}.com`;
+              return (
+                <a
                   key={platform}
-                  platform={platform} 
-                  count={count}
-                  size={24}
-                  className="text-slate-400 hover:text-[#FFC400]"
-                />
-              )
-            ))}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover-glitch transition-transform hover:scale-110"
+                >
+                  <SocialFollowerIcon 
+                    platform={platform} 
+                    count={strVal}
+                    size={24}
+                    className="text-slate-400 hover:text-[#FFC400]"
+                  />
+                </a>
+              );
+            })}
           </div>
 
           <p className="text-slate-400 text-lg mb-12 leading-relaxed font-light">{player.bio}</p>

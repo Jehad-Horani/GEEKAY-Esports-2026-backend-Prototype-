@@ -533,6 +533,11 @@ function MainAppLayout() {
                     <SocialFollowerIcon platform="facebook" count={settings.facebook_count || '8.7K'} size={20} className="text-slate-400 hover:text-[#FFC400]" />
                   </a>
                 )}
+                {settings.discord_url && (
+                  <a href={settings.discord_url} target="_blank" rel="noopener noreferrer" className="hover-glitch" title="Discord Community">
+                    <SocialFollowerIcon platform="discord" count="" size={20} className="text-slate-400 hover:text-[#FFC400]" />
+                  </a>
+                )}
               </div>
             </div>
             <div>

@@ -681,9 +681,9 @@ const AdminTeams = () => {
                     <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Championships</label>
                     <input 
                       type="text" 
-                      value={editingTeam.championships || ''}
+                      value={editingTeam.championships !== undefined && editingTeam.championships !== null ? editingTeam.championships : ''}
                       onChange={e => setEditingTeam({...editingTeam, championships: e.target.value})}
-                      placeholder="e.g. 5"
+                      placeholder="e.g. 5 or N/A"
                       className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
@@ -1045,9 +1045,9 @@ const AdminTeams = () => {
                       </label>
                       <input 
                         type="text" 
-                        value={editingPlayer.championship_wins ?? '5'}
+                        value={editingPlayer.championship_wins !== undefined && editingPlayer.championship_wins !== null ? editingPlayer.championship_wins : ''}
                         onChange={e => setEditingPlayer({...editingPlayer, championship_wins: e.target.value})}
-                        placeholder="5" 
+                        placeholder="e.g. 5 or N/A" 
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>
@@ -1058,9 +1058,9 @@ const AdminTeams = () => {
                       </label>
                       <input 
                         type="text" 
-                        value={editingPlayer.major_titles ?? '5'}
+                        value={editingPlayer.major_titles !== undefined && editingPlayer.major_titles !== null ? editingPlayer.major_titles : ''}
                         onChange={e => setEditingPlayer({...editingPlayer, major_titles: e.target.value})}
-                        placeholder="5" 
+                        placeholder="e.g. 5 or N/A" 
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>
@@ -1068,9 +1068,9 @@ const AdminTeams = () => {
                       <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Int. Placements</label>
                       <input 
                         type="text" 
-                        value={editingPlayer.int_placements ?? '12'}
+                        value={editingPlayer.int_placements !== undefined && editingPlayer.int_placements !== null ? editingPlayer.int_placements : ''}
                         onChange={e => setEditingPlayer({...editingPlayer, int_placements: e.target.value})}
-                        placeholder="12"
+                        placeholder="e.g. 12 or N/A"
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>
@@ -1078,9 +1078,9 @@ const AdminTeams = () => {
                       <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Trophy Count</label>
                       <input 
                         type="text" 
-                        value={editingPlayer.trophy_count ?? '12'}
+                        value={editingPlayer.trophy_count !== undefined && editingPlayer.trophy_count !== null ? editingPlayer.trophy_count : ''}
                         onChange={e => setEditingPlayer({...editingPlayer, trophy_count: e.target.value})}
-                        placeholder="12"
+                        placeholder="e.g. 12 or N/A"
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>

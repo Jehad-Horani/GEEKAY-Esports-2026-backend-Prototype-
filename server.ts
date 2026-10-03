@@ -1683,10 +1683,19 @@ app.get('/api/auth/me', async (req: any, res: any) => {
       // Upsert Supabase records into SQLite
       for (const item of sbItems) {
         if (!item || item.id === undefined || item.id === null) continue;
+        let existingSqlRow: any = null;
+        try {
+          existingSqlRow = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(item.id);
+        } catch (e) {}
+
         const payload: any = {};
         for (const k of Object.keys(item)) {
           if (validCols.includes(k)) {
-            payload[k] = item[k];
+            if ((item[k] === null || item[k] === undefined) && existingSqlRow && existingSqlRow[k] !== null && existingSqlRow[k] !== undefined) {
+              payload[k] = existingSqlRow[k];
+            } else {
+              payload[k] = item[k];
+            }
           }
         }
         const fields = Object.keys(payload);
@@ -1866,6 +1875,27 @@ app.get('/api/auth/me', async (req: any, res: any) => {
             }
           }
 
+          if (!removedAKey && (msg.includes('invalid input syntax for type') || error.code === '22P02')) {
+            const syntaxMatch = msg.match(/invalid input syntax for type [^:]+:\s*"([^"]+)"/i);
+            const badVal = syntaxMatch ? syntaxMatch[1] : null;
+            for (const key of Object.keys(payload)) {
+              if (badVal && String(payload[key]).trim() === badVal) {
+                delete payload[key];
+                removedAKey = true;
+                break;
+              }
+            }
+            if (!removedAKey) {
+              for (const key of Object.keys(payload)) {
+                if (typeof payload[key] === 'string' && isNaN(Number(payload[key])) && (key.includes('championship') || key.includes('order') || key.includes('rank') || key.includes('wins') || key.includes('count'))) {
+                  delete payload[key];
+                  removedAKey = true;
+                  break;
+                }
+              }
+            }
+          }
+
           if (!removedAKey && msg.includes('is of type boolean but expression is of type')) {
             for (const key of Object.keys(payload)) {
               if (typeof payload[key] === 'number') {
@@ -1976,6 +2006,27 @@ app.get('/api/auth/me', async (req: any, res: any) => {
                 delete payload[key];
                 removedAKey = true;
                 break;
+              }
+            }
+          }
+
+          if (!removedAKey && (msg.includes('invalid input syntax for type') || error.code === '22P02')) {
+            const syntaxMatch = msg.match(/invalid input syntax for type [^:]+:\s*"([^"]+)"/i);
+            const badVal = syntaxMatch ? syntaxMatch[1] : null;
+            for (const key of Object.keys(payload)) {
+              if (badVal && String(payload[key]).trim() === badVal) {
+                delete payload[key];
+                removedAKey = true;
+                break;
+              }
+            }
+            if (!removedAKey) {
+              for (const key of Object.keys(payload)) {
+                if (typeof payload[key] === 'string' && isNaN(Number(payload[key])) && (key.includes('championship') || key.includes('order') || key.includes('rank') || key.includes('wins') || key.includes('count'))) {
+                  delete payload[key];
+                  removedAKey = true;
+                  break;
+                }
               }
             }
           }
@@ -2117,6 +2168,23 @@ app.get('/api/auth/me', async (req: any, res: any) => {
               }
               if (tableName === 'creators' && Array.isArray(itemsToReturn)) {
                 itemsToReturn = itemsToReturn.map(normalizeCreatorRow);
+              }
+              if (Array.isArray(itemsToReturn)) {
+                itemsToReturn = itemsToReturn.map((item: any) => {
+                  try {
+                    const sqlRow: any = db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(item.id);
+                    if (sqlRow) {
+                      const merged = { ...item };
+                      for (const [k, v] of Object.entries(sqlRow)) {
+                        if (v !== null && v !== undefined && (merged[k] === null || merged[k] === undefined || (typeof v === 'string' && v.toLowerCase() === 'n/a'))) {
+                          merged[k] = v;
+                        }
+                      }
+                      return merged;
+                    }
+                  } catch (e) {}
+                  return item;
+                });
               }
               return res.json(itemsToReturn);
             }

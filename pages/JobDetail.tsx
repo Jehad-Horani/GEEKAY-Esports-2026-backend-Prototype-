@@ -8,11 +8,13 @@ import { Job } from '../types';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
+import { useSettings } from '../src/context/SettingsContext';
 
 import { safeJsonParse } from '../src/utils/json';
 
 const JobDetail = () => {
   const { slug } = useParams<{ slug: string }>();
+  const { settings } = useSettings();
   const [dbJobs, setDbJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +78,7 @@ const JobDetail = () => {
     );
   }
 
-  const targetEmail = job.email || 'careers@geekay.com';
+  const targetEmail = job.email || settings.careers_email || 'careers@geekay.com';
   const mailtoSubject = `Application – ${job.title}`;
   const mailtoLink = `mailto:${targetEmail}?subject=${encodeURIComponent(mailtoSubject)}`;
 
@@ -244,8 +246,8 @@ const JobDetail = () => {
                   <p className="text-slate-500 font-syncopate text-[9px] font-bold tracking-widest uppercase mb-4">
                     For partnerships and business inquiries:
                   </p>
-                  <a href="mailto:business@geekay.com" className="text-white hover:text-[#FFC400] transition-colors font-bold text-sm tracking-widest">
-                    business@geekay.com
+                  <a href={`mailto:${settings.partnerships_email || settings.business_email || 'business@geekay.com'}`} className="text-white hover:text-[#FFC400] transition-colors font-bold text-sm tracking-widest">
+                    {settings.partnerships_email || settings.business_email || 'business@geekay.com'}
                   </a>
                 </div>
               </div>
@@ -255,14 +257,13 @@ const JobDetail = () => {
                 <div>
                   <h4 className="font-syncopate text-[10px] text-yellow-500 font-bold mb-3 tracking-widest">RIYADH (PRIMARY)</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Al Nemer Center, 2nd Tower, 3rd Floor, Office 312<br />
-                    P.O. Box 12214, Riyadh
+                    {settings.riyadh_address || 'Al Nemer Center, 2nd Tower, 3rd Floor, Office 312, P.O. Box 12214, Riyadh'}
                   </p>
                 </div>
                 <div>
                   <h4 className="font-syncopate text-[10px] text-yellow-500 font-bold mb-3 tracking-widest">UAE</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Dubai – Al Aweer, Ras Al Khor
+                    {settings.dubai_address || '1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor, P.O. Box 2589, Dubai'}
                   </p>
                 </div>
               </div>

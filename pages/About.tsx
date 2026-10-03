@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
+import { useSettings } from '../src/context/SettingsContext';
 
 // --- Utility: Animated Counter ---
 const Counter = ({ value, duration = 2 }: { value: string; duration?: number }) => {
@@ -120,6 +121,7 @@ const HUDStatCard = ({ label, value, index, isPriority = false }: { label: strin
 );
 
 const About = () => {
+  const { settings } = useSettings();
   const DEFAULT_LEADERSHIP = [
     { 
       name: "KISHAN", 
@@ -525,13 +527,13 @@ const About = () => {
             {[
               {
                 title: 'GENERAL INQUIRIES',
-                email: 'inquiries@geekay.com',
+                email: settings.general_email || 'inquiries@geekay.com',
                 purpose: 'Questions, support, and general requests.',
                 icon: <Globe size={28} />
               },
               {
                 title: 'PARTNERSHIPS AND BUSINESS',
-                email: 'business@geekay.com',
+                email: settings.partnerships_email || settings.business_email || 'business@geekay.com',
                 purpose: 'Sponsorships, collaborations, brand deals.',
                 icon: <Trophy size={28} />
               },
@@ -568,10 +570,15 @@ const About = () => {
                         <span className="text-[#FFC400] font-syncopate text-[10px] font-black tracking-wider uppercase">Riyadh (Primary)</span>
                       </div>
                       <p className="text-slate-300 font-inter text-xs leading-relaxed">
-                        Al Nemer Center, 2nd Tower, 3rd Floor, Office 312<br />
-                        P.O. Box 12214, Riyadh<br />
-                        +966 54 097 4261<br />
-                        <span className="text-slate-400">esports@geekaygroupmea.com</span>
+                        {settings.riyadh_address || 'Al Nemer Center, 2nd Tower, 3rd Floor, Office 312, P.O. Box 12214, Riyadh'}<br />
+                        {settings.riyadh_phone && (
+                          <a href={`tel:${settings.riyadh_phone.replace(/\s+/g, '')}`} className="hover:text-[#FFC400] transition-colors block">
+                            {settings.riyadh_phone}
+                          </a>
+                        )}
+                        <a href={`mailto:${settings.riyadh_email || 'esports@geekaygroupmea.com'}`} className="text-slate-400 hover:text-[#FFC400] transition-colors block">
+                          {settings.riyadh_email || 'esports@geekaygroupmea.com'}
+                        </a>
                       </p>
                     </div>
                     
@@ -583,10 +590,15 @@ const About = () => {
                         <span className="text-[#FFC400] font-syncopate text-[10px] font-black tracking-wider uppercase">UAE</span>
                       </div>
                       <p className="text-slate-300 font-inter text-xs leading-relaxed">
-                        1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor<br />
-                        P.O. Box 2589, Dubai<br />
-                        +971 52 505 9709<br />
-                        <span className="text-slate-400">esports@geekaygroupmea.com</span>
+                        {settings.dubai_address || '1 19D Street, Al Aweer, Industrial Area First, Ras Al Khor, P.O. Box 2589, Dubai'}<br />
+                        {settings.dubai_phone && (
+                          <a href={`tel:${settings.dubai_phone.replace(/\s+/g, '')}`} className="hover:text-[#FFC400] transition-colors block">
+                            {settings.dubai_phone}
+                          </a>
+                        )}
+                        <a href={`mailto:${settings.dubai_email || 'esports@geekaygroupmea.com'}`} className="text-slate-400 hover:text-[#FFC400] transition-colors block">
+                          {settings.dubai_email || 'esports@geekaygroupmea.com'}
+                        </a>
                       </p>
                     </div>
                   </div>
