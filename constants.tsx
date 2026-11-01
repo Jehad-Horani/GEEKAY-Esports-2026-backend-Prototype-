@@ -1686,42 +1686,48 @@ export const MOCK_NEWS: NewsItem[] = [
 export const MOCK_PRODUCTS: Product[] = [
   {
     id: 'p1',
-    name: 'Geekay Esports Jersey 2025',
-    price: '119.00',
-    link: 'https://www.geekay.com/en/geekay-esports-jersey-2025',
+    name: 'Geekay Esports Jersey 2026',
+    price: '$32.38',
+    link: 'https://www.geekay.com/en/geekay-esports-jersey-2026',
     image: '/assets/jersey.png',
-    category: 'Apparel'
+    category: 'Apparel',
+    description: 'Official 2026 Geekay Esports pro team jersey engineered for competitive comfort, breathability, and elite performance.'
   },
   {
     id: 'p2',
     name: 'Geekay Esports Frame – Rocket League Edition',
-    price: 'TBA',
+    price: '$35.00',
     link: 'https://www.geekay.com/en/geekay-esports-frame-rocket-league-edition-oaly',
     image: '/assets/frame.png',
-    category: 'Collectibles'
+    category: 'Collectibles',
+    description: 'Championship commemorative display frame celebrating Geekay Esports Rocket League historic victories.'
   },
   {
     id: 'p3',
     name: 'Geekay Esports Chair/Play Mat',
-    price: '99.00',
+    price: '$26.94',
     link: 'https://www.geekay.com/en/geekay-esports-chair-mat',
     image: '/assets/mat.png',
-    category: 'Accessories'
+    category: 'Accessories',
+    description: 'Heavy-duty non-slip floor and chair protection mat featuring the official Geekay Esports geometric crest.'
   },
   {
     id: 'p4',
     name: 'Geekay Esports Desk Mat Mouse Pad',
-    price: '49.00',
+    price: '$13.33',
     link: 'https://www.geekay.com/en/geekay-e-sports-desk-mat-mouse-pad',
     image: '/assets/mouse.png',
-    category: 'Accessories'
+    category: 'Accessories',
+    description: 'Ultra-wide precision-glide desk mat and mouse pad designed for high-accuracy competitive esports tracking.'
   },
   {
     id: 'p5',
     name: 'GamerTek Esports Bag – Black',
-    price: '149.00',
+    price: '$40.54',
     link: 'https://www.geekay.com/en/gamertek-esports-bag-black',
     image: '/assets/bag.png',
-    category: 'Gear'
+    category: 'Gear',
+    description: 'Durable GamerTek x Geekay tournament gear travel backpack with dedicated compartments for peripherals and laptops.'
   }
 ];
+

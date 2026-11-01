@@ -534,6 +534,7 @@ addColumnSafely('players', 'championship_wins', 'TEXT');
 addColumnSafely('players', 'major_titles', 'TEXT');
 addColumnSafely('players', 'int_placements', 'TEXT');
 addColumnSafely('players', 'trophy_count', 'TEXT');
+addColumnSafely('players', 'prize_money', 'TEXT');
 addColumnSafely('players', 'media', 'TEXT');
 
 addColumnSafely('teams', 'overview_title', 'TEXT');
@@ -541,10 +542,12 @@ addColumnSafely('teams', 'established', 'TEXT');
 addColumnSafely('teams', 'active_status', 'TEXT');
 addColumnSafely('teams', 'live_feed', 'TEXT');
 addColumnSafely('teams', 'season_record', 'TEXT');
+addColumnSafely('teams', 'prize_money', 'TEXT');
 addColumnSafely('teams', 'media', 'TEXT');
 addColumnSafely('teams', 'staff', 'TEXT');
 addColumnSafely('teams', 'socials', 'TEXT');
 
+addColumnSafely('events', 'featured', 'INTEGER DEFAULT 0');
 addColumnSafely('events', 'overview_title', 'TEXT');
 addColumnSafely('events', 'prize_pool', 'TEXT');
 addColumnSafely('events', 'total_teams', 'TEXT');
@@ -2321,6 +2324,17 @@ app.get('/api/auth/me', async (req: any, res: any) => {
         if (tableName === 'events') {
           if (payload.venue && !payload.location) payload.location = payload.venue;
           if (payload.location && !payload.venue) payload.venue = payload.location;
+          if (Number(payload.featured) === 1 || payload.featured === true || payload.featured === '1') {
+            db.prepare('UPDATE events SET featured = 0').run();
+            payload.featured = 1;
+            if (supabase) {
+              try {
+                await supabase.from('events').update({ featured: 0 });
+              } catch (e) {}
+            }
+          } else if (payload.featured !== undefined) {
+            payload.featured = 0;
+          }
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
@@ -2438,6 +2452,17 @@ app.get('/api/auth/me', async (req: any, res: any) => {
         if (tableName === 'events') {
           if (payload.venue && !payload.location) payload.location = payload.venue;
           if (payload.location && !payload.venue) payload.venue = payload.location;
+          if (Number(payload.featured) === 1 || payload.featured === true || payload.featured === '1') {
+            db.prepare('UPDATE events SET featured = 0 WHERE id != ?').run(targetId);
+            payload.featured = 1;
+            if (supabase) {
+              try {
+                await supabase.from('events').update({ featured: 0 }).neq('id', targetId);
+              } catch (e) {}
+            }
+          } else if (payload.featured !== undefined) {
+            payload.featured = 0;
+          }
         }
 
         if (tableName === 'users' && payload.password && typeof payload.password === 'string') {
@@ -2551,6 +2576,80 @@ app.get('/api/auth/me', async (req: any, res: any) => {
   createCrudRoutes('teams', 'Team');
   createCrudRoutes('creators', 'Content Creator');
   createCrudRoutes('events', 'Event');
+
+  // Dedicated endpoint to set or toggle a featured tournament on the homepage
+  app.post(['/api/events/:id/feature', '/api/events/feature/:id'], authenticateToken, async (req: any, res: any) => {
+    try {
+      const rawId = String(req.params.id || '').trim();
+      
+      // 1. Support clearing featured status (automatic fallback)
+      if (rawId === 'clear' || rawId === 'none' || rawId === '0') {
+        db.prepare('UPDATE events SET featured = 0').run();
+        if (supabase) {
+          try {
+            await supabase.from('events').update({ featured: 0 });
+          } catch (sbErr) {
+            console.error('Supabase clear featured error:', sbErr);
+          }
+        }
+        return res.json({ success: true, featured: null, message: 'Featured tournament cleared (set to automatic)' });
+      }
+
+      const numId = Number(rawId);
+      const targetId = !isNaN(numId) ? numId : rawId;
+
+      // 2. Check current state of this event
+      const current = db.prepare('SELECT id, title, featured FROM events WHERE id = ? OR id = ?').get(targetId, rawId) as any;
+      if (!current) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      // 3. Determine if user wants to feature or unfeature
+      const explicitState = req.body && req.body.featured !== undefined ? req.body.featured : null;
+      let willFeature = true;
+
+      if (explicitState !== null) {
+        willFeature = Boolean(Number(explicitState) === 1 || explicitState === true || explicitState === '1');
+      } else {
+        // Toggle behavior if clicked when already featured
+        willFeature = Number(current.featured) !== 1;
+      }
+
+      if (willFeature) {
+        // Exclusively feature this tournament
+        db.prepare('UPDATE events SET featured = CASE WHEN (id = ? OR id = ?) THEN 1 ELSE 0 END').run(targetId, rawId);
+        if (supabase) {
+          try {
+            await supabase.from('events').update({ featured: 0 }).neq('id', targetId);
+            await supabase.from('events').update({ featured: 1 }).eq('id', targetId);
+          } catch (sbErr) {
+            console.error('Supabase set featured error:', sbErr);
+          }
+        }
+      } else {
+        // Unfeature this tournament
+        db.prepare('UPDATE events SET featured = 0 WHERE id = ? OR id = ?').run(targetId, rawId);
+        if (supabase) {
+          try {
+            await supabase.from('events').update({ featured: 0 }).eq('id', targetId);
+          } catch (sbErr) {
+            console.error('Supabase unfeature error:', sbErr);
+          }
+        }
+      }
+
+      const updated = db.prepare('SELECT * FROM events WHERE id = ? OR id = ?').get(targetId, rawId);
+      res.json({ 
+        success: true, 
+        isFeatured: willFeature, 
+        featured: willFeature ? updated : null,
+        message: willFeature ? `"${updated?.title || 'Event'}" is now the Featured Tournament on Homepage!` : `"${current.title}" is no longer featured.` 
+      });
+    } catch (err: any) {
+      console.error('Error in /api/events/:id/feature:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
   createCrudRoutes('gallery', 'Gallery Item');
   createCrudRoutes('jobs', 'Job Opening');
   createCrudRoutes('news', 'News Article');

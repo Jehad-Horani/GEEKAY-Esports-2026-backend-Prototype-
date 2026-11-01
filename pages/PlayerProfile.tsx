@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy as TrophyIcon, 
   Award, 
@@ -19,8 +19,11 @@ import {
   User,
   ExternalLink,
   Briefcase,
-  Medal
+  Medal,
+  DollarSign,
+  X
 } from 'lucide-react';
+
 
 import { MOCK_TEAMS } from '../constants';
 import { Player, Team } from '../types';
@@ -81,13 +84,29 @@ const getJoinDate = (playerId: string) => {
   return `${month} ${year}`;
 };
 
+// Helper to format player prize money in USD with realistic calculations
+export const formatPlayerPrizeMoney = (val: any, p?: Player): string => {
+  if (val !== undefined && val !== null && String(val).trim() !== '' && String(val).trim() !== 'N/A') {
+    const str = String(val).trim();
+    if (str.startsWith('$') || str.includes('USD') || str.includes('€') || str.includes('£')) return str;
+    const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+    if (!isNaN(num) && num > 0) return `$${num.toLocaleString('en-US')}`;
+    return `$${str}`;
+  }
+  const mvps = p?.stats?.mvps || 5;
+  const tourneys = p?.stats?.tournaments || 15;
+  const baseEarnings = 45000 + (mvps * 6500) + (tourneys * 2800);
+  return `$${baseEarnings.toLocaleString('en-US')}`;
+};
+
 // Visual trophy visualizer cards
 const TROPHY_PRESETS = [
   { title: 'Tournament Wins', desc: 'All first place finishes', icon: <TrophyIcon className="text-[#FFC400]" size={36} />, count: '3' },
   { title: 'Major Wins', desc: 'S and A tier first place finishes', icon: <Award className="text-yellow-400" size={36} />, count: '6' },
   { title: 'Int. Placements', desc: 'Global stage top 3 finishes', icon: <Zap className="text-amber-400" size={36} />, count: '12' },
-  { title: 'Trophy Count', desc: 'Total registered organization cups', icon: <Flame className="text-orange-500" size={36} />, count: '21' },
+  { title: 'Prize Money', desc: 'Career tournament prize money', icon: <DollarSign className="text-yellow-300" size={36} />, count: '$85,000' },
 ];
+
 
 // Helper to scale player nicknames smoothly so long names strictly fit in one row without wrapping or overflowing
 const getNicknameClasses = (name: string) => {
@@ -123,6 +142,7 @@ export default function PlayerProfile() {
 
   const [dbTeams, setDbTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMedia, setSelectedMedia] = useState<{ url: string; title?: string } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -161,6 +181,8 @@ export default function PlayerProfile() {
                 major_titles: p.major_titles ?? p.majorTitles,
                 int_placements: p.int_placements ?? p.intPlacements,
                 trophy_count: p.trophy_count ?? p.trophyCount,
+                prize_money: p.prize_money ?? p.prizeMoney ?? p.trophy_count,
+                prizeMoney: p.prize_money ?? p.prizeMoney ?? p.trophy_count,
                 stats: {
                   kd: p.kd !== undefined && p.kd !== null ? Number(p.kd) : (p.stats?.kd ?? 1.2),
                   mvps: p.mvps !== undefined && p.mvps !== null ? Number(p.mvps) : (p.stats?.mvps ?? 0),
@@ -169,6 +191,7 @@ export default function PlayerProfile() {
                   winRate: p.win_rate || p.winRate || p.stats?.winRate || '70%'
                 }
               }));
+
 
               return {
                 id: String(t.id),
@@ -603,16 +626,13 @@ export default function PlayerProfile() {
                       : (player.achievements && player.achievements.length > 0 ? player.achievements.length : 12)
                   },
                   { 
-                    title: 'Trophy Count', 
-                    desc: 'Total registered organization cups', 
-                    icon: <Shield className="text-yellow-300" size={36} />, 
-                    count: (player.trophy_count !== undefined && player.trophy_count !== null && String(player.trophy_count).trim() !== '')
-                      ? player.trophy_count
-                      : (player.achievements && player.achievements.length > 0 
-                          ? player.achievements.length 
-                          : (player.stats?.tournaments || 12))
+                    title: 'Prize Money', 
+                    desc: 'Total tournament career earnings', 
+                    icon: <DollarSign className="text-yellow-300" size={36} />, 
+                    count: formatPlayerPrizeMoney(player.prize_money || (player as any).prizeMoney, player)
                   }
                 ].map((trophy, i) => (
+
                   <div key={i} className="flex gap-6 items-center p-6 bg-[#040E1E]/40 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-300 relative group">
                     <div className="absolute top-0 right-0 w-16 h-16 bg-[#FFC400]/5 skew-x-[-45deg] translate-x-8 -translate-y-8" />
                     
@@ -679,18 +699,27 @@ export default function PlayerProfile() {
                     }
 
                     return (
-                      <div key={i} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                      <div 
+                        key={i} 
+                        onClick={() => setSelectedMedia({ url: mediaUrl, title: item.title || `${player.nickname} Gallery Photo ${i + 1}` })}
+                        className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 hover:border-[#FFC400] hover:shadow-[0_0_20px_rgba(255,196,0,0.2)] transition-all duration-300 cursor-pointer group"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open media ${item.title || `Photo ${i + 1}`}`}
+                      >
                         <img 
                           src={mediaUrl} 
                           alt={item.title || `${player.nickname} Gallery Photo ${i + 1}`} 
                           className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                          {item.title || `GALLERY // PIC_${i + 1}`}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4" />
+                        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all z-10">
+                          <span className="truncate">{item.title || `GALLERY // PIC_${i + 1}`}</span>
+                          <ExternalLink size={14} className="shrink-0 text-white group-hover:text-[#FFC400]" />
                         </div>
                       </div>
                     );
+
                   })}
                 </div>
               </section>
@@ -828,6 +857,66 @@ export default function PlayerProfile() {
             </Link>
           )}
         </div>
+
+        {/* Lightbox Modal for Player Media */}
+        <AnimatePresence>
+          {selectedMedia && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedMedia(null)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 bg-black/90 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative max-w-5xl w-full bg-[#05142B] border border-slate-700/80 shadow-2xl overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedMedia(null)}
+                  className="absolute top-4 right-4 z-20 p-2.5 bg-black/80 hover:bg-[#FFC400] text-white hover:text-black transition-colors rounded-none border border-slate-700 hover:border-[#FFC400]"
+                  aria-label="Close media preview"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="relative aspect-video max-h-[70vh] bg-black flex items-center justify-center overflow-hidden">
+                  <img
+                    src={selectedMedia.url}
+                    alt={selectedMedia.title || 'Media preview'}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+
+                <div className="p-6 md:p-8 border-t border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#061428]">
+                  <div>
+                    <span className="font-syncopate text-[#FFC400] text-[9px] tracking-[0.3em] font-black uppercase block mb-1">
+                      OPERATIVE_{player?.nickname?.toUpperCase() || 'PLAYER'} // MEDIA ARCHIVE
+                    </span>
+                    <h3 className="font-syncopate text-base md:text-lg font-black text-white uppercase tracking-tight">
+                      {selectedMedia.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => window.open(selectedMedia.url, '_blank')}
+                      className="px-5 py-3 bg-[#FFC400] text-black font-syncopate text-[10px] font-black tracking-widest uppercase hover:bg-yellow-400 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,196,0,0.3)]"
+                    >
+                      <span>OPEN FULL MEDIA FILE</span>
+                      <ExternalLink size={14} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

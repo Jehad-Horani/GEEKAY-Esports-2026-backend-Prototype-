@@ -66,8 +66,34 @@ const TrophyCard: React.FC<{ trophy: Trophy, index: number }> = ({ trophy, index
   </motion.div>
 );
 
+// Helper to format team prize money in USD with realistic defaults
+export const formatPrizeMoney = (val?: string | number | null, fallbackTeamName?: string): string => {
+  if (val !== undefined && val !== null && String(val).trim() !== '' && String(val).trim() !== 'N/A') {
+    const str = String(val).trim();
+    if (str.startsWith('$') || str.includes('USD') || str.includes('€') || str.includes('£')) return str;
+    const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+    if (!isNaN(num) && num > 0) {
+      return `$${num.toLocaleString('en-US')}`;
+    }
+    return `$${str}`;
+  }
+  const name = (fallbackTeamName || '').toLowerCase();
+  if (name.includes('honor')) return '$600,000';
+  if (name.includes('rocket')) return '$450,000';
+  if (name.includes('apex')) return '$400,000';
+  if (name.includes('fortnite')) return '$350,000';
+  if (name.includes('overwatch')) return '$320,000';
+  if (name.includes('pubg') && name.includes('pc')) return '$310,000';
+  if (name.includes('rainbow') || name.includes('r6')) return '$280,000';
+  if (name.includes('pubg')) return '$240,000';
+  if (name.includes('mlbb')) return '$180,000';
+  return '$250,000';
+};
+
 // --- Upgraded Team Detail Component ---
 const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, onSwitchTeam: (id: string) => void }> = ({ team, allTeams = [], onBack, onSwitchTeam }) => {
+  const [selectedMedia, setSelectedMedia] = useState<{ url: string; title?: string } | null>(null);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [team.id]);
@@ -191,13 +217,15 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
 
             {/* Quick Stats Grid */}
             <div className="lg:col-span-5 grid grid-cols-2 gap-4">
-              <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">WIN RATE</span>
-                <span className="font-syncopate text-3xl font-black text-[#FFC400] mt-4">{team.stats?.winRate || '78%'}</span>
+              <div className="col-span-2 bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
+                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">PRIZE MONEY // TOTAL EARNINGS</span>
+                <span className="font-syncopate text-3xl font-black text-[#FFC400] mt-4">
+                  {formatPrizeMoney(team.prize_money || team.prizeMoney || team.stats?.prizeMoney, team.name)}
+                </span>
               </div>
               <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">REGIONAL RANK</span>
-                <span className="font-syncopate text-3xl font-black text-white mt-4">{team.stats?.rank || '#1 REGIONAL'}</span>
+                <span className="font-syncopate text-3xl font-black text-white mt-4">{team.stats?.rank || team.globalRank || '#1 REGIONAL'}</span>
               </div>
               <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">CHAMPIONSHIPS</span>
@@ -207,13 +235,10 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                     : 'N/A'}
                 </span>
               </div>
-              <div className="bg-slate-900/40 border border-slate-800/80 p-6 flex flex-col justify-between relative group hover:border-[#FFC400] transition-colors duration-300">
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">SEASON RECORD</span>
-                <span className="font-syncopate text-3xl font-black text-[#FFC400] mt-4">{team.stats?.seasonRecord || '18-4'}</span>
-              </div>
             </div>
           </div>
         </section>
+
 
         {/* ====================================================
             ACTIVE ROSTER SECTION
@@ -355,16 +380,25 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
               {team.media.map((item: any, i: number) => {
                 const photo = typeof item === 'string' ? item : item?.url;
                 if (!photo) return null;
+                const mediaTitle = (typeof item === 'object' && item?.title) ? item.title : `${team.name} Media Archive Photo ${i + 1}`;
                 return (
-                  <div key={`media-${i}`} className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 group">
+                  <div 
+                    key={`media-${i}`} 
+                    onClick={() => setSelectedMedia({ url: photo, title: mediaTitle })}
+                    className="aspect-video relative overflow-hidden bg-slate-950 border border-slate-800/80 hover:border-[#FFC400] hover:shadow-[0_0_20px_rgba(255,196,0,0.2)] transition-all duration-300 cursor-pointer group"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open media ${mediaTitle}`}
+                  >
                     <img 
                       src={photo} 
-                      alt={`${team.name} Team Media Photo ${i + 1}`} 
+                      alt={mediaTitle} 
                       className="w-full h-full object-cover grayscale brightness-75 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="absolute bottom-4 left-4 font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all">
-                      MEDIA ARCHIVE // UNIT_{team.name.toUpperCase()}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4" />
+                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between font-syncopate text-[9px] text-[#FFC400] font-black tracking-widest uppercase translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all z-10">
+                      <span className="truncate">VIEW MEDIA // UNIT_{team.name.toUpperCase()}</span>
+                      <ExternalLink size={14} className="shrink-0 text-white group-hover:text-[#FFC400]" />
                     </div>
                   </div>
                 );
@@ -372,6 +406,66 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
             </div>
           </section>
         )}
+
+        {/* Media Lightbox / File Viewer Modal */}
+        <AnimatePresence>
+          {selectedMedia && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedMedia(null)}
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8 bg-black/90 backdrop-blur-xl"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={e => e.stopPropagation()}
+                className="relative max-w-5xl w-full bg-[#040E1E] border border-slate-800 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden"
+              >
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="absolute top-4 right-4 z-30 p-2.5 bg-black/70 hover:bg-[#FFC400] text-white hover:text-black transition-colors border border-white/10"
+                  aria-label="Close media preview"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="relative aspect-video max-h-[70vh] bg-black flex items-center justify-center overflow-hidden">
+                  <img
+                    src={selectedMedia.url}
+                    alt={selectedMedia.title || 'Media preview'}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+
+                <div className="p-6 md:p-8 border-t border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#061428]">
+                  <div>
+                    <span className="font-syncopate text-[#FFC400] text-[9px] tracking-[0.3em] font-black uppercase block mb-1">
+                      UNIT_{team.name.toUpperCase()} // MEDIA ARCHIVE
+                    </span>
+                    <h3 className="font-syncopate text-base md:text-lg font-black text-white uppercase tracking-tight">
+                      {selectedMedia.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => window.open(selectedMedia.url, '_blank')}
+                      className="px-5 py-3 bg-[#FFC400] text-black font-syncopate text-[10px] font-black tracking-widest uppercase hover:bg-yellow-400 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,196,0,0.3)]"
+                    >
+                      <span>OPEN FULL MEDIA FILE</span>
+                      <ExternalLink size={14} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
 
         {/* ====================================================
             RELATED TEAMS (MORE TEAMS) SECTION

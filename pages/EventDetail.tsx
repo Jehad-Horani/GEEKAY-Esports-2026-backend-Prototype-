@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Gamepad2, Award, Users, Trophy, ExternalLink, ShieldAlert,
   Clock, Tv, Tag, Radio, ChevronLeft, ChevronRight, Image as ImageIcon, 
-  Twitter, Instagram, PlayCircle, Star, ArrowRight, Sparkles 
+  Twitter, Instagram, PlayCircle, Star, ArrowRight, Sparkles, Swords, Globe, Shield, CheckCircle2
 } from 'lucide-react';
 import { getEventSlug } from './Schedule';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -132,7 +132,11 @@ const EventDetail = () => {
       };
     });
 
-    return normalized.find(e => e.title && getEventSlug(e.title) === eventName);
+    return normalized.find(e => 
+      (e.title && getEventSlug(e.title) === eventName) || 
+      String(e.id) === eventName ||
+      (eventName && e.title && getEventSlug(e.title).includes(eventName.toLowerCase()))
+    );
   }, [dbEvents, eventName]);
 
   // Fallbacks for richer rendering of elements
@@ -324,12 +328,12 @@ const EventDetail = () => {
               
               <div className="border-t border-slate-900 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">PURPOSE</span>
-                  <p className="text-white font-syncopate text-xs font-bold uppercase">{matchedEvent.purpose || 'CHAMPIONSHIP VICTORY'}</p>
+                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">ORGANIZER</span>
+                  <p className="text-white font-syncopate text-xs font-bold uppercase">{matchedEvent.organizer || 'GEEKAY ESPORTS'}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">FORMAT</span>
-                  <p className="text-[#FFC400] font-syncopate text-xs font-bold uppercase">{matchedEvent.format || 'DOUBLE ELIMINATION BRACKET'}</p>
+                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">VENUE & REGION</span>
+                  <p className="text-[#FFC400] font-syncopate text-xs font-bold uppercase">{matchedEvent.venue || matchedEvent.location || 'EMEA CENTER'}</p>
                 </div>
               </div>
             </div>
@@ -440,48 +444,265 @@ const EventDetail = () => {
         )}
 
         {/* ====================================================
-            5) MATCHES SECTION
+            5) TACTICAL SCHEDULE & MATCHES (REDESIGNED)
             ==================================================== */}
         {matches && matches.length > 0 && (
           <section className="mb-20">
             <div className="flex items-center gap-4 mb-8">
-              <h2 className="font-syncopate text-lg font-black text-white tracking-widest uppercase">TACTICAL SCHEDULE & MATCHES</h2>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#FFC400] animate-pulse" />
+                <h2 className="font-syncopate text-lg font-black text-white tracking-widest uppercase">
+                  TACTICAL SCHEDULE & MATCHES
+                </h2>
+              </div>
               <div className="h-[1px] flex-grow bg-slate-800" />
+              <span className="font-syncopate text-[9px] text-[#FFC400] font-black uppercase tracking-wider hidden sm:inline-block">
+                {matches.length} {matches.length === 1 ? 'FIXTURE' : 'FIXTURES'}
+              </span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               {matches.map((match: any, i: number) => {
                 const dynStatus = getMatchDynamicStatus(match, matchedEvent.start_date);
                 const matchIsLive = dynStatus === 'live';
                 const matchIsCompleted = dynStatus === 'completed';
+                const matchLink = match.link || match.url || '';
+
+                // Helper to cleanly extract teams
+                const rawTeamsStr = String(match.teams || 'Geekay Esports vs Opponent').trim();
+                const parts = rawTeamsStr.split(/\s+(?:vs\.?|VS\.?|vs|VS|v\.?)\s+/i);
+                const team1Name = parts[0]?.trim() || 'Geekay Esports';
+                const team2Name = parts.length > 1 ? parts[1].trim() : '';
+
+                // Logo lookups from participating teams if present
+                const findLogo = (name: string) => {
+                  if (!name || !Array.isArray(teams)) return null;
+                  const found = teams.find((t: any) => 
+                    t && t.name && (t.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(t.name.toLowerCase()))
+                  );
+                  return found?.logo || null;
+                };
+
+                const team1Logo = findLogo(team1Name);
+                const team2Logo = findLogo(team2Name);
+
+                // Date and time formatting
+                const rawDate = match.date || matchedEvent.start_date || '';
+                let formattedDate = 'TBD';
+                if (rawDate) {
+                  const cleanDate = rawDate.split('T')[0].split(' ')[0];
+                  try {
+                    const parsed = new Date(cleanDate);
+                    if (!isNaN(parsed.getTime())) {
+                      formattedDate = parsed.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+                    } else {
+                      formattedDate = cleanDate;
+                    }
+                  } catch (e) {
+                    formattedDate = cleanDate;
+                  }
+                }
+
+                // Time extraction
+                let matchTime = match.time ? String(match.time).trim() : '';
+                if (!matchTime && rawDate.includes(' ')) {
+                  matchTime = rawDate.split(' ')[1] || '';
+                }
+                if (!matchTime) {
+                  matchTime = matchedEvent.time || '18:00';
+                }
+
+                // Timezone label
+                let timezoneLabel = 'AST (UTC+3)';
+                try {
+                  const resolvedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                  if (resolvedTz) {
+                    const city = resolvedTz.split('/').pop()?.replace(/_/g, ' ');
+                    timezoneLabel = `${city?.toUpperCase() || 'LOCAL'}`;
+                  }
+                } catch (e) {}
+
+                // Score validation
+                const rawScore = String(match.score || '').trim();
+                const hasValidScore = Boolean(
+                  rawScore && 
+                  rawScore.toLowerCase() !== 'upcoming' && 
+                  rawScore.toLowerCase() !== 'tbd' && 
+                  rawScore !== '0-0' && 
+                  rawScore !== '0 - 0' &&
+                  !rawScore.toLowerCase().includes('vs')
+                );
 
                 return (
-                  <div key={i} className="bg-[#081B3A] border border-slate-800 p-6 flex flex-col md:flex-row justify-between items-center gap-6 relative group hover:border-slate-700 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <Calendar size={14} className="text-[#FFC400]" />
-                      <span className="font-syncopate text-[9px] text-slate-500 tracking-widest uppercase">{match.date}</span>
-                    </div>
+                  <div 
+                    key={i} 
+                    onClick={() => {
+                      if (matchLink) {
+                        window.open(matchLink, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className={`bg-[#081B3A]/90 hover:bg-[#0A2045] border transition-all duration-300 relative overflow-hidden group shadow-lg ${
+                      matchLink ? 'cursor-pointer hover:border-[#FFC400]' : 'border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    {/* Top Cyber Accent Line */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#FFC400]/40 to-transparent group-hover:via-[#FFC400] transition-all" />
 
-                    <div className="flex items-center gap-8 md:gap-16">
-                      <span className="font-syncopate text-sm md:text-base font-black text-white tracking-tighter uppercase">
-                        {match.teams}
-                      </span>
-                      
-                      <div className="bg-[#040E1E] border border-slate-800 px-6 py-2 min-w-[100px] text-center skew-x-[-10deg]">
-                        <span className="font-syncopate text-sm font-black text-[#FFC400] block skew-x-[10deg]">
-                          {match.score}
+                    {/* 1. Header Bar: Tournament/Game Tag, Date, Start Time & Timezone */}
+                    <div className="p-3.5 sm:p-4 border-b border-slate-800/80 bg-[#040E1E]/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      {/* Left: Game & Tournament Name */}
+                      <div className="flex items-center gap-2">
+                        <span className="bg-[#FFC400] text-black font-syncopate text-[8px] font-black px-2 py-0.5 tracking-wider uppercase">
+                          {matchedEvent.game}
                         </span>
+                        <span className="font-syncopate text-[9px] font-bold text-slate-300 tracking-wider uppercase truncate max-w-[200px] sm:max-w-xs">
+                          {matchedEvent.title}
+                        </span>
+                      </div>
+
+                      {/* Right: Date, Time & Timezone */}
+                      <div className="flex items-center gap-3 sm:gap-5 font-syncopate text-[9px] tracking-wider text-slate-400">
+                        <div className="flex items-center gap-1.5 text-slate-300">
+                          <Calendar size={12} className="text-[#FFC400]" />
+                          <span>{formattedDate}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-white font-bold">
+                          <Clock size={12} className="text-[#FFC400]" />
+                          <span>{matchTime}</span>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-1 text-[8px] text-slate-400 bg-white/5 px-2 py-0.5 border border-white/5">
+                          <Globe size={10} className="text-[#FFC400]" />
+                          <span>{timezoneLabel}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div>
-                      <span className={`px-4 py-1.5 font-syncopate text-[8px] font-black tracking-widest uppercase skew-x-[-10deg] ${
-                        matchIsLive ? 'bg-red-500 text-white animate-pulse' :
-                        matchIsCompleted ? 'bg-slate-800 text-slate-400 border border-slate-700' :
-                        'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        <span className="block skew-x-[10deg]">{match.status || 'upcoming'}</span>
-                      </span>
+                    {/* 2. Main Body: Team 1 VS Team 2 & Dynamic Center Result */}
+                    <div className="p-6 sm:p-8">
+                      <div className="grid grid-cols-1 md:grid-cols-12 items-center gap-6 md:gap-4">
+                        
+                        {/* Team 1 (Left / Geekay Esports) */}
+                        <div className="md:col-span-5 flex items-center justify-start md:justify-end gap-4 order-1 text-left md:text-right">
+                          <div className="overflow-hidden">
+                            <span className="text-[#FFC400] font-syncopate text-[8px] font-bold tracking-widest uppercase block mb-1">
+                              {team1Name.toLowerCase().includes('geekay') ? 'GEEKAY ESPORTS' : 'TEAM 1'}
+                            </span>
+                            <h3 className="font-syncopate text-base sm:text-xl lg:text-2xl font-black text-white uppercase tracking-tight truncate">
+                              {team1Name}
+                            </h3>
+                          </div>
+                          
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#040E1E] border border-slate-800 p-2 flex items-center justify-center shrink-0 group-hover:border-[#FFC400]/50 transition-colors">
+                            {team1Logo ? (
+                              <img src={team1Logo} alt={team1Name} className="w-full h-full object-contain" />
+                            ) : (
+                              <Shield size={24} className="text-[#FFC400]" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Center: Dynamic Result or VS / Start Time */}
+                        <div className="md:col-span-2 flex flex-col items-center justify-center order-2 py-2">
+                          {matchIsCompleted ? (
+                            <div className="flex flex-col items-center">
+                              <span className="text-slate-500 font-syncopate text-[7px] font-black tracking-widest uppercase mb-1">
+                                FINAL RESULT
+                              </span>
+                              <div className="bg-[#040E1E] border-2 border-[#FFC400] px-5 py-2 min-w-[90px] text-center shadow-[0_0_15px_rgba(255,196,0,0.2)]">
+                                <span className="font-syncopate text-xl sm:text-2xl font-black text-[#FFC400] tracking-wider font-mono block">
+                                  {hasValidScore ? rawScore : 'FINAL'}
+                                </span>
+                              </div>
+                              <span className="text-slate-400 font-syncopate text-[7px] font-black uppercase mt-1.5 flex items-center gap-1">
+                                <CheckCircle2 size={10} className="text-emerald-400" />
+                                <span>COMPLETED</span>
+                              </span>
+                            </div>
+                          ) : matchIsLive ? (
+                            <div className="flex flex-col items-center">
+                              <span className="bg-red-600 text-white font-syncopate text-[8px] font-black tracking-widest uppercase px-3 py-1 animate-pulse mb-1.5 shadow-[0_0_12px_rgba(220,38,38,0.5)]">
+                                ● LIVE NOW
+                              </span>
+                              {hasValidScore ? (
+                                <div className="bg-[#040E1E] border border-red-500/80 px-4 py-1.5 text-center min-w-[80px]">
+                                  <span className="font-syncopate text-lg sm:text-xl font-black text-white tracking-widest font-mono">
+                                    {rawScore}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-syncopate text-[8px] text-red-400 font-bold uppercase tracking-wider text-center">
+                                  BROADCAST ACTIVE
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <div className="w-10 h-10 rounded-full bg-[#040E1E] border border-slate-700 flex items-center justify-center mb-1 group-hover:border-[#FFC400] transition-colors">
+                                <span className="font-syncopate text-xs font-black text-[#FFC400]">VS</span>
+                              </div>
+                              <span className="text-emerald-400 font-syncopate text-[7px] font-black tracking-widest uppercase bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20">
+                                UPCOMING
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Team 2 (Right / Opponent) */}
+                        <div className="md:col-span-5 flex items-center justify-start gap-4 order-3 text-left">
+                          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#040E1E] border border-slate-800 p-2 flex items-center justify-center shrink-0 group-hover:border-[#FFC400]/50 transition-colors">
+                            {team2Logo ? (
+                              <img src={team2Logo} alt={team2Name || 'Opponent'} className="w-full h-full object-contain" />
+                            ) : (
+                              <Swords size={22} className="text-slate-400 group-hover:text-white transition-colors" />
+                            )}
+                          </div>
+                          
+                          <div className="overflow-hidden">
+                            <span className="text-slate-400 font-syncopate text-[8px] font-bold tracking-widest uppercase block mb-1">
+                              {team2Name ? 'CHALLENGER' : 'OPPONENT'}
+                            </span>
+                            <h3 className="font-syncopate text-base sm:text-xl lg:text-2xl font-black text-white uppercase tracking-tight truncate">
+                              {team2Name || 'OPPONENT TBD'}
+                            </h3>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* 3. Footer Bar: Status indicator & Live Stream Action Link */}
+                    <div className="px-6 py-3 bg-[#040E1E]/80 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2.5 py-1 font-syncopate text-[8px] font-black tracking-widest uppercase ${
+                          matchIsLive ? 'bg-red-500 text-white animate-pulse' :
+                          matchIsCompleted ? 'bg-slate-800 text-slate-300 border border-slate-700' :
+                          'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {matchIsLive ? 'LIVE' : (matchIsCompleted ? 'COMPLETED' : 'SCHEDULED')}
+                        </span>
+
+                        <span className="text-slate-500 font-syncopate text-[8px] tracking-wider uppercase sm:inline-block hidden">
+                          {matchIsCompleted 
+                            ? 'Official Match Result Recorded' 
+                            : (matchIsLive 
+                              ? 'Live broadcast currently streaming' 
+                              : `Scheduled for ${formattedDate} at ${matchTime} ${timezoneLabel}`)}
+                        </span>
+                      </div>
+
+                      {matchLink && (
+                        <a
+                          href={matchLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Open match stream"
+                          className="px-4 py-2 bg-[#FFC400] hover:bg-yellow-400 text-black font-syncopate text-[9px] font-black tracking-widest uppercase transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,196,0,0.2)] ml-auto"
+                        >
+                          <span>{matchIsLive ? 'WATCH LIVE STREAM' : (matchIsCompleted ? 'WATCH VOD / REPLAY' : 'WATCH MATCH')}</span>
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
                     </div>
                   </div>
                 );

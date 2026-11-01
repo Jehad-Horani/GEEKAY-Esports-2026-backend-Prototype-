@@ -284,24 +284,28 @@ const News = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="group relative grid grid-cols-1 lg:grid-cols-12 bg-[#0A1A31] border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-500 overflow-hidden"
               >
-                <div className="lg:col-span-7 relative aspect-video lg:aspect-auto overflow-hidden">
+                <div className="lg:col-span-7 relative aspect-[16/9] lg:aspect-auto lg:min-h-[420px] overflow-hidden bg-slate-950">
                   <img 
-                    src={featuredArticle.image} 
+                    src={featuredArticle.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80'} 
                     alt={featuredArticle.title} 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
+                    }}
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-[#0A1A31] via-transparent to-transparent hidden lg:block" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A31] via-transparent to-transparent lg:hidden" />
                   
-                  <div className="absolute top-8 left-8">
-                    <span className="bg-[#FFC400] text-black px-4 py-1 font-syncopate text-[10px] font-black tracking-widest skew-x-[-15deg]">
+                  <div className="absolute top-4 sm:top-8 left-4 sm:left-8">
+                    <span className="bg-[#FFC400] text-black px-3 sm:px-4 py-1 font-syncopate text-[9px] sm:text-[10px] font-black tracking-widest skew-x-[-15deg]">
                       <span className="block skew-x-[15deg]">FEATURED STORY</span>
                     </span>
                   </div>
                 </div>
                 
-                <div className="lg:col-span-5 p-10 md:p-16 flex flex-col justify-center">
-                  <div className="flex items-center gap-4 mb-6">
+                <div className="lg:col-span-5 p-6 sm:p-10 md:p-16 flex flex-col justify-center">
+                  <div className="flex items-center gap-4 mb-4 sm:mb-6">
                     <span className="text-[#FFC400] font-syncopate text-[10px] font-bold tracking-widest uppercase">
                       {featuredArticle.category}
                     </span>
@@ -310,17 +314,17 @@ const News = () => {
                   </div>
                   
                   <Link to={`/news/${featuredArticle.slug}`}>
-                    <h2 className="font-syncopate text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-8 leading-tight hover:text-[#FFC400] transition-colors relative pb-2 group">
+                    <h2 className="font-syncopate text-xl sm:text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-6 sm:mb-8 leading-tight hover:text-[#FFC400] transition-colors relative pb-2 group">
                       {featuredArticle.title}
                       <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-[#FFC400] group-hover:w-full transition-all duration-300" />
                     </h2>
                   </Link>
                   
-                  <p className="text-slate-400 text-sm md:text-base mb-10 font-light leading-relaxed">
+                  <p className="text-slate-400 text-xs sm:text-sm md:text-base mb-8 sm:mb-10 font-light leading-relaxed">
                     {featuredArticle.excerpt}
                   </p>
                   
-                  <div className="flex flex-wrap items-center gap-8">
+                  <div className="flex flex-wrap items-center gap-6 sm:gap-8">
                     <Link to={`/news/${featuredArticle.slug}`}>
                       <ArenaButton icon={<ArrowRight size={18} />}>
                         Read Article →
@@ -357,10 +361,14 @@ const News = () => {
                       transition={{ delay: index * 0.05 }}
                       className="group bg-[#0A1A31]/40 border border-slate-800 hover:border-[#FFC400]/30 transition-all duration-300 flex flex-col hover:-translate-y-2"
                     >
-                      <div className="relative aspect-video overflow-hidden bg-slate-950">
+                      <div className="relative aspect-[16/9] overflow-hidden bg-slate-950">
                         <img 
-                          src={item.image} 
+                          src={item.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80'} 
                           alt={item.title} 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
+                          }}
                           className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
                         />
                         <div className="absolute inset-0 bg-[#081B3A]/30 group-hover:bg-transparent transition-colors" />

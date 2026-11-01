@@ -12,6 +12,7 @@ import { useSettings } from '../src/context/SettingsContext';
 const AnimatedCounter = ({ value, label, suffix = "" }: { value: number, label: string, suffix?: string }) => {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
+  const isFloat = value % 1 !== 0;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -26,19 +27,19 @@ const AnimatedCounter = ({ value, label, suffix = "" }: { value: number, label: 
           setCount(end);
           clearInterval(counter);
         } else {
-          setCount(Math.floor(start));
+          setCount(isFloat ? Number(start.toFixed(1)) : Math.floor(start));
         }
       }, 16);
       return () => clearInterval(counter);
     }, 500);
-  }, [value]);
+  }, [value, isFloat]);
 
   return (
     <div ref={ref} className="flex flex-col">
-      <div className="font-syncopate text-4xl md:text-6xl font-black text-[#FFC400] leading-none mb-2">
-        {count}{suffix}
+      <div className="font-syncopate text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-[#FFC400] leading-none mb-2">
+        {isFloat ? count.toFixed(1) : count}{suffix}
       </div>
-      <div className="font-syncopate text-[9px] text-slate-500 tracking-[0.4em] uppercase font-bold">
+      <div className="font-syncopate text-[8px] sm:text-[9px] text-slate-500 tracking-[0.3em] sm:tracking-[0.4em] uppercase font-bold">
         {label}
       </div>
     </div>
@@ -230,12 +231,12 @@ const SocialButton = ({
         href={targetUrl}
         target={hasUrl ? "_blank" : undefined}
         rel={hasUrl ? "noopener noreferrer" : undefined}
-        whileHover={{ scale: 1.15, boxShadow: "0 0 25px rgba(255, 196, 0, 0.4)" }}
+        whileHover={{ scale: 1.12, boxShadow: "0 0 25px rgba(255, 196, 0, 0.4)" }}
         whileTap={{ scale: 0.95 }}
         aria-label={platform}
-        className="w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border bg-white/5 border-white/10 text-white hover:border-[#FFC400] hover:text-[#FFC400] hover:bg-[#FFC400]/10 cursor-pointer"
+        className="w-11 h-11 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-300 border bg-white/5 border-white/10 text-white hover:border-[#FFC400] hover:text-[#FFC400] hover:bg-[#FFC400]/10 cursor-pointer"
       >
-        <Icon size={24} className="transition-transform group-hover:scale-110" />
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform group-hover:scale-110" />
       </motion.a>
 
       {/* Tooltip on hover */}
@@ -335,7 +336,7 @@ const Media = () => {
     <div className="bg-[#0B1C2D] min-h-screen overflow-x-hidden selection:bg-[#FFC400] selection:text-black">
       
       {/* 🎬 SECTION 1: HERO */}
-      <section className="relative h-screen w-full flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[100svh] min-h-screen py-24 sm:py-28 md:py-36 w-full flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <motion.div 
             animate={{ 
@@ -343,7 +344,7 @@ const Media = () => {
               scale: [1, 1.1, 1] 
             }}
             transition={{ duration: 10, repeat: Infinity }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-[#FFC400]/5 rounded-full blur-[150px] z-0" 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[900px] lg:w-[1200px] h-[600px] sm:h-[900px] lg:h-[1200px] bg-[#FFC400]/5 rounded-full blur-[100px] sm:blur-[150px] z-0" 
           />
           <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none" />
           <div className="absolute inset-0 bg-scanline opacity-20 pointer-events-none" />
@@ -361,11 +362,11 @@ const Media = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 relative z-20 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 items-center pt-24 sm:pt-32">
+        <div className="container mx-auto px-4 sm:px-6 relative z-20 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 items-center">
           <div className="lg:col-span-8">
             <Breadcrumbs />
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
-              <div className="flex items-center gap-2 mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 mb-3 sm:mb-6">
                 <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
                 <span className="font-syncopate text-[9px] sm:text-[10px] tracking-[0.25em] font-bold text-[#FFC400] uppercase">
                   SOCIAL ECOSYSTEM
@@ -375,7 +376,7 @@ const Media = () => {
                 initial={{ width: 0 }}
                 animate={{ width: 60 }}
                 transition={{ duration: 1, delay: 0.5 }}
-                className="h-[2px] bg-[#FFC400] mb-6 sm:mb-8"
+                className="h-[2px] bg-[#FFC400] mb-5 sm:mb-8"
               />
               
               <div className="overflow-hidden mb-2">
@@ -383,17 +384,17 @@ const Media = () => {
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   transition={{ duration: 0.8, delay: 0.7, ease: "circOut" }}
-                  className="font-syncopate text-white text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tight leading-tight sm:leading-[0.9] break-words"
+                  className="font-syncopate text-white text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black uppercase tracking-tight leading-[1.05] sm:leading-[0.92] break-words"
                 >
                   WE DON’T POST.
                 </motion.h1>
               </div>
-              <div className="overflow-hidden mb-8 sm:mb-12">
+              <div className="overflow-hidden mb-6 sm:mb-10">
                 <motion.h1 
                   initial={{ y: "100%" }}
                   animate={{ y: 0 }}
                   transition={{ duration: 1.2, delay: 1, ease: [0.16, 1, 0.3, 1] }}
-                  className="font-syncopate text-[#FFC400] text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tight leading-tight sm:leading-[0.9] drop-shadow-[0_0_30px_rgba(255,196,0,0.3)] break-words"
+                  className="font-syncopate text-[#FFC400] text-2xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black uppercase tracking-tight leading-[1.05] sm:leading-[0.92] drop-shadow-[0_0_30px_rgba(255,196,0,0.3)] break-words"
                 >
                   WE COMMAND <br /> ATTENTION.
                 </motion.h1>
@@ -403,7 +404,7 @@ const Media = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 1 }}
-                className="flex flex-wrap gap-6 items-center"
+                className="flex flex-wrap gap-2.5 sm:gap-4 md:gap-5 items-center"
               >
                 <SocialButton 
                   platform="INSTAGRAM" 
@@ -450,6 +451,34 @@ const Media = () => {
                   />
                 )}
               </motion.div>
+
+              {/* Mobile & Tablet Visible Stats Strip */}
+              <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-6 sm:pt-8 border-t border-white/10 mt-8 sm:mt-10 lg:hidden max-w-lg">
+                <div className="flex flex-col">
+                  <div className="font-syncopate text-xl sm:text-2xl md:text-3xl font-black text-[#FFC400] leading-none mb-1">
+                    2.4M+
+                  </div>
+                  <div className="font-syncopate text-[8px] sm:text-[9px] text-slate-500 tracking-[0.2em] uppercase font-bold">
+                    REACH
+                  </div>
+                </div>
+                <div className="flex flex-col border-l border-white/10 pl-3 sm:pl-4">
+                  <div className="font-syncopate text-xl sm:text-2xl md:text-3xl font-black text-[#FFC400] leading-none mb-1">
+                    1.2M+
+                  </div>
+                  <div className="font-syncopate text-[8px] sm:text-[9px] text-slate-500 tracking-[0.2em] uppercase font-bold">
+                    GROWTH
+                  </div>
+                </div>
+                <div className="flex flex-col border-l border-white/10 pl-3 sm:pl-4">
+                  <div className="font-syncopate text-xl sm:text-2xl md:text-3xl font-black text-[#FFC400] leading-none mb-1">
+                    5
+                  </div>
+                  <div className="font-syncopate text-[8px] sm:text-[9px] text-slate-500 tracking-[0.2em] uppercase font-bold">
+                    DOMINATED
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </div>
 
@@ -463,9 +492,9 @@ const Media = () => {
         <motion.div 
           animate={{ y: [0, 5, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-20"
+          className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-20 pointer-events-none"
         >
-          <div className="w-[1px] h-12 bg-gradient-to-b from-[#FFC400] to-transparent" />
+          <div className="w-[1px] h-8 sm:h-12 bg-gradient-to-b from-[#FFC400] to-transparent" />
         </motion.div>
       </section>
 

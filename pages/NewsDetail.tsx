@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Clock, Share2, Twitter, Facebook, Link as LinkIcon, User, Tag, ChevronRight, Award } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Share2, Twitter, Facebook, Link as LinkIcon, Tag, ChevronRight, Award } from 'lucide-react';
 import ArenaButton from '../components/ui/ArenaButton';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
@@ -126,7 +126,7 @@ const NewsDetail = () => {
       <div className="absolute inset-0 bg-grid opacity-5 pointer-events-none" />
       <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-[#FFC400]/5 to-transparent pointer-events-none" />
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-12 relative z-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-12 relative z-10">
         <Breadcrumbs />
         <Link to="/news" className="inline-flex items-center gap-2 text-slate-400 hover:text-[#FFC400] font-syncopate text-[9px] sm:text-[10px] tracking-wider sm:tracking-widest transition-colors mb-8 sm:mb-12 group">
           <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
@@ -157,11 +157,6 @@ const NewsDetail = () => {
               <Clock size={14} className="text-[#FFC400]" />
               {article.readTime || '4 MIN READ'}
             </div>
-
-            <div className="flex items-center gap-2">
-              <User size={14} className="text-[#FFC400]" />
-              BY {article.author || 'GEEKAY HQ'}
-            </div>
             
             <div className="flex items-center gap-4 sm:ml-auto">
               <span className="text-slate-500">SHARE:</span>
@@ -183,9 +178,17 @@ const NewsDetail = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="relative aspect-video mb-16 overflow-hidden border border-slate-800 bg-slate-950"
+          className="relative aspect-[16/9] mb-10 sm:mb-16 overflow-hidden border border-slate-800 bg-slate-950"
         >
-          <img src={article.image} alt={article.title} className="w-full h-full object-cover" />
+          <img 
+            src={article.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80'} 
+            alt={article.title} 
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
+            }}
+            className="w-full h-full object-cover" 
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-[#081B3A]/40 to-transparent" />
         </motion.div>
 
@@ -238,34 +241,62 @@ const NewsDetail = () => {
           </motion.div>
 
           {/* Sidebar Metadata (Team, game, division details) */}
-          <div className="lg:col-span-4 space-y-8">
-            <div className="bg-[#0A1A31] border border-slate-800 p-8 rounded-sm">
-              <h3 className="font-syncopate text-[10px] font-black text-white tracking-[0.2em] uppercase mb-6 pb-4 border-b border-slate-800">
-                BRIEF_SPECIFICATIONS
-              </h3>
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-[#0A1A31] border border-slate-800 p-6 relative group overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#FFC400] via-[#FFC400]/40 to-transparent" />
               
-              <ul className="space-y-4">
-                <li className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 uppercase tracking-widest font-syncopate text-[8px]">SECURITY_LEVEL</span>
-                  <span className="text-emerald-500 font-mono font-bold tracking-widest uppercase">PUBLIC_RELEASE</span>
-                </li>
+              <div className="flex items-center justify-between pb-4 mb-5 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
+                  <h3 className="font-syncopate text-[10px] sm:text-[11px] font-black text-white tracking-[0.2em] uppercase">
+                    BRIEF_SPECIFICATIONS
+                  </h3>
+                </div>
+                <span className="font-mono text-[9px] text-[#FFC400]/80 font-bold">#INTEL</span>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="bg-[#040E1E] border border-white/5 p-3.5 space-y-1.5">
+                  <span className="text-slate-500 uppercase tracking-[0.15em] font-syncopate text-[8px] font-bold block">
+                    SECURITY LEVEL
+                  </span>
+                  <div className="inline-flex items-center gap-1.5 text-emerald-400 font-mono text-xs font-bold tracking-wider uppercase bg-emerald-950/40 px-2 py-0.5 border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    PUBLIC_RELEASE
+                  </div>
+                </div>
+
                 {article.related_team && (
-                  <li className="flex justify-between items-center text-xs border-t border-slate-900 pt-4">
-                    <span className="text-slate-500 uppercase tracking-widest font-syncopate text-[8px]">ASSIGNED_TEAM</span>
-                    <span className="text-white font-syncopate text-[9px] font-bold tracking-wider">{article.related_team}</span>
-                  </li>
+                  <div className="bg-[#040E1E] border border-white/5 p-3.5 space-y-1.5">
+                    <span className="text-slate-500 uppercase tracking-[0.15em] font-syncopate text-[8px] font-bold block">
+                      ASSIGNED TEAM
+                    </span>
+                    <span className="text-white font-syncopate text-[11px] font-bold tracking-wide uppercase block">
+                      {article.related_team}
+                    </span>
+                  </div>
                 )}
+
                 {article.related_game && (
-                  <li className="flex justify-between items-center text-xs border-t border-slate-900 pt-4">
-                    <span className="text-slate-500 uppercase tracking-widest font-syncopate text-[8px]">GAME_DIVISION</span>
-                    <span className="text-[#FFC400] font-mono font-bold tracking-wider uppercase">{article.related_game}</span>
-                  </li>
+                  <div className="bg-[#040E1E] border border-white/5 p-3.5 space-y-1.5">
+                    <span className="text-slate-500 uppercase tracking-[0.15em] font-syncopate text-[8px] font-bold block">
+                      GAME DIVISION
+                    </span>
+                    <span className="text-[#FFC400] font-syncopate text-[11px] font-bold tracking-wide uppercase block">
+                      {article.related_game}
+                    </span>
+                  </div>
                 )}
-                <li className="flex justify-between items-center text-xs border-t border-slate-900 pt-4">
-                  <span className="text-slate-500 uppercase tracking-widest font-syncopate text-[8px]">CHANNEL_ORIGIN</span>
-                  <span className="text-slate-400 font-mono font-bold tracking-wider">GEEKAY_HQ</span>
-                </li>
-              </ul>
+
+                <div className="bg-[#040E1E] border border-white/5 p-3.5 space-y-1.5">
+                  <span className="text-slate-500 uppercase tracking-[0.15em] font-syncopate text-[8px] font-bold block">
+                    CHANNEL ORIGIN
+                  </span>
+                  <span className="text-slate-300 font-mono text-xs font-semibold tracking-wider uppercase block">
+                    GEEKAY_HQ
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

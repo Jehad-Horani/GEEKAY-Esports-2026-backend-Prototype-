@@ -42,6 +42,8 @@ export interface Player {
   major_titles?: number | string;
   int_placements?: number | string;
   trophy_count?: number | string;
+  prize_money?: string;
+  prizeMoney?: string;
   socials: {
     twitter?: string;
     twitch?: string;
@@ -76,6 +78,8 @@ export interface Team {
   trophies?: Trophy[];
   media?: any[];
   players: Player[];
+  prize_money?: string;
+  prizeMoney?: string;
   win_rate?: string;
   winRate?: string;
   global_rank?: string;
@@ -84,6 +88,8 @@ export interface Team {
   season_record?: string;
   seasonRecord?: string;
   stats?: {
+    prizeMoney?: string;
+    prize_money?: string;
     winRate?: string;
     rank?: string;
     championships?: number | string;
@@ -92,6 +98,7 @@ export interface Team {
   };
   bio?: string;
 }
+
 
 export interface Creator {
   id: string;
@@ -169,7 +176,13 @@ export interface Product {
   id: string;
   name: string;
   price?: string;
+  prices?: {
+    USD: string;
+    AED?: string;
+    SAR?: string;
+  };
   link: string;
   image: string;
   category?: string;
+  description?: string;
 }

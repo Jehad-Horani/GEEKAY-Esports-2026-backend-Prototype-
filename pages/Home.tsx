@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring, useInView } from 'framer-motion';
-import { ChevronRight, ChevronDown, PlayCircle, Search, BarChart3, Globe, Shield, X, Twitter, Twitch, Cpu, Target, Layers, Zap, ArrowDown, ArrowRight, Clock, Calendar, MapPin, Trophy, Instagram, Youtube } from 'lucide-react';
+import { ChevronRight, ChevronDown, PlayCircle, Search, BarChart3, Globe, Shield, X, Twitter, Twitch, Cpu, Target, Layers, Zap, ArrowDown, ArrowRight, Clock, Calendar, MapPin, Trophy, Instagram, Youtube, Radio, Tv, ExternalLink } from 'lucide-react';
 import SocialFollowerIcon from '../components/SocialFollowerIcon';
 import ArenaButton from '../components/ui/ArenaButton';
 import { MOCK_EVENTS, MOCK_TEAMS, MOCK_NEWS, MOCK_PRODUCTS } from '../constants';
 import { Link } from 'react-router-dom';
 import { Player, NewsItem, Product } from '../types';
 import SEOMeta from '../components/SEOMeta';
-import { getDynamicStatus, getMatchDynamicStatus, cleanOpponentName, getMatchResult } from '../src/utils/dateStatus';
+import { getDynamicStatus, getMatchDynamicStatus, cleanOpponentName, getMatchResult, formatMatchLocalDateTime, detectBroadcastPlatform } from '../src/utils/dateStatus';
 import { getEventSlug } from './Schedule';
 
 const safeFetchJson = async (url: string) => {
@@ -239,6 +239,12 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
 
     if (Array.isArray(events) && events.length > 0) {
       events.forEach((ev: any) => {
+        const eventId = ev.id;
+        const eventTitle = ev.title || 'GEEKAY TOURNAMENT';
+        const eventSlug = getEventSlug(ev.title) || String(ev.id);
+        const eventBroadcast = ev.broadcast || ev.broadcast_platforms || '';
+        const eventLink = ev.link || '';
+
         let parsedMatches: any[] = [];
         if (typeof ev.matches === 'string') {
           try { parsedMatches = JSON.parse(ev.matches); } catch {}
@@ -251,25 +257,39 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
             const mDate = m.date || ev.start_date || '';
             const mTime = m.time || ev.time || '';
             const dynStatus = getMatchDynamicStatus(m, ev.start_date);
+            const dt = formatMatchLocalDateTime(mDate, mTime);
+            const broadcastInfo = detectBroadcastPlatform(m.broadcast || eventBroadcast, m.stream_url || m.link || eventLink);
 
             if (dynStatus === 'live' || dynStatus === 'upcoming') {
               if (dynStatus === 'live') liveFound = true;
               upcomingList.push({
+                eventId,
+                eventSlug,
+                eventTitle,
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
                 opp: cleanOpponentName(m.teams || ev.title),
-                date: mDate || 'TODAY',
-                time: mTime,
+                rawDate: mDate,
+                rawTime: mTime,
+                localDate: dt.formattedDate,
+                localTime: dt.formattedTime,
+                fullDisplay: dt.fullDisplay,
+                timestamp: dt.timestamp,
                 status: dynStatus,
+                broadcast: broadcastInfo,
                 sortKey: mDate || '9999-99-99'
               });
             } else {
               const res = getMatchResult(m);
               pastList.push({
+                eventId,
+                eventSlug,
+                eventTitle,
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
                 opp: cleanOpponentName(m.teams || ev.title),
                 res: res.resText,
                 score: res.score,
-                date: mDate,
+                date: dt.formattedDate || mDate,
+                timestamp: dt.timestamp,
                 sortKey: mDate || '0000-00-00'
               });
             }
@@ -278,15 +298,25 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
           const evDate = ev.start_date || '';
           const evTime = ev.time || '';
           const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
+          const dt = formatMatchLocalDateTime(evDate, evTime);
+          const broadcastInfo = detectBroadcastPlatform(eventBroadcast, eventLink);
 
           if (dynStatus === 'live' || dynStatus === 'upcoming') {
             if (dynStatus === 'live') liveFound = true;
             upcomingList.push({
+              eventId,
+              eventSlug,
+              eventTitle,
               game: String(ev.game || 'ESPORTS').toUpperCase(),
               opp: cleanOpponentName(ev.title || ev.organizer),
-              date: evDate || 'TODAY',
-              time: evTime,
+              rawDate: evDate,
+              rawTime: evTime,
+              localDate: dt.formattedDate,
+              localTime: dt.formattedTime,
+              fullDisplay: dt.fullDisplay,
+              timestamp: dt.timestamp,
               status: dynStatus,
+              broadcast: broadcastInfo,
               sortKey: evDate || '9999-99-99'
             });
           } else {
@@ -298,11 +328,15 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
             }
             const res = getMatchResult(resObj);
             pastList.push({
+              eventId,
+              eventSlug,
+              eventTitle,
               game: String(ev.game || 'ESPORTS').toUpperCase(),
               opp: cleanOpponentName(ev.title || 'REGIONAL FINALS'),
               res: res.resText,
               score: res.score,
-              date: evDate,
+              date: dt.formattedDate || evDate,
+              timestamp: dt.timestamp,
               sortKey: evDate || '0000-00-00'
             });
           }
@@ -310,15 +344,23 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
       });
     }
 
-    // Sort upcoming: live matches first, then soonest dates
+    // Sort upcoming: live matches first, then chronological order (earliest/nearest date & time first)
     upcomingList.sort((a, b) => {
       if (a.status === 'live' && b.status !== 'live') return -1;
       if (b.status === 'live' && a.status !== 'live') return 1;
+      if (a.timestamp !== b.timestamp) {
+        return a.timestamp - b.timestamp;
+      }
       return a.sortKey.localeCompare(b.sortKey);
     });
 
     // Sort past results: most recent first
-    pastList.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+    pastList.sort((a, b) => {
+      if (a.timestamp && b.timestamp && a.timestamp !== b.timestamp) {
+        return b.timestamp - a.timestamp;
+      }
+      return b.sortKey.localeCompare(a.sortKey);
+    });
 
     // Strictly real database data - no fake or hardcoded mock fallbacks
     const finalPastResults = pastList.slice(0, 3);
@@ -415,7 +457,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                 transition={{ duration: 0.4, delay: 0.2 }}
                 className="w-full max-w-md space-y-4"
               >
-                {/* Upcoming / Live Matches - Rendered only if events/matches exist in database */}
+                {/* Upcoming / Live Matches - Interactive & Clickable with Local Time & Broadcast */}
                 {upcomingMatches.length > 0 && (
                   <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-[#FFC400]/20 p-4 relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-[#FFC400]/50" />
@@ -433,29 +475,83 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                     
                     <div className="space-y-2">
                       {upcomingMatches.map((match, i) => (
-                        <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest">{match.game}</span>
+                        <Link 
+                          key={i} 
+                          to={`/events/${match.eventSlug || match.eventId}`}
+                          title={`View details for ${match.eventTitle || match.game}`}
+                          className="group/item flex items-center justify-between border-b border-white/5 py-2 px-1.5 -mx-1.5 rounded hover:bg-white/[0.04] transition-all cursor-pointer last:border-0 last:pb-0 block"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest group-hover/item:text-yellow-300 transition-colors">
+                                {match.game}
+                              </span>
                               {match.status === 'live' && (
                                 <span className="inline-flex items-center gap-1 px-1 py-0.2 bg-red-500/20 text-red-400 font-mono text-[6px] font-bold rounded">
                                   <span className="w-1 h-1 bg-red-500 rounded-full animate-ping" />
                                   LIVE
                                 </span>
                               )}
+                              {/* Broadcast Platform Icon & Direct Stream Link */}
+                              {match.broadcast && match.broadcast.platform !== 'none' && (
+                                match.broadcast.url ? (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      window.open(match.broadcast.url, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    title={`Watch live stream on ${match.broadcast.label}`}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 hover:bg-[#FFC400]/20 text-slate-300 hover:text-[#FFC400] border border-white/10 hover:border-[#FFC400]/40 text-[6px] font-mono font-bold transition-all shrink-0 cursor-pointer"
+                                  >
+                                    {match.broadcast.platform === 'twitch' && <Twitch size={8} className="text-[#9146FF]" />}
+                                    {match.broadcast.platform === 'youtube' && <Youtube size={8} className="text-[#FF0000]" />}
+                                    {match.broadcast.platform === 'kick' && <Radio size={8} className="text-[#53FC18]" />}
+                                    {match.broadcast.platform === 'stream' && <Tv size={8} className="text-[#FFC400]" />}
+                                    <span className="hidden sm:inline uppercase">{match.broadcast.label}</span>
+                                    <ExternalLink size={6} className="opacity-70" />
+                                  </span>
+                                ) : (
+                                  <span
+                                    title={`Broadcast on ${match.broadcast.label}`}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10 text-[6px] font-mono font-bold shrink-0"
+                                  >
+                                    {match.broadcast.platform === 'twitch' && <Twitch size={8} className="text-[#9146FF]" />}
+                                    {match.broadcast.platform === 'youtube' && <Youtube size={8} className="text-[#FF0000]" />}
+                                    {match.broadcast.platform === 'kick' && <Radio size={8} className="text-[#53FC18]" />}
+                                    {match.broadcast.platform === 'stream' && <Tv size={8} className="text-[#FFC400]" />}
+                                    <span className="hidden sm:inline uppercase">{match.broadcast.label}</span>
+                                  </span>
+                                )
+                              )}
                             </div>
-                            <div className="text-white font-syncopate text-[10px] font-black tracking-tight">{match.opp}</div>
+                            <div className="text-white font-syncopate text-[10px] font-black tracking-tight truncate group-hover/item:text-[#FFC400] transition-colors mt-0.5">
+                              {match.opp}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-white/60 font-syncopate text-[8px] tracking-widest">{match.date}</div>
+
+                          {/* Local Time & Unambiguous Date */}
+                          <div 
+                            className="text-right shrink-0 flex flex-col items-end pl-2"
+                            title={`Local Time: ${match.fullDisplay}`}
+                          >
+                            <div className="text-white/80 font-syncopate text-[8px] tracking-wider font-bold group-hover/item:text-white transition-colors">
+                              {match.localDate}
+                            </div>
+                            <div className="text-[#FFC400]/90 font-mono text-[7px] tracking-tight flex items-center gap-1 mt-0.5">
+                              <Clock size={7} className="text-[#FFC400]/70 shrink-0" />
+                              <span>{match.localTime}</span>
+                            </div>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Past Results - Rendered only if completed events/matches exist in database */}
+                {/* Past Results - Clickable to View Tournament Details */}
                 {pastResults.length > 0 && (
                   <div className="bg-[#0A1A31]/60 backdrop-blur-md border border-white/10 p-4 relative overflow-hidden group">
                     <h3 className="font-syncopate text-[8px] font-black text-white/40 tracking-[0.4em] uppercase mb-3 flex items-center justify-between">
@@ -465,13 +561,22 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                     
                     <div className="space-y-2">
                       {pastResults.map((result, i) => (
-                        <div key={i} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                        <Link 
+                          key={i} 
+                          to={`/events/${result.eventSlug || result.eventId}`}
+                          title={`View details for ${result.eventTitle || result.game}`}
+                          className="group/item flex items-center justify-between border-b border-white/5 py-2 px-1.5 -mx-1.5 rounded hover:bg-white/[0.04] transition-all cursor-pointer last:border-0 last:pb-0 block"
+                        >
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest">{result.game}</span>
+                              <span className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest group-hover/item:text-[#FFC400] transition-colors">
+                                {result.game}
+                              </span>
                               {result.date && <span className="text-slate-500 text-[7px] font-mono">{result.date}</span>}
                             </div>
-                            <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight">{result.opp}</div>
+                            <div className="text-white/80 font-syncopate text-[10px] font-black tracking-tight group-hover/item:text-white transition-colors">
+                              {result.opp}
+                            </div>
                           </div>
                           <div className="text-right flex items-center gap-2">
                             <div className="text-white font-syncopate text-[10px] font-black">{result.score}</div>
@@ -479,7 +584,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                               {result.res}
                             </div>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   </div>
@@ -509,157 +614,222 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
   );
 };
 
+// Helper to get formatted product price in USD
+const getProductDisplayPrice = (product: Product) => {
+  if (product.price) {
+    return product.price.startsWith('$') ? product.price : `$${product.price}`;
+  }
+  return '$0.00';
+};
+
 // --- ProductCard Component ---
-const ProductCard = ({ product }: { product: Product }) => {
+const ProductCard = ({ 
+  product, 
+  onOpenDetails 
+}: { 
+  product: Product; 
+  onOpenDetails: (product: Product) => void;
+}) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [showMobileRegions, setShowMobileRegions] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(localStorage.getItem('geekay_region'));
 
-  const regions = [
-    { name: 'UAE', link: product.link },
-    { name: 'KSA', link: 'https://www.geekay.com/saudi_en/' },
-    { name: 'GLOBAL', link: 'https://www.geekay.com/global/' },
-  ];
+  const displayPrice = getProductDisplayPrice(product);
 
-  const handleRegionSelect = (region: string, link: string) => {
-    localStorage.setItem('geekay_region', region);
-    setSelectedRegion(region);
-    window.open(link, '_blank');
-    setShowMobileRegions(false);
+  const handleBuyDirect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(product.link, '_blank');
   };
 
   return (
-    <>
-      <motion.div
-        className="group relative bg-[#0A1A31]/40 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-500 overflow-hidden cursor-pointer"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={() => {
-          if (window.innerWidth < 1024) {
-            setShowMobileRegions(true);
-          }
-        }}
-      >
-        {/* Product Image */}
-        <div className="aspect-square overflow-hidden relative bg-[#061428]/60 flex items-center justify-center p-3">
-          <motion.img
-            src={product.image}
-            alt={product.name}
-            referrerPolicy="no-referrer"
-            animate={{ scale: isHovered ? 1.08 : 1 }}
-            transition={{ duration: 0.4 }}
-            className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] transition-transform duration-500"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/assets/jersey.png';
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#081B3A]/80 via-transparent to-transparent opacity-40 pointer-events-none" />
-          
-          {/* Region Selector Overlay (Desktop) */}
-          <AnimatePresence>
-            {isHovered && window.innerWidth >= 1024 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="absolute inset-0 flex items-center justify-center bg-[#081B3A]/90 backdrop-blur-md z-[500] p-6"
+    <motion.div
+      className="group relative bg-[#0A1A31]/40 border border-slate-800 hover:border-[#FFC400]/40 transition-all duration-500 overflow-hidden cursor-pointer flex flex-col justify-between"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => onOpenDetails(product)}
+    >
+      {/* Product Image */}
+      <div className="aspect-square overflow-hidden relative bg-[#061428]/60 flex items-center justify-center p-3">
+        <motion.img
+          src={product.image}
+          alt={product.name}
+          referrerPolicy="no-referrer"
+          animate={{ scale: isHovered ? 1.08 : 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] transition-transform duration-500"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = '/assets/jersey.png';
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#081B3A]/80 via-transparent to-transparent opacity-40 pointer-events-none" />
+        
+        {/* Quick View & Buy Overlay (Desktop) */}
+        <AnimatePresence>
+          {isHovered && window.innerWidth >= 1024 && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 15 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-[#081B3A]/95 backdrop-blur-md z-[50] p-4 space-y-2.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={handleBuyDirect}
+                className="w-full py-2.5 bg-[#FFC400] text-black font-syncopate text-[9px] font-black tracking-widest transition-all uppercase flex items-center justify-center gap-2 hover:bg-yellow-400 shadow-[0_0_15px_rgba(255,196,0,0.3)]"
               >
-                <div className="w-full space-y-3">
-                  <p className="font-syncopate text-[8px] text-[#FFC400] tracking-[0.3em] text-center mb-4">SELECT REGION</p>
-                  {regions.map((r) => (
-                    <button
-                      key={r.name}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRegionSelect(r.name, r.link);
-                      }}
-                      className="w-full py-3 border border-white/10 hover:border-[#FFC400] hover:bg-[#FFC400]/10 text-white font-syncopate text-[10px] tracking-widest transition-all flex items-center justify-between px-4 group/btn"
-                    >
-                      {r.name}
-                      <ArrowRight size={12} className="opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                <span>BUY NOW ({displayPrice})</span>
+                <ExternalLink size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenDetails(product)}
+                className="w-full py-2 border border-white/20 hover:border-[#FFC400] text-white/80 hover:text-[#FFC400] font-syncopate text-[8px] font-black tracking-widest transition-all uppercase"
+              >
+                VIEW DETAILS
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-        {/* Product Info */}
-        <div className="p-6">
+      {/* Product Info */}
+      <div className="p-6 flex flex-col justify-between flex-1">
+        <div>
           <div className="flex justify-between items-start mb-2">
             <span className="text-[#FFC400] font-syncopate text-[8px] font-black tracking-widest uppercase">{product.category}</span>
-            {selectedRegion && (
-              <span className="text-white/20 font-syncopate text-[7px] tracking-widest uppercase">SHIPPING TO: {selectedRegion}</span>
-            )}
+            <span className="text-white/30 font-syncopate text-[7px] tracking-widest uppercase">OFFICIAL STORE</span>
           </div>
-          <h4 className="font-syncopate text-sm font-bold text-white uppercase mb-4 line-clamp-2 group-hover:text-[#FFC400] transition-colors">
+          <h4 className="font-syncopate text-sm font-bold text-white uppercase mb-4 line-clamp-2 group-hover:text-[#FFC400] transition-colors leading-snug">
             {product.name}
           </h4>
-          <div className="flex justify-between items-center">
-            <span className="font-syncopate text-lg font-black text-white">
-              {product.price && product.price !== 'TBA' ? `AED ${product.price}` : 'TBA'}
-            </span>
-            <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-[#FFC400] group-hover:bg-[#FFC400]/10 transition-all">
-              <ArrowRight size={14} className="text-white group-hover:text-[#FFC400]" />
+        </div>
+
+        <div className="flex justify-between items-center pt-2 border-t border-white/5">
+          <span className="font-syncopate text-lg font-black text-white">
+            {displayPrice}
+          </span>
+          <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-[#FFC400] group-hover:bg-[#FFC400]/10 transition-all">
+            <ArrowRight size={14} className="text-white group-hover:text-[#FFC400]" />
+          </div>
+        </div>
+      </div>
+
+      {/* Corner Markers */}
+      <div className="absolute top-0 right-0 w-8 h-8 border-t border-r border-[#FFC400]/10 group-hover:border-[#FFC400]/40 transition-colors pointer-events-none" />
+    </motion.div>
+  );
+};
+
+// --- ProductDetailModal ---
+const ProductDetailModal: React.FC<{ 
+  product: Product; 
+  onClose: () => void;
+}> = ({ product, onClose }) => {
+  const displayPrice = getProductDisplayPrice(product);
+
+  const handleBuy = () => {
+    window.open(product.link, '_blank');
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6 bg-[#081B3A]/95 backdrop-blur-xl"
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ scale: 0.92, y: 30 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.92, y: 30 }}
+        className="bg-[#040E1E] border border-slate-800 w-full max-w-4xl relative overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.7)]"
+        onClick={e => e.stopPropagation()}
+      >
+        <button 
+          onClick={onClose} 
+          className="absolute top-6 right-6 z-20 text-white/70 hover:text-[#FFC400] transition-colors p-2"
+          aria-label="Close product details"
+        >
+          <X size={28} />
+        </button>
+
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* Product Image Section */}
+          <div className="bg-[#061428] relative p-8 md:p-12 flex items-center justify-center border-b md:border-b-0 md:border-r border-slate-800/80">
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#FFC400]/5 via-transparent to-transparent pointer-events-none" />
+            <img 
+              src={product.image} 
+              alt={product.name} 
+              className="max-h-[340px] w-auto object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.6)]"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/assets/jersey.png';
+              }}
+            />
+            <div className="absolute bottom-4 left-6">
+              <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-[0.2em] uppercase">
+                {product.category || 'OFFICIAL MERCHANDISE'}
+              </span>
+            </div>
+          </div>
+
+          {/* Product Info Section */}
+          <div className="p-8 md:p-10 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-2.5 py-1 bg-[#FFC400]/10 border border-[#FFC400]/30 text-[#FFC400] font-syncopate text-[8px] font-black tracking-widest uppercase">
+                  OFFICIAL GEAR
+                </span>
+                <span className="text-white/40 font-syncopate text-[8px] tracking-widest uppercase">
+                  CURRENCY: USD
+                </span>
+              </div>
+
+              <h3 className="font-syncopate text-xl md:text-2xl font-black text-white uppercase mb-4 leading-tight">
+                {product.name}
+              </h3>
+
+              {/* Price display */}
+              <div className="mb-6 p-4 bg-[#081B3A]/40 border border-white/5 flex items-baseline justify-between">
+                <div>
+                  <span className="text-white/40 font-syncopate text-[8px] tracking-widest uppercase block mb-1">
+                    PRICE (USD)
+                  </span>
+                  <span className="font-syncopate text-3xl font-black text-[#FFC400] tracking-tight">
+                    {displayPrice}
+                  </span>
+                </div>
+                <span className="text-white/40 font-syncopate text-[9px] tracking-wider uppercase">
+                  GLOBAL PRICING
+                </span>
+              </div>
+
+              {product.description && (
+                <p className="text-slate-300 font-inter text-xs leading-relaxed mb-6 font-light">
+                  {product.description}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <button
+                type="button"
+                onClick={handleBuy}
+                className="w-full py-4 bg-[#FFC400] text-black font-syncopate text-xs font-black tracking-widest uppercase hover:bg-yellow-400 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(255,196,0,0.3)] group"
+              >
+                <span>BUY ON OFFICIAL STORE</span>
+                <ExternalLink size={16} className="group-hover:translate-x-1 group-hover:-translate-y-0.5 transition-transform" />
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Corner Markers */}
-        <div className="absolute top-0 right-0 w-8 h-8 border-t border-r border-[#FFC400]/10 group-hover:border-[#FFC400]/40 transition-colors" />
       </motion.div>
-
-      {/* Mobile Bottom Sheet */}
-      <AnimatePresence>
-        {showMobileRegions && (
-          <div className="fixed inset-0 z-[1000] lg:hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowMobileRegions(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="absolute bottom-0 left-0 w-full bg-[#0A1A31] border-t border-[#FFC400]/30 p-8 rounded-t-3xl"
-            >
-              <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8" />
-              <h3 className="font-syncopate text-lg font-black text-white uppercase mb-2">SELECT REGION</h3>
-              <p className="text-white/40 font-syncopate text-[10px] tracking-widest uppercase mb-8">Choose your store for {product.name}</p>
-              
-              <div className="space-y-3">
-                {regions.map((r) => (
-                  <button
-                    key={r.name}
-                    onClick={() => handleRegionSelect(r.name, r.link)}
-                    className="w-full py-5 border border-white/10 active:border-[#FFC400] active:bg-[#FFC400]/10 text-white font-syncopate text-xs tracking-widest transition-all flex items-center justify-between px-6"
-                  >
-                    {r.name}
-                    <ArrowRight size={16} className="text-[#FFC400]" />
-                  </button>
-                ))}
-              </div>
-              
-              <button
-                onClick={() => setShowMobileRegions(false)}
-                className="w-full mt-6 py-4 text-white/40 font-syncopate text-[10px] tracking-widest uppercase"
-              >
-                CANCEL
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </>
+    </motion.div>
   );
 };
 
 const ShopSection = () => {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   return (
     <section className="py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 bg-[#030C1A] border-b border-slate-900 relative z-50 overflow-visible">
       <div className="absolute inset-0 bg-grid opacity-[0.03] pointer-events-none" />
@@ -699,7 +869,10 @@ const ShopSection = () => {
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
             >
-              <ProductCard product={product} />
+              <ProductCard 
+                product={product} 
+                onOpenDetails={(p) => setSelectedProduct(p)}
+              />
             </motion.div>
           ))}
         </div>
@@ -708,6 +881,16 @@ const ShopSection = () => {
           <ShopDropdown variant="outline" />
         </div>
       </div>
+
+      {/* Product Detail Modal */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 };
@@ -914,8 +1097,12 @@ const NewsAnnouncements = ({ newsList = [] }: { newsList?: any[] }) => {
           >
             <div className="absolute inset-0 overflow-hidden">
               <motion.img 
-                src={featured.image} 
+                src={featured.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80'} 
                 alt={featured.title} 
+                onError={(e: any) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
+                }}
                 whileHover={{ scale: 1.03 }}
                 transition={{ duration: 0.6 }}
                 className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
@@ -969,8 +1156,12 @@ const NewsAnnouncements = ({ newsList = [] }: { newsList?: any[] }) => {
               >
                 <div className="absolute inset-0 overflow-hidden">
                   <motion.img 
-                    src={item.image} 
+                    src={item.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80'} 
                     alt={item.title} 
+                    onError={(e: any) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
+                    }}
                     whileHover={{ scale: 1.03 }}
                     transition={{ duration: 0.6 }}
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
@@ -1157,6 +1348,7 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
     if (Array.isArray(events) && events.length > 0) {
       const matchesList: any[] = [];
       events.forEach((ev: any) => {
+        const evSlug = getEventSlug(ev.title) || String(ev.id);
         let parsedMatches: any[] = [];
         if (typeof ev.matches === 'string') {
           try { parsedMatches = JSON.parse(ev.matches); } catch {}
@@ -1168,6 +1360,7 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
           parsedMatches.forEach((m: any) => {
             const mDate = m.date || ev.start_date || '';
             const mTime = m.time || ev.time || '';
+            const mLink = m.link || m.url || ev.stream_url || ev.link || '';
             const dynStatus = getMatchDynamicStatus(m, ev.start_date);
 
             if (dynStatus === 'upcoming' || dynStatus === 'live') {
@@ -1175,9 +1368,11 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                 id: `${ev.id}-${m.teams || mDate}`,
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
                 title: ev.title,
+                eventSlug: evSlug,
                 opponent: cleanOpponentName(m.teams || ev.organizer || 'GLOBAL CONTENDERS'),
                 date: mDate || 'TBD',
                 time: mTime,
+                link: mLink,
                 region: ev.region || 'GLOBAL',
                 status: dynStatus,
                 countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING',
@@ -1188,16 +1383,19 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
         } else {
           const evDate = ev.start_date || '';
           const evTime = ev.time || '';
-          const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
+          const evLink = ev.stream_url || ev.link || '';
+          const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status, ev.matches);
 
           if (dynStatus === 'upcoming' || dynStatus === 'live') {
             matchesList.push({
               id: ev.id,
               game: String(ev.game || 'ESPORTS').toUpperCase(),
               title: ev.title,
+              eventSlug: evSlug,
               opponent: cleanOpponentName(ev.organizer || 'GLOBAL CONTENDERS'),
               date: evDate || 'TBD',
               time: evTime,
+              link: evLink,
               region: ev.region || 'GLOBAL',
               status: dynStatus,
               countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING',
@@ -1218,13 +1416,30 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
 
   const featuredTournament = useMemo(() => {
     if (Array.isArray(events) && events.length > 0) {
-      const feat = events.find((e: any) => e.featured === 1 || e.featured === true) || events[0];
-      const featStatus = getDynamicStatus(feat.start_date, feat.end_date, feat.time, feat.status);
+      // 1. First priority: Event explicitly marked as featured by admin
+      let feat = events.find((e: any) => Number(e.featured) === 1 || e.featured === true || e.featured === '1');
+      
+      // 2. Intelligent fallback if no event is explicitly featured: Live -> Upcoming -> First Available
+      if (!feat) {
+        feat = events.find((e: any) => {
+          const s = getDynamicStatus(e.start_date, e.end_date, e.time, e.status, e.matches);
+          return s === 'live';
+        }) || events.find((e: any) => {
+          const s = getDynamicStatus(e.start_date, e.end_date, e.time, e.status, e.matches);
+          return s === 'upcoming';
+        }) || events[0];
+      }
+
+      if (!feat) return null;
+
+      const featStatus = getDynamicStatus(feat.start_date, feat.end_date, feat.time, feat.status, feat.matches);
       return {
         id: feat.id,
+        slug: getEventSlug(feat.title) || String(feat.id),
         title: feat.title,
         game: String(feat.game || 'ESPORTS').toUpperCase(),
-        status: String(featStatus === 'completed' ? 'FINISHED' : (featStatus === 'live' ? 'LIVE NOW' : 'UPCOMING')).toUpperCase(),
+        dynStatus: featStatus,
+        statusText: featStatus === 'completed' ? 'FINISHED' : (featStatus === 'live' ? 'LIVE NOW' : 'UPCOMING'),
         date: feat.start_date || '2026-11-05',
         location: feat.region || feat.organizer || 'GLOBAL',
         prizePool: feat.prize_pool || '$18,000,000',
@@ -1278,7 +1493,14 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
                 whileHover={{ y: -4 }}
-                className="group relative bg-[#0A1A31]/50 border border-slate-800 p-6 md:p-7 hover:border-[#FFC400]/40 transition-all overflow-hidden"
+                onClick={() => {
+                  if (match.link) {
+                    window.open(match.link, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+                className={`group relative bg-[#0A1A31]/50 border p-6 md:p-7 transition-all overflow-hidden ${
+                  match.link ? 'cursor-pointer hover:border-[#FFC400]/60 hover:bg-[#0A2045]/60' : 'border-slate-800 hover:border-[#FFC400]/40'
+                }`}
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                   <div className="space-y-3 flex-1 min-w-0">
@@ -1329,13 +1551,28 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                       {match.status === 'live' ? '● LIVE OPERATION' : 'CONFIRMED SCHEDULE'}
                     </span>
                   </div>
-                  <Link 
-                    to={`/events/${getEventSlug(match.title)}`} 
-                    className="group/link flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-[0.2em] uppercase hover:text-white transition-colors"
-                  >
-                    <span>VIEW MATCH DETAILS</span> 
-                    <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform" />
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    {match.link && (
+                      <a
+                        href={match.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFC400] hover:bg-white text-black font-syncopate text-[9px] font-black tracking-wider uppercase transition-all shadow-md"
+                      >
+                        <span>WATCH STREAM</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    )}
+                    <Link 
+                      to={`/events/${match.eventSlug || getEventSlug(match.title)}`}
+                      onClick={(e) => e.stopPropagation()} 
+                      className="group/link flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-[0.2em] uppercase hover:text-white transition-colors"
+                    >
+                      <span>VIEW DETAILS</span> 
+                      <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Hover Border Animation */}
@@ -1364,8 +1601,14 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A31] via-[#0A1A31]/40 to-transparent" />
                   <div className="absolute top-6 right-6">
-                    <span className="bg-[#FFC400] text-black px-4 py-1 font-syncopate text-[10px] font-black tracking-widest uppercase">
-                      {featuredTournament.status}
+                    <span className={`px-4 py-1 font-syncopate text-[10px] font-black tracking-widest uppercase ${
+                      featuredTournament.dynStatus === 'live' 
+                        ? 'bg-red-500 text-white animate-pulse' 
+                        : featuredTournament.dynStatus === 'completed'
+                        ? 'bg-slate-800 text-slate-300 border border-slate-700'
+                        : 'bg-[#FFC400] text-black'
+                    }`}>
+                      {featuredTournament.statusText}
                     </span>
                   </div>
                 </div>
@@ -1392,7 +1635,7 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                   </div>
 
                   <div className="mt-auto">
-                    <Link to="/events">
+                    <Link to={`/events/${featuredTournament.slug}`}>
                       <ArenaButton className="w-full" icon={<ArrowRight size={18} />}>
                         VIEW TOURNAMENT
                       </ArenaButton>
@@ -1529,7 +1772,34 @@ const Home = () => {
     };
 
     fetchHomeData();
-    return () => { isMounted = false; };
+
+    // Listen for schedule and match updates from Admin Panel
+    const handleEventsUpdated = async () => {
+      try {
+        const refreshedEvents = await safeFetchJson('/api/events');
+        if (isMounted && Array.isArray(refreshedEvents)) {
+          setDbEvents(refreshedEvents);
+        }
+      } catch (err) {
+        console.error('Failed to sync events update:', err);
+      }
+    };
+
+    window.addEventListener('geekay:events_updated', handleEventsUpdated);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'geekay_events_updated_at') {
+        handleEventsUpdated();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleEventsUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('geekay:events_updated', handleEventsUpdated);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleEventsUpdated);
+    };
   }, []);
 
   if (loading) {

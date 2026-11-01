@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, X, Calendar, Filter, Search, ExternalLink, FileSpreadsheet, Upload, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Calendar, Filter, Search, ExternalLink, FileSpreadsheet, Upload, CheckCircle2, AlertCircle, Star } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import * as XLSX from 'xlsx';
@@ -28,11 +28,48 @@ const AdminSchedule = () => {
   const [podiumResults, setPodiumResults] = useState<{ winner: string; runnerUp: string; mvp: string }>({ winner: '', runnerUp: '', mvp: '' });
   const [mediaList, setMediaList] = useState<any[]>([]);
   const [socialList, setSocialList] = useState<any[]>([]);
+  const [featuredToast, setFeaturedToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const handleFeatureToggle = async (eventId: number | string) => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/feature`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Optimistic state update
+        setItems(prev => prev.map(item => ({
+          ...item,
+          featured: (eventId !== 'clear' && eventId !== 'none' && data.isFeatured && String(item.id) === String(eventId)) ? 1 : 0
+        })));
+        setFeaturedToast({
+          type: 'success',
+          message: data.message || 'Homepage Featured Tournament updated successfully!'
+        });
+        setTimeout(() => setFeaturedToast(null), 4000);
+        fetchItems();
+        notifyScheduleUpdated();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update featured event');
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle featured tournament:', err);
+      setFeaturedToast({
+        type: 'error',
+        message: err.message || 'Failed to toggle featured event.'
+      });
+      setTimeout(() => setFeaturedToast(null), 4000);
+    }
+  };
 
   // Open modal handler with safe JSON parsing
   const handleOpenEdit = (item: any) => {
     setEditingItem({
       ...item,
+      featured: Number(item.featured) === 1 || item.featured === true ? 1 : 0,
       overview_title: item.overview_title || 'TACTICAL INTELLIGENCE',
       prize_pool: item.prize_pool || item.prizePool || '$100,000',
       total_teams: item.total_teams || '16',
@@ -53,10 +90,16 @@ const AdminSchedule = () => {
       setTeamsList([]);
     }
 
-    // Parse Matches JSON
+    // Parse Matches JSON (with independent link support per fixture)
     try {
       const parsed = typeof item.matches === 'string' ? JSON.parse(item.matches) : item.matches;
-      setMatchesList(Array.isArray(parsed) ? parsed : []);
+      setMatchesList(Array.isArray(parsed) ? parsed.map((m: any) => ({
+        date: m.date || '',
+        teams: m.teams || '',
+        score: m.score || '',
+        status: m.status || 'upcoming',
+        link: m.link || m.url || ''
+      })) : []);
     } catch (e) {
       setMatchesList([]);
     }
@@ -216,6 +259,7 @@ const AdminSchedule = () => {
       
       setEditingItem(null);
       fetchItems();
+      notifyScheduleUpdated();
     } catch (err: any) {
       console.error('Save event error:', err);
       if (err.name === 'AbortError') {
@@ -227,6 +271,13 @@ const AdminSchedule = () => {
       setSaving(false);
       clearTimeout(timeoutId);
     }
+  };
+
+  const notifyScheduleUpdated = () => {
+    try {
+      window.dispatchEvent(new CustomEvent('geekay:events_updated'));
+      localStorage.setItem('geekay_events_updated_at', Date.now().toString());
+    } catch {}
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -255,6 +306,7 @@ const AdminSchedule = () => {
       setItems(prev => prev.filter(item => String(item.id) !== String(id)));
       await fetch(`/api/events/${id}`, { method: 'DELETE', headers: getAuthHeaders(), credentials: 'include' });
       fetchItems();
+      notifyScheduleUpdated();
     } catch (err: any) {
       fetchItems();
     }
@@ -320,6 +372,7 @@ const AdminSchedule = () => {
           setUploadProgress(100);
           setUploadStatus({ type: 'success', message: `Schedule imported successfully: ${successCount} events added.` });
           fetchItems();
+          notifyScheduleUpdated();
           
           setTimeout(() => {
             setUploadStatus({ type: null, message: '' });
@@ -432,6 +485,101 @@ const AdminSchedule = () => {
         </div>
       </div>
 
+      {/* Featured Tournament Feedback Toast */}
+      <AnimatePresence>
+        {featuredToast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`p-4 border flex items-center justify-between gap-4 ${
+              featuredToast.type === 'success' 
+                ? 'bg-[#FFC400]/10 border-[#FFC400]/40 text-[#FFC400]' 
+                : 'bg-red-500/10 border-red-500/30 text-red-400'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Star size={18} className={featuredToast.type === 'success' ? 'fill-[#FFC400]' : ''} />
+              <span className="font-syncopate text-[10px] font-bold tracking-widest uppercase">
+                {featuredToast.message}
+              </span>
+            </div>
+            <button 
+              onClick={() => setFeaturedToast(null)} 
+              className="text-slate-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Featured Tournament Selector Box */}
+      {(() => {
+        const currentlyFeatured = items.find(i => Number(i.featured) === 1);
+        return (
+          <div className="bg-[#0A1A31] border border-[#FFC400]/40 p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-[0_0_20px_rgba(255,196,0,0.05)]">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-sm bg-[#FFC400]/10 border border-[#FFC400]/40 flex items-center justify-center text-[#FFC400] shrink-0 mt-0.5">
+                <Star size={24} className={currentlyFeatured ? 'fill-[#FFC400]' : 'text-slate-500'} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-syncopate text-xs md:text-sm font-black text-white uppercase tracking-wider">
+                    HOMEPAGE FEATURED TOURNAMENT
+                  </h3>
+                  <span className="text-[8px] bg-[#FFC400] text-black px-2 py-0.5 font-bold uppercase tracking-widest">
+                    LIVE SHOWCASE
+                  </span>
+                </div>
+                <p className="text-slate-300 font-inter text-xs">
+                  {currentlyFeatured ? (
+                    <span>
+                      Currently pinned:{' '}
+                      <strong className="text-[#FFC400] font-syncopate font-bold">
+                        [{currentlyFeatured.game}] {currentlyFeatured.title}
+                      </strong>
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 italic">
+                      No specific tournament pinned (Automatic mode: displaying the active LIVE or earliest upcoming tournament).
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+              <select
+                value={currentlyFeatured?.id || 'clear'}
+                onChange={(e) => {
+                  handleFeatureToggle(e.target.value);
+                }}
+                className="bg-[#040E1E] border border-[#FFC400]/50 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] min-w-[280px]"
+              >
+                <option value="clear">-- AUTOMATIC (NEXT UPCOMING / LIVE) --</option>
+                {items.map(ev => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.game ? `[${ev.game}] ` : ''}{ev.title} {Number(ev.featured) === 1 ? '★ [CURRENT PINNED]' : ''}
+                  </option>
+                ))}
+              </select>
+
+              {currentlyFeatured && (
+                <button
+                  type="button"
+                  onClick={() => handleFeatureToggle('clear')}
+                  title="Remove pinned tournament and return to automatic mode"
+                  className="px-3 py-3 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-white/10 hover:border-red-500/40 font-syncopate text-[9px] font-bold tracking-widest uppercase transition-all whitespace-nowrap text-center"
+                >
+                  UNPIN / SET AUTO
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="bg-[#081B3A] border border-white/5 overflow-hidden">
         <table className="w-full text-left font-syncopate text-[10px] tracking-widest uppercase">
           <thead className="text-slate-500 border-b border-white/5">
@@ -439,6 +587,7 @@ const AdminSchedule = () => {
               <th className="p-8 font-bold">EVENT</th>
               <th className="p-8 font-bold">DATE</th>
               <th className="p-8 font-bold">STATUS</th>
+              <th className="p-8 font-bold text-center">HOMEPAGE</th>
               <th className="p-8 font-bold text-right">ACTIONS</th>
             </tr>
           </thead>
@@ -457,13 +606,36 @@ const AdminSchedule = () => {
                 </td>
                 <td className="p-8">
                   {(() => {
-                    const dynStatus = getDynamicStatus(item.start_date, item.end_date, item.time, item.status);
+                    const dynStatus = getDynamicStatus(item.start_date, item.end_date, item.time, item.status, item.matches);
                     return (
                       <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase ${dynStatus === 'live' ? 'bg-red-500/10 text-red-500 animate-pulse border border-red-500/30' : dynStatus === 'completed' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
                         {dynStatus === 'completed' ? 'FINISHED' : (dynStatus === 'live' ? '● LIVE' : 'UPCOMING')}
                       </span>
                     );
                   })()}
+                </td>
+                <td className="p-8 text-center">
+                  {Number(item.featured) === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => handleFeatureToggle(item.id)}
+                      title="Currently featured on Homepage - click to toggle"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFC400] text-black font-syncopate text-[8px] font-black tracking-widest uppercase hover:bg-yellow-400 transition-all shadow-[0_0_10px_rgba(255,196,0,0.4)]"
+                    >
+                      <Star size={11} className="fill-black" />
+                      <span>FEATURED</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleFeatureToggle(item.id)}
+                      title="Set as featured tournament on Homepage"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-[#FFC400]/20 text-slate-400 hover:text-[#FFC400] border border-white/10 hover:border-[#FFC400]/40 font-syncopate text-[8px] font-bold tracking-widest uppercase transition-all"
+                    >
+                      <Star size={11} />
+                      <span>SET FEATURED</span>
+                    </button>
+                  )}
                 </td>
                 <td className="p-8 text-right">
                   <div className="flex items-center justify-end gap-3">
@@ -611,6 +783,26 @@ const AdminSchedule = () => {
                       placeholder="e.g. Copper Box Arena, London"
                     />
                   </div>
+                </div>
+
+                <div className="pt-2">
+                  <label className="flex items-center gap-3 p-4 bg-[#040E1E] border border-slate-800 hover:border-[#FFC400]/40 transition-colors cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={Boolean(Number(editingItem.featured) === 1 || editingItem.featured === true || editingItem.featured === '1')}
+                      onChange={e => setEditingItem({ ...editingItem, featured: e.target.checked ? 1 : 0 })}
+                      className="w-4 h-4 text-[#FFC400] bg-slate-900 border-slate-700 rounded focus:ring-[#FFC400] accent-[#FFC400]"
+                    />
+                    <div>
+                      <span className="font-syncopate text-[9px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <Star size={12} className={editingItem.featured ? 'text-[#FFC400] fill-[#FFC400]' : 'text-slate-500'} />
+                        FEATURED TOURNAMENT ON HOMEPAGE
+                      </span>
+                      <span className="font-inter text-[10px] text-slate-400">
+                        Display this tournament prominently in the Featured Tournament showcase on the homepage.
+                      </span>
+                    </div>
+                  </label>
                 </div>
 
                 <ImageUploader 
@@ -797,49 +989,90 @@ const AdminSchedule = () => {
                   title="Match Fixtures"
                   items={matchesList}
                   onItemsChange={setMatchesList}
-                  createDefaultItem={() => ({ date: '2026-02-10', teams: 'Geekay Esports vs Opponent', score: '3 - 2', status: 'completed' })}
+                  createDefaultItem={() => ({ date: '2026-02-10', teams: 'Geekay Esports vs Opponent', score: '', status: 'upcoming', link: '' })}
                   itemTitle={(item) => item.teams || 'Match Fixture'}
                   renderItemFields={(item, idx, onChange) => (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Date / Time</label>
-                        <input 
-                          type="text" 
-                          value={item.date || ''} 
-                          onChange={e => onChange({ ...item, date: e.target.value })}
-                          placeholder="2026-02-10" 
-                          className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                        />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Match Title / Teams</label>
-                        <input 
-                          type="text" 
-                          value={item.teams || ''} 
-                          onChange={e => onChange({ ...item, teams: e.target.value })}
-                          placeholder="Geekay vs Sentinels" 
-                          className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Score & Status</label>
-                        <div className="flex gap-2">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Date / Time</label>
                           <input 
                             type="text" 
-                            value={item.score || ''} 
-                            onChange={e => onChange({ ...item, score: e.target.value })}
-                            placeholder="3 - 2" 
-                            className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                            value={item.date || ''} 
+                            onChange={e => onChange({ ...item, date: e.target.value })}
+                            placeholder="2026-02-10" 
+                            className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                           />
-                          <select 
-                            value={item.status || 'upcoming'}
-                            onChange={e => onChange({ ...item, status: e.target.value })}
-                            className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] appearance-none"
-                          >
-                            <option value="upcoming">UPCOMING</option>
-                            <option value="live">LIVE</option>
-                            <option value="completed">COMPLETED</option>
-                          </select>
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Match Title / Teams</label>
+                          <input 
+                            type="text" 
+                            value={item.teams || ''} 
+                            onChange={e => onChange({ ...item, teams: e.target.value })}
+                            placeholder="Geekay vs Sentinels" 
+                            className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Score & Status</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={item.score || ''} 
+                              onChange={e => onChange({ ...item, score: e.target.value })}
+                              placeholder="3 - 2" 
+                              className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                            />
+                            <select 
+                              value={item.status || 'upcoming'}
+                              onChange={e => onChange({ ...item, status: e.target.value })}
+                              className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] appearance-none"
+                            >
+                              <option value="upcoming">UPCOMING</option>
+                              <option value="live">LIVE</option>
+                              <option value="completed">COMPLETED</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Individual Match Link */}
+                      <div className="pt-2 border-t border-slate-800/60">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="font-syncopate text-[8px] text-[#FFC400] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                            <ExternalLink size={10} />
+                            <span>Match Stream URL / Dedicated Link</span>
+                          </label>
+                          {item.link && (
+                            <button 
+                              type="button" 
+                              onClick={() => onChange({ ...item, link: '' })}
+                              className="text-[7px] text-red-400 hover:text-red-300 font-syncopate uppercase tracking-widest transition-colors"
+                            >
+                              ✕ REMOVE LINK
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <input 
+                            type="url" 
+                            value={item.link || ''} 
+                            onChange={e => onChange({ ...item, link: e.target.value })}
+                            placeholder="e.g. https://www.twitch.tv/rainbow6 or https://youtube.com/watch?v=..." 
+                            className="w-full bg-[#040E1E] border border-slate-800 p-2.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] transition-colors"
+                          />
+                          {item.link && (
+                            <a 
+                              href={item.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="px-3 bg-white/5 border border-slate-800 hover:border-[#FFC400]/40 text-[#FFC400] hover:bg-[#FFC400]/10 flex items-center justify-center transition-colors shrink-0 text-xs rounded"
+                              title="Test Link in New Tab"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>

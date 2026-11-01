@@ -327,6 +327,7 @@ const AdminTeams = () => {
         major_titles: editingPlayer.major_titles !== undefined ? String(editingPlayer.major_titles) : '5',
         int_placements: editingPlayer.int_placements !== undefined ? String(editingPlayer.int_placements) : '12',
         trophy_count: editingPlayer.trophy_count !== undefined ? String(editingPlayer.trophy_count) : '12',
+        prize_money: editingPlayer.prize_money !== undefined && editingPlayer.prize_money !== null ? String(editingPlayer.prize_money) : (editingPlayer.trophy_count || ''),
         match_history: JSON.stringify(playerMatchesList),
         achievements: JSON.stringify(playerAchievementsList),
         media: JSON.stringify(playerMediaList),
@@ -666,14 +667,14 @@ const AdminTeams = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Win Rate</label>
+                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Prize Money (Total Earnings)</label>
                     <input 
                       type="text" 
-                      value={editingTeam.win_rate || editingTeam.winRate || ''}
-                      onChange={e => setEditingTeam({...editingTeam, win_rate: e.target.value, winRate: e.target.value})}
-                      placeholder="e.g. 78%"
+                      value={editingTeam.prize_money !== undefined && editingTeam.prize_money !== null ? editingTeam.prize_money : (editingTeam.prizeMoney || '')}
+                      onChange={e => setEditingTeam({...editingTeam, prize_money: e.target.value, prizeMoney: e.target.value})}
+                      placeholder="e.g. $450,000"
                       className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
@@ -684,16 +685,6 @@ const AdminTeams = () => {
                       value={editingTeam.championships !== undefined && editingTeam.championships !== null ? editingTeam.championships : ''}
                       onChange={e => setEditingTeam({...editingTeam, championships: e.target.value})}
                       placeholder="e.g. 5 or N/A"
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Season Record</label>
-                    <input 
-                      type="text" 
-                      value={editingTeam.season_record || editingTeam.seasonRecord || ''}
-                      onChange={e => setEditingTeam({...editingTeam, season_record: e.target.value, seasonRecord: e.target.value})}
-                      placeholder="e.g. 18-4"
                       className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
@@ -1075,12 +1066,12 @@ const AdminTeams = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Trophy Count</label>
+                      <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Prize Money (Career Earnings)</label>
                       <input 
                         type="text" 
-                        value={editingPlayer.trophy_count !== undefined && editingPlayer.trophy_count !== null ? editingPlayer.trophy_count : ''}
-                        onChange={e => setEditingPlayer({...editingPlayer, trophy_count: e.target.value})}
-                        placeholder="e.g. 12 or N/A"
+                        value={editingPlayer.prize_money !== undefined && editingPlayer.prize_money !== null ? editingPlayer.prize_money : (editingPlayer.trophy_count !== undefined && editingPlayer.trophy_count !== null ? editingPlayer.trophy_count : '')}
+                        onChange={e => setEditingPlayer({...editingPlayer, prize_money: e.target.value, trophy_count: e.target.value})}
+                        placeholder="e.g. $85,000 or N/A"
                         className="w-full bg-[#05142B] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       />
                     </div>

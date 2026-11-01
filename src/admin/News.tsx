@@ -904,6 +904,21 @@ const AdminNews = () => {
                     onChange={(url) => setEditingItem({ ...editingItem, image: url })}
                     aspectRatio="banner"
                   />
+                  <div className="bg-[#040E1E] border border-[#FFC400]/20 p-4 rounded-none">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-[#FFC400]" />
+                      <span className="font-syncopate text-[9px] font-black text-[#FFC400] uppercase tracking-wider">
+                        Recommended News Image Specs / الحجم الموصى به
+                      </span>
+                    </div>
+                    <ul className="text-xs text-slate-300 space-y-1.5 font-mono">
+                      <li>• <strong className="text-white">Aspect Ratio:</strong> 16:9 (Widescreen)</li>
+                      <li>• <strong className="text-white">Ideal Dimensions:</strong> 1920 × 1080 px (Full HD)</li>
+                      <li>• <strong className="text-white">Standard Web:</strong> 1280 × 720 px (HD)</li>
+                      <li>• <strong className="text-white">Format & Size:</strong> WebP or JPG, Max 500 KB</li>
+                      <li>• <strong className="text-white">Framing Tip:</strong> Keep key players/logos in the center 60% of the image.</li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
