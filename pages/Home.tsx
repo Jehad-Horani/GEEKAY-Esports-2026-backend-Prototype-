@@ -1498,12 +1498,12 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                     window.open(match.link, '_blank', 'noopener,noreferrer');
                   }
                 }}
-                className={`group relative bg-[#0A1A31]/50 border p-6 md:p-7 transition-all overflow-hidden ${
+                className={`group relative bg-[#0A1A31]/50 border p-4 sm:p-6 md:p-7 transition-all overflow-hidden ${
                   match.link ? 'cursor-pointer hover:border-[#FFC400]/60 hover:bg-[#0A2045]/60' : 'border-slate-800 hover:border-[#FFC400]/40'
                 }`}
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                  <div className="space-y-3 flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
+                  <div className="space-y-2 sm:space-y-3 flex-1 min-w-0 w-full sm:w-auto">
                     <div className="flex items-center gap-2">
                       <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-widest uppercase">{match.game}</span>
                       {match.status === 'live' && (
@@ -1514,25 +1514,29 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                       )}
                     </div>
                     <div className="space-y-1">
-                      <h4 className="font-syncopate text-base md:text-lg font-bold text-white uppercase truncate">{match.title}</h4>
-                      <p className="text-slate-400 font-syncopate text-[11px] font-bold tracking-wider uppercase">{match.opponent}</p>
+                      <h4 className="font-syncopate text-sm sm:text-base md:text-lg font-black text-white uppercase break-words leading-snug">
+                        {match.title}
+                      </h4>
+                      <p className="text-slate-400 font-syncopate text-[10px] sm:text-[11px] font-bold tracking-wider uppercase break-words">
+                        {match.opponent}
+                      </p>
                     </div>
                   </div>
                   
-                  <div className="flex flex-col sm:items-end gap-2 shrink-0">
-                    <div className="flex items-center gap-2.5 text-white font-syncopate text-xs font-black tracking-wider bg-[#040E1E] border border-slate-800 px-3.5 py-1.5 whitespace-nowrap">
+                  <div className="w-full sm:w-auto flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/40">
+                    <div className="flex items-center gap-2 text-white font-syncopate text-[10px] sm:text-xs font-black tracking-wider bg-[#040E1E] border border-slate-800 px-3 py-1.5 whitespace-nowrap">
                       <Calendar size={13} className="text-[#FFC400] shrink-0" />
                       <span className="whitespace-nowrap">{match.date}</span>
                     </div>
                     {match.time ? (
-                      <div className="flex items-center gap-2 text-slate-400 font-syncopate text-[9px] tracking-widest uppercase whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-slate-400 font-syncopate text-[8px] sm:text-[9px] tracking-wider sm:tracking-widest uppercase whitespace-nowrap">
                         <Clock size={12} className="text-slate-500 shrink-0" />
                         <span>{match.time}</span>
                         {match.region && <span>// {match.region.toUpperCase()}</span>}
                       </div>
                     ) : (
                       match.region && (
-                        <div className="flex items-center gap-1.5 text-slate-400 font-syncopate text-[9px] tracking-widest uppercase whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-slate-400 font-syncopate text-[8px] sm:text-[9px] tracking-wider sm:tracking-widest uppercase whitespace-nowrap">
                           <MapPin size={11} className="text-slate-500 shrink-0" />
                           <span className="uppercase">{match.region}</span>
                         </div>
@@ -1541,9 +1545,9 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-wrap justify-between items-center gap-4">
+                <div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-1 font-syncopate text-[8px] font-bold tracking-widest uppercase ${
+                    <span className={`px-2.5 py-1 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest uppercase ${
                       match.status === 'live' 
                         ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' 
                         : 'bg-[#FFC400]/10 border border-[#FFC400]/20 text-[#FFC400]'
@@ -1551,14 +1555,15 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                       {match.status === 'live' ? '● LIVE OPERATION' : 'CONFIRMED SCHEDULE'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
                     {match.link && (
                       <a
                         href={match.link}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFC400] hover:bg-white text-black font-syncopate text-[9px] font-black tracking-wider uppercase transition-all shadow-md"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFC400] hover:bg-white text-black font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider uppercase transition-all shadow-md shrink-0"
                       >
                         <span>WATCH STREAM</span>
                         <ExternalLink size={11} />
@@ -1567,10 +1572,10 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                     <Link 
                       to={`/events/${match.eventSlug || getEventSlug(match.title)}`}
                       onClick={(e) => e.stopPropagation()} 
-                      className="group/link flex items-center gap-2 font-syncopate text-[9px] font-black text-[#FFC400] tracking-[0.2em] uppercase hover:text-white transition-colors"
+                      className="group/link inline-flex items-center gap-1.5 sm:gap-2 font-syncopate text-[8px] sm:text-[9px] font-black text-[#FFC400] tracking-wider sm:tracking-[0.2em] uppercase hover:text-white transition-colors shrink-0 py-1"
                     >
                       <span>VIEW DETAILS</span> 
-                      <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform" />
+                      <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform shrink-0" />
                     </Link>
                   </div>
                 </div>
@@ -1600,8 +1605,8 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A31] via-[#0A1A31]/40 to-transparent" />
-                  <div className="absolute top-6 right-6">
-                    <span className={`px-4 py-1 font-syncopate text-[10px] font-black tracking-widest uppercase ${
+                  <div className="absolute top-4 sm:top-6 right-4 sm:right-6">
+                    <span className={`px-3 sm:px-4 py-1 font-syncopate text-[9px] sm:text-[10px] font-black tracking-widest uppercase ${
                       featuredTournament.dynStatus === 'live' 
                         ? 'bg-red-500 text-white animate-pulse' 
                         : featuredTournament.dynStatus === 'completed'
@@ -1613,23 +1618,23 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
                   </div>
                 </div>
 
-                <div className="p-8 md:p-12 flex-grow flex flex-col">
-                  <div className="mb-6">
-                    <span className="text-[#FFC400] font-syncopate text-[10px] font-black tracking-widest uppercase">{featuredTournament.game}</span>
-                    <h4 className="font-syncopate text-2xl md:text-4xl font-bold text-white uppercase mt-2 leading-tight">{featuredTournament.title}</h4>
+                <div className="p-5 sm:p-8 md:p-12 flex-grow flex flex-col">
+                  <div className="mb-4 sm:mb-6">
+                    <span className="text-[#FFC400] font-syncopate text-[9px] sm:text-[10px] font-black tracking-widest uppercase">{featuredTournament.game}</span>
+                    <h4 className="font-syncopate text-xl sm:text-2xl md:text-4xl font-bold text-white uppercase mt-2 leading-tight break-words">{featuredTournament.title}</h4>
                   </div>
 
-                  <div className="space-y-6 mb-12">
-                    <div className="flex items-center gap-4 text-slate-300">
-                      <Calendar size={18} className="text-[#FFC400]" />
+                  <div className="space-y-4 sm:space-y-6 mb-8 sm:mb-12">
+                    <div className="flex items-center gap-3 sm:gap-4 text-slate-300">
+                      <Calendar size={18} className="text-[#FFC400] shrink-0" />
                       <span className="font-syncopate text-xs tracking-widest uppercase">{featuredTournament.date}</span>
                     </div>
-                    <div className="flex items-center gap-4 text-slate-300">
-                      <MapPin size={18} className="text-[#FFC400]" />
+                    <div className="flex items-center gap-3 sm:gap-4 text-slate-300">
+                      <MapPin size={18} className="text-[#FFC400] shrink-0" />
                       <span className="font-syncopate text-xs tracking-widest uppercase">{featuredTournament.location}</span>
                     </div>
-                    <div className="flex items-center gap-4 text-slate-300">
-                      <Trophy size={18} className="text-[#FFC400]" />
+                    <div className="flex items-center gap-3 sm:gap-4 text-slate-300">
+                      <Trophy size={18} className="text-[#FFC400] shrink-0" />
                       <span className="font-syncopate text-xs tracking-widest uppercase">PRIZE POOL: {featuredTournament.prizePool}</span>
                     </div>
                   </div>

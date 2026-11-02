@@ -217,6 +217,9 @@ const CalendarInterface = () => {
   const [dbEvents, setDbEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbGameTitles, setDbGameTitles] = useState<string[]>([]);
+  const [mobileSelectedDay, setMobileSelectedDay] = useState<number>(() => {
+    return new Date().getDate();
+  });
 
   // Interactive Modal States
   const [selectedMatch, setSelectedMatch] = useState<CalendarItem | null>(null);
@@ -375,8 +378,23 @@ const CalendarInterface = () => {
   const monthName = currentDate.toLocaleString('default', { month: 'short' }).toUpperCase();
   const year = currentDate.getFullYear();
 
-  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const prevMonth = () => {
+    setCurrentDate(prev => {
+      const next = new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+      const isCur = next.getMonth() === new Date().getMonth() && next.getFullYear() === new Date().getFullYear();
+      setMobileSelectedDay(isCur ? new Date().getDate() : 1);
+      return next;
+    });
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(prev => {
+      const next = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      const isCur = next.getMonth() === new Date().getMonth() && next.getFullYear() === new Date().getFullYear();
+      setMobileSelectedDay(isCur ? new Date().getDate() : 1);
+      return next;
+    });
+  };
 
   // Filtered items based on game filter, event filter, and search query
   const filteredItems = useMemo(() => {
@@ -513,8 +531,11 @@ const CalendarInterface = () => {
       {/* ====================================================
           2) EVENT COLOR CODING LEGEND (REQUIREMENT 7)
           ==================================================== */}
-      <div className="bg-[#081B3A]/80 border border-slate-800 p-4 sm:p-6 mb-8 backdrop-blur-sm relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-white/5">
+      {/* ====================================================
+          2) EVENT COLOR CODING LEGEND (REQUIREMENT 7)
+          ==================================================== */}
+      <div className="bg-[#081B3A]/80 border border-slate-800 p-3.5 sm:p-5 md:p-6 mb-8 backdrop-blur-sm relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-4 pb-3 border-b border-white/5">
           <div className="flex items-center gap-2.5">
             <span className="w-2 h-2 rounded-full bg-[#FFC400] animate-pulse" />
             <h3 className="font-syncopate text-[10px] sm:text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
@@ -522,47 +543,60 @@ const CalendarInterface = () => {
               <span>EVENT COLOR CODING // LEGEND</span>
             </h3>
           </div>
-          <span className="text-slate-400 font-inter text-[9px] uppercase tracking-wider">
-            Matches inherit the distinct color of their tournament
-          </span>
+          <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+            <span className="text-slate-400 font-inter text-[9px] uppercase tracking-wider">
+              Matches inherit the distinct color of their tournament
+            </span>
+            {selectedEventIdFilter && (
+              <button
+                onClick={() => setSelectedEventIdFilter(null)}
+                className="font-syncopate text-[8px] sm:text-[9px] text-[#FFC400] hover:text-white uppercase tracking-wider underline transition-colors"
+              >
+                SHOW ALL [RESET]
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Legend Chips List */}
-        <div className="flex flex-wrap gap-2.5 sm:gap-3">
+        {/* Legend Chips List - Responsive Grid on Mobile/Tablet and Flex on Desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-2 sm:gap-2.5">
           {activeEventsList.map(({ event, color, matchCount }) => {
             const isSelected = selectedEventIdFilter === event.id;
             return (
               <button
                 key={event.id}
                 onClick={() => setSelectedEventIdFilter(isSelected ? null : event.id)}
-                className={`flex items-center gap-2.5 px-3 py-2 border transition-all text-left group
-                  ${isSelected 
-                    ? 'border-white bg-white/10 shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
-                    : 'border-slate-800 hover:border-slate-600 bg-[#040E1E]/60'}`}
-                title={`Click to filter by ${event.title}`}
+                className={`w-full lg:w-auto flex items-center justify-between gap-2.5 sm:gap-3 px-3 py-2.5 border transition-all text-left group min-w-0 ${
+                  isSelected 
+                    ? 'border-white bg-white/10 shadow-[0_0_15px_rgba(255,255,255,0.2)] ring-1 ring-white/50' 
+                    : 'border-slate-800 hover:border-slate-600 bg-[#040E1E]/70'}`}
+                title={`Click to filter calendar by ${event.title}`}
               >
-                {/* Glowing Color Indicator */}
-                <div 
-                  className="w-3 h-3 rounded-none shrink-0 border border-white/30"
-                  style={{ 
-                    backgroundColor: color.hex,
-                    boxShadow: `0 0 10px ${color.glow}`
-                  }} 
-                />
-                
-                <div className="flex items-center gap-2">
-                  <span className="font-syncopate text-[9px] font-black text-white uppercase tracking-wider group-hover:text-yellow-400 transition-colors max-w-[200px] truncate">
+                {/* Left: Indicator + Event Title */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div 
+                    className="w-3 h-3 rounded-none shrink-0 border border-white/30"
+                    style={{ 
+                      backgroundColor: color.hex,
+                      boxShadow: `0 0 10px ${color.glow}`
+                    }} 
+                  />
+                  
+                  <span className="font-syncopate text-[9px] sm:text-[10px] font-black text-white uppercase tracking-wider group-hover:text-yellow-400 transition-colors truncate">
                     {event.title}
                   </span>
-                  
+                </div>
+
+                {/* Right: Game Badge + Match Count */}
+                <div className="flex items-center gap-2 shrink-0 ml-2">
                   <span 
-                    className="font-syncopate text-[7px] font-black uppercase px-1.5 py-0.5 rounded-none border border-white/10"
+                    className="font-syncopate text-[7px] sm:text-[8px] font-black uppercase px-2 py-0.5 rounded-none border border-white/10 whitespace-nowrap"
                     style={{ color: color.hex, backgroundColor: color.badgeBg }}
                   >
                     {event.game}
                   </span>
 
-                  <span className="font-mono text-[8px] text-slate-500 font-semibold">
+                  <span className="font-mono text-[8px] sm:text-[9px] text-slate-400 font-semibold whitespace-nowrap">
                     {matchCount} {matchCount === 1 ? 'match' : 'matches'}
                   </span>
                 </div>
@@ -573,50 +607,268 @@ const CalendarInterface = () => {
       </div>
 
       {/* ====================================================
-          3) CALENDAR HEADER & MONTH NAVIGATOR
+          3) CALENDAR HEADER & MONTH NAVIGATOR (RESPONSIVE)
           ==================================================== */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 mb-8 bg-[#081B3A] border border-slate-800 p-4 sm:p-8">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6 bg-[#081B3A] border border-slate-800 p-4 sm:p-6 shadow-lg">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-1.5 h-1.5 bg-[#FFC400] rounded-full inline-block" />
-            <h2 className="font-syncopate text-sm sm:text-lg md:text-xl font-black text-white uppercase tracking-wider sm:tracking-widest">
+            <h2 className="font-syncopate text-xs sm:text-base md:text-lg font-black text-white uppercase tracking-wider">
               OPERATIONS SCHEDULE
             </h2>
           </div>
-          <span className="text-slate-400 font-inter text-[10px] sm:text-xs uppercase flex items-center gap-2">
-            <span>Showing Main Events & Scheduled Matches</span>
+          <span className="text-slate-400 font-inter text-[8px] sm:text-[10px] uppercase flex flex-wrap items-center gap-2">
+            <span>Main Events & Matches</span>
             <span className="text-slate-600">•</span>
             <span className="text-[#FFC400] font-mono">{filteredItems.length} Total Items</span>
           </span>
         </div>
         
-        <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
+        {/* Month Stepper */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 bg-[#040E1E] p-1 border border-slate-800">
           <button 
             onClick={prevMonth} 
-            className="p-2.5 bg-slate-900/60 hover:bg-[#FFC400] hover:text-black border border-slate-800 transition-all text-slate-300"
+            className="p-2 bg-slate-900/60 hover:bg-[#FFC400] hover:text-black border border-slate-800 transition-all text-slate-300"
             aria-label="Previous Month"
           >
-            <ChevronLeft size={20} className="sm:w-5 sm:h-5" />
+            <ChevronLeft size={16} />
           </button>
           
-          <span className="font-syncopate text-base sm:text-xl md:text-2xl font-black text-[#FFC400] tracking-tight min-w-[170px] text-center">
+          <span className="font-syncopate text-xs sm:text-sm font-black text-[#FFC400] tracking-tight px-3 text-center min-w-[130px]">
             {monthName} <span className="text-white">{year}</span>
           </span>
           
           <button 
             onClick={nextMonth} 
-            className="p-2.5 bg-slate-900/60 hover:bg-[#FFC400] hover:text-black border border-slate-800 transition-all text-slate-300"
+            className="p-2 bg-slate-900/60 hover:bg-[#FFC400] hover:text-black border border-slate-800 transition-all text-slate-300"
             aria-label="Next Month"
           >
-            <ChevronRight size={20} className="sm:w-5 sm:h-5" />
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
 
       {/* ====================================================
-          4) CALENDAR GRID (EVENTS & INDIVIDUAL MATCHES)
+          4A) COMPACT MOBILE CALENDAR GRID & DAY FIXTURES (block md:hidden)
           ==================================================== */}
-      <div className="grid grid-cols-7 border-t border-l border-slate-800 bg-[#05142B]/40">
+      <div className="block md:hidden mb-8">
+        <div className="flex items-center gap-1.5 text-[8px] font-syncopate text-[#FFC400] mb-2 px-1">
+          <Sparkles size={10} />
+          <span>TAP ANY DAY TO VIEW MATCHES</span>
+        </div>
+
+          <div className="grid grid-cols-7 border-t border-l border-slate-800 bg-[#05142B]/70 shadow-md">
+            {/* Weekday Headers */}
+            {weekDays.map(day => (
+              <div key={day} className="border-r border-b border-slate-800 bg-[#081B3A]/90 py-2 text-center">
+                <span className="font-syncopate text-[8px] font-black tracking-wider text-slate-400">{day}</span>
+              </div>
+            ))}
+
+            {/* Empty cells for start offset */}
+            {[...Array(startOffset)].map((_, i) => (
+              <div key={`m-empty-${i}`} className="border-r border-b border-slate-800/80 h-14 bg-[#040E1E]/40" />
+            ))}
+
+            {/* Mobile Day cells */}
+            {[...Array(totalDays)].map((_, i) => {
+              const day = i + 1;
+              const items = getItemsForDay(day);
+              const hasItems = items.length > 0;
+              const isCurrent = isToday(day);
+              const isSelected = mobileSelectedDay === day;
+
+              return (
+                <button
+                  key={`m-day-${day}`}
+                  type="button"
+                  onClick={() => setMobileSelectedDay(day)}
+                  className={`border-r border-b border-slate-800/90 h-14 p-1 relative flex flex-col items-center justify-between transition-all ${
+                    isSelected 
+                      ? 'bg-[#FFC400]/25 ring-2 ring-[#FFC400] z-10' 
+                      : isCurrent 
+                        ? 'bg-white/5 ring-1 ring-white/30' 
+                        : 'hover:bg-white/[0.04] bg-[#040E1E]/50'
+                  }`}
+                >
+                  {/* Day number */}
+                  <span className={`font-syncopate text-[10px] font-black ${
+                    isSelected 
+                      ? 'text-[#FFC400]' 
+                      : isCurrent 
+                        ? 'text-white' 
+                        : 'text-slate-400'
+                  }`}>
+                    {String(day).padStart(2, '0')}
+                  </span>
+
+                  {/* Colored Indicators for Events / Matches */}
+                  {hasItems ? (
+                    <div className="flex flex-col items-center gap-0.5 w-full">
+                      <div className="flex items-center justify-center gap-1 flex-wrap max-w-[28px]">
+                        {items.slice(0, 3).map((it, dotIdx) => (
+                          <span 
+                            key={dotIdx} 
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ 
+                              backgroundColor: it.eventColor.hex,
+                              boxShadow: `0 0 5px ${it.eventColor.glow}`
+                            }}
+                          />
+                        ))}
+                      </div>
+                      {items.length > 3 && (
+                        <span className="font-mono text-[7px] text-slate-400 font-bold leading-none">
+                          +{items.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="h-2" />
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Empty cells for end padding */}
+            {[...Array((7 - ((startOffset + totalDays) % 7)) % 7)].map((_, i) => (
+              <div key={`m-empty-end-${i}`} className="border-r border-b border-slate-800/80 h-14 bg-[#040E1E]/40" />
+            ))}
+          </div>
+
+          {/* Selected Day Fixtures Panel on Mobile */}
+          <div className="mt-4 bg-[#081B3A] border border-slate-800 p-4 shadow-2xl relative">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-[#FFC400]" />
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-[#FFC400]" />
+                <div>
+                  <span className="font-syncopate text-[7px] text-slate-400 font-bold tracking-widest uppercase block">
+                    SELECTED DATE FIXTURES
+                  </span>
+                  <h3 className="font-syncopate text-xs font-black text-white uppercase tracking-tight">
+                    {monthName} {String(mobileSelectedDay).padStart(2, '0')}, {year}
+                  </h3>
+                </div>
+              </div>
+
+              <span className="font-syncopate text-[8px] font-black text-[#FFC400] bg-black/60 px-2.5 py-1 border border-slate-800">
+                {getItemsForDay(mobileSelectedDay).length} {getItemsForDay(mobileSelectedDay).length === 1 ? 'ITEM' : 'ITEMS'}
+              </span>
+            </div>
+
+            {/* Fixture cards for the selected day */}
+            {getItemsForDay(mobileSelectedDay).length === 0 ? (
+              <div className="py-8 text-center px-4 bg-[#040E1E]/80 border border-slate-900">
+                <Crosshair size={22} className="text-slate-600 mx-auto mb-2" />
+                <p className="font-syncopate text-[9px] text-slate-400 uppercase tracking-wider">
+                  No fixtures scheduled for this date
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {getItemsForDay(mobileSelectedDay).map((item) => {
+                  const isEvent = item.type === 'EVENT';
+                  const color = item.eventColor;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={(e) => {
+                        if (isEvent) {
+                          handleEventClick(e, item.parentEvent.slug);
+                        } else {
+                          handleMatchClick(e, item);
+                        }
+                      }}
+                      className={`p-3.5 bg-[#040E1E] border hover:border-white/50 cursor-pointer transition-all flex flex-col gap-2.5 group relative overflow-hidden ${
+                        isEvent ? 'shadow-[0_0_15px_rgba(255,196,0,0.05)]' : ''
+                      }`}
+                      style={{
+                        borderLeftWidth: '4px',
+                        borderLeftColor: color.hex,
+                        borderColor: `${color.hex}40`
+                      }}
+                    >
+                      {/* Top Row: Type, Game, Status/Score */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span 
+                            className="font-syncopate text-[7px] font-black uppercase px-2 py-0.5 flex items-center gap-1 shrink-0"
+                            style={{ color: color.hex, backgroundColor: color.badgeBg }}
+                          >
+                            {isEvent ? <Trophy size={9} /> : <Swords size={9} />}
+                            <span>{isEvent ? 'TOURNAMENT' : 'MATCH'}</span>
+                          </span>
+
+                          <span className="bg-white/5 text-slate-300 px-1.5 py-0.5 font-syncopate text-[7px] font-bold tracking-wider uppercase border border-white/5 shrink-0">
+                            {item.game}
+                          </span>
+
+                          <span className="font-syncopate text-[7px] text-slate-400 truncate max-w-[130px]">
+                            • {item.parentEvent.title}
+                          </span>
+                        </div>
+
+                        {/* Status / Score */}
+                        <div className="shrink-0">
+                          {item.status === 'LIVE' ? (
+                            <span className="font-syncopate text-[7px] font-black text-red-400 bg-red-950/80 px-2 py-0.5 border border-red-500/40 animate-pulse">
+                              ● LIVE
+                            </span>
+                          ) : item.score ? (
+                            <span className="font-syncopate text-[8px] font-black text-[#FFC400] font-mono bg-black/60 px-2 py-0.5 border border-slate-800">
+                              {item.score}
+                            </span>
+                          ) : item.timeStr ? (
+                            <span className="font-mono text-[8px] text-slate-300 font-bold bg-white/5 px-2 py-0.5 border border-white/5">
+                              {item.timeStr}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* Middle: Title */}
+                      <div>
+                        <h4 className="font-syncopate text-xs font-black text-white uppercase tracking-tight group-hover:text-yellow-400 transition-colors leading-snug">
+                          {item.title}
+                        </h4>
+                      </div>
+
+                      {/* Bottom: Action buttons */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-[8px] font-syncopate text-slate-400">
+                        <span className="flex items-center gap-1 text-[#FFC400]">
+                          <span>{isEvent ? 'VIEW TOURNAMENT' : 'VIEW MATCH'}</span>
+                          <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
+                        </span>
+
+                        {item.link && (
+                          <button
+                            type="button"
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              window.open(item.link, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="px-2.5 py-1 bg-[#FFC400] text-black font-syncopate text-[7px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-yellow-400 transition-colors shrink-0"
+                          >
+                            <span>STREAM</span>
+                            <ExternalLink size={10} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+      {/* ====================================================
+          4B) EXPANSIVE DESKTOP CALENDAR GRID (hidden md:grid)
+          ==================================================== */}
+      <div className="hidden md:grid grid-cols-7 border-t border-l border-slate-800 bg-[#05142B]/40 mb-8">
         {/* Weekday Headers */}
         {weekDays.map(day => (
           <div key={day} className="border-r border-b border-slate-800 bg-[#081B3A]/70 py-3.5 text-center">
