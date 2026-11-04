@@ -3,6 +3,8 @@
  * Automatically classifies items as 'live', 'upcoming', or 'completed'.
  */
 
+import { formatMatchDateTimeForVisitor } from './timezone';
+
 const MONTH_MAP: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
   jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
@@ -315,7 +317,8 @@ export interface LocalizedMatchDateTime {
  */
 export function formatMatchLocalDateTime(
   dateStr?: string | null,
-  timeStr?: string | null
+  timeStr?: string | null,
+  sourceTz?: string | null
 ): LocalizedMatchDateTime {
   if (!dateStr || dateStr === 'TBD' || dateStr === '') {
     return {
@@ -328,96 +331,15 @@ export function formatMatchLocalDateTime(
     };
   }
 
-  const cleanDate = parseStandardDate(dateStr) || dateStr.trim();
-  let year = 2026;
-  let month = 10;
-  let day = 15;
-
-  const ymdMatch = cleanDate.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
-  if (ymdMatch) {
-    year = parseInt(ymdMatch[1], 10);
-    month = parseInt(ymdMatch[2], 10);
-    day = parseInt(ymdMatch[3], 10);
-  }
-
-  let hours = 18;
-  let minutes = 0;
-  let hasTime = false;
-  // Geekay Esports HQ is based in Dubai (UTC+4: Gulf Standard Time)
-  let offsetStr = '+04:00';
-
-  if (timeStr && typeof timeStr === 'string' && timeStr.trim()) {
-    const rawTime = timeStr.trim();
-    if (/\b(utc|gmt)\b/i.test(rawTime)) offsetStr = '+00:00';
-    else if (/\b(gst)\b/i.test(rawTime)) offsetStr = '+04:00';
-    else if (/\b(ast|ksa|riyadh)\b/i.test(rawTime)) offsetStr = '+03:00';
-    else if (/\b(cet)\b/i.test(rawTime)) offsetStr = '+01:00';
-    else if (/\b(cest)\b/i.test(rawTime)) offsetStr = '+02:00';
-    else if (/\b(est)\b/i.test(rawTime)) offsetStr = '-05:00';
-    else if (/\b(edt)\b/i.test(rawTime)) offsetStr = '-04:00';
-    else if (/\b(pst)\b/i.test(rawTime)) offsetStr = '-08:00';
-    else if (/\b(pdt)\b/i.test(rawTime)) offsetStr = '-07:00';
-
-    const tMatch = rawTime.match(/(\d{1,2})[:.](\d{2})/);
-    if (tMatch) {
-      hours = parseInt(tMatch[1], 10);
-      minutes = parseInt(tMatch[2], 10);
-      hasTime = true;
-      if (/pm/i.test(rawTime) && hours < 12) hours += 12;
-      if (/am/i.test(rawTime) && hours === 12) hours = 0;
-    }
-  }
-
-  const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00${offsetStr}`;
-  let dateObj = new Date(iso);
-  if (isNaN(dateObj.getTime())) {
-    dateObj = new Date(cleanDate);
-  }
-
-  const validTime = !isNaN(dateObj.getTime());
-  const timestamp = validTime ? dateObj.getTime() : Number.MAX_SAFE_INTEGER;
-
-  let formattedDate = cleanDate;
-  let formattedTime = hasTime ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}` : 'TIME TBD';
-  let timeZoneAbbr = '';
-
-  if (validTime) {
-    try {
-      // Localized unambiguous date e.g. "15 OCT 2026"
-      const d = dateObj.toLocaleDateString(undefined, { day: '2-digit' });
-      const m = dateObj.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
-      const y = dateObj.toLocaleDateString(undefined, { year: 'numeric' });
-      formattedDate = `${d} ${m} ${y}`;
-
-      if (hasTime) {
-        // Visitor's local time (24h format)
-        const localTimeStr = dateObj.toLocaleTimeString(undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
-
-        // Visitor's local timezone abbreviation / name
-        try {
-          const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(dateObj);
-          timeZoneAbbr = parts.find(p => p.type === 'timeZoneName')?.value || '';
-        } catch {
-          timeZoneAbbr = '';
-        }
-
-        formattedTime = timeZoneAbbr ? `${localTimeStr} (${timeZoneAbbr})` : localTimeStr;
-      }
-    } catch {
-      // fallback
-    }
-  }
+  const converted = formatMatchDateTimeForVisitor(dateStr, timeStr, sourceTz || 'Asia/Riyadh');
+  const hasTime = Boolean(timeStr && timeStr.trim());
 
   return {
-    formattedDate,
-    formattedTime,
-    fullDisplay: hasTime ? `${formattedDate} • ${formattedTime}` : formattedDate,
-    timeZoneAbbr,
-    timestamp,
+    formattedDate: converted.formattedDate,
+    formattedTime: converted.formattedTime,
+    fullDisplay: hasTime ? `${converted.formattedDate} • ${converted.formattedTime} (${converted.timezoneLabel})` : converted.formattedDate,
+    timeZoneAbbr: converted.timezoneLabel,
+    timestamp: new Date().getTime(),
     hasTime
   };
 }

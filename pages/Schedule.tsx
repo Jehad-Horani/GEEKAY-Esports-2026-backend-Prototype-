@@ -31,6 +31,7 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
 import { safeJsonParse } from '../src/utils/json';
 import { getDynamicStatus, getMatchDynamicStatus, parseStandardDate } from '../src/utils/dateStatus';
+import { formatMatchDateTimeForVisitor } from '../src/utils/timezone';
 
 export const getEventSlug = (title: string | null | undefined) => {
   if (!title) return '';
@@ -321,8 +322,9 @@ const CalendarInterface = () => {
       rawMatches.forEach((match: any, mIdx: number) => {
         if (!match) return;
         matchCount++;
-        const matchDateStr = parseStandardDate(match.date) || eventDate;
-        const matchTime = match.time || (typeof match.date === 'string' && match.date.includes(' ') ? match.date.split(' ')[1] : '') || event.time || '';
+        const converted = formatMatchDateTimeForVisitor(match.date || eventDate, match.time || event.time, match.timezone || (event as any).timezone);
+        const matchDateStr = parseStandardDate(converted.rawDate) || eventDate;
+        const matchTime = converted.formattedTime;
         const dynStatus = getMatchDynamicStatus(match, eventDate);
         const mappedStatus: 'LIVE' | 'UPCOMING' | 'FINISHED' = 
           dynStatus === 'live' ? 'LIVE' : (dynStatus === 'completed' ? 'FINISHED' : 'UPCOMING');

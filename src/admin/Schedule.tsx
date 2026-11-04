@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, X, Calendar, Filter, Search, ExternalLink, FileSpreadsheet, Upload, CheckCircle2, AlertCircle, Star } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Calendar, Filter, Search, ExternalLink, FileSpreadsheet, Upload, CheckCircle2, AlertCircle, Star, Clock, Globe, Swords, Trophy, Medal, Coins } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
 import * as XLSX from 'xlsx';
@@ -12,6 +12,7 @@ import FormSection from './components/FormSection';
 import FormRepeater from './components/FormRepeater';
 import { getAuthHeaders } from './utils/api';
 import { getDynamicStatus } from '../utils/dateStatus';
+import { TIMEZONE_OPTIONS, getDetectedBrowserTimezone, formatMatchDateTimeForVisitor } from '../utils/timezone';
 
 const AdminSchedule = () => {
   const [items, setItems] = useState<any[]>([]);
@@ -25,7 +26,27 @@ const AdminSchedule = () => {
   // Parsed sub-structures for repeater management
   const [teamsList, setTeamsList] = useState<any[]>([]);
   const [matchesList, setMatchesList] = useState<any[]>([]);
-  const [podiumResults, setPodiumResults] = useState<{ winner: string; runnerUp: string; mvp: string }>({ winner: '', runnerUp: '', mvp: '' });
+  const [podiumResults, setPodiumResults] = useState<{
+    placement: string;
+    customPlacement: string;
+    teamName: string;
+    prizeCurrency: string;
+    prizeAmount: string;
+    prizeMoney: string;
+    winner: string;
+    runnerUp: string;
+    mvp: string;
+  }>({
+    placement: 'champions',
+    customPlacement: '',
+    teamName: 'Geekay Esports',
+    prizeCurrency: '€',
+    prizeAmount: '',
+    prizeMoney: '',
+    winner: '',
+    runnerUp: '',
+    mvp: ''
+  });
   const [mediaList, setMediaList] = useState<any[]>([]);
   const [socialList, setSocialList] = useState<any[]>([]);
   const [featuredToast, setFeaturedToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -67,8 +88,14 @@ const AdminSchedule = () => {
 
   // Open modal handler with safe JSON parsing
   const handleOpenEdit = (item: any) => {
+    const detectedTz = getDetectedBrowserTimezone();
+    const eventTz = item.timezone || detectedTz;
+    const defaultTime = item.time || (item.start_date && item.start_date.includes(' ') ? item.start_date.split(' ')[1] : '18:00');
+
     setEditingItem({
       ...item,
+      time: defaultTime,
+      timezone: eventTz,
       featured: Number(item.featured) === 1 || item.featured === true ? 1 : 0,
       overview_title: item.overview_title || 'TACTICAL INTELLIGENCE',
       prize_pool: item.prize_pool || item.prizePool || '$100,000',
@@ -90,30 +117,70 @@ const AdminSchedule = () => {
       setTeamsList([]);
     }
 
-    // Parse Matches JSON (with independent link support per fixture)
+    // Parse Matches JSON (with independent dedicated time, timezone, and link support per fixture)
     try {
       const parsed = typeof item.matches === 'string' ? JSON.parse(item.matches) : item.matches;
-      setMatchesList(Array.isArray(parsed) ? parsed.map((m: any) => ({
-        date: m.date || '',
-        teams: m.teams || '',
-        score: m.score || '',
-        status: m.status || 'upcoming',
-        link: m.link || m.url || ''
-      })) : []);
+      setMatchesList(Array.isArray(parsed) ? parsed.map((m: any) => {
+        let mDate = m.date || '';
+        let mTime = m.time || '';
+        if (!mTime && mDate.includes(' ')) {
+          const parts = mDate.split(' ');
+          mDate = parts[0];
+          mTime = parts[1] || '';
+        }
+        return {
+          date: mDate,
+          time: mTime || defaultTime || '18:00',
+          timezone: m.timezone || eventTz,
+          teams: m.teams || '',
+          score: m.score || '',
+          status: m.status || 'upcoming',
+          link: m.link || m.url || ''
+        };
+      }) : []);
     } catch (e) {
       setMatchesList([]);
     }
 
-    // Parse Podium Results JSON
+    // Parse Final Placement Results JSON
     try {
       const parsed = typeof item.results === 'string' ? JSON.parse(item.results) : item.results;
+      let initPlacement = parsed?.placement;
+      if (!initPlacement) {
+        if (parsed?.winner && parsed.winner.toLowerCase().includes('geekay')) {
+          initPlacement = 'champions';
+        } else if (parsed?.runnerUp && parsed.runnerUp.toLowerCase().includes('geekay')) {
+          initPlacement = 'second';
+        } else if (parsed?.winner) {
+          initPlacement = 'champions';
+        } else {
+          initPlacement = 'champions';
+        }
+      }
+
       setPodiumResults({
+        placement: initPlacement || 'champions',
+        customPlacement: parsed?.customPlacement || '',
+        teamName: parsed?.teamName || (parsed?.placement === 'second' ? parsed?.runnerUp : parsed?.winner) || 'Geekay Esports',
+        prizeCurrency: parsed?.prizeCurrency || '€',
+        prizeAmount: parsed?.prizeAmount || (parsed?.prizeMoney ? String(parsed.prizeMoney).replace(/[^\d.,]/g, '') : ''),
+        prizeMoney: parsed?.prizeMoney || '',
         winner: parsed?.winner || '',
         runnerUp: parsed?.runnerUp || '',
         mvp: parsed?.mvp || ''
       });
     } catch (e) {
-      setPodiumResults({ winner: '', runnerUp: '', mvp: '' });
+      setPodiumResults({
+        placement: 'champions',
+        customPlacement: '',
+        teamName: 'Geekay Esports',
+        prizeCurrency: '€',
+        prizeAmount: '',
+        prizeMoney: '',
+        winner: '',
+        runnerUp: '',
+        mvp: ''
+      });
     }
 
     // Parse Media JSON
@@ -230,7 +297,12 @@ const AdminSchedule = () => {
         broadcast_platforms: editingItem.broadcast_platforms || 'LIVE TWITCH.TV/GEEKAY',
         teams: JSON.stringify(teamsList),
         matches: JSON.stringify(matchesList),
-        results: JSON.stringify(podiumResults),
+        results: JSON.stringify({
+          ...podiumResults,
+          prizeMoney: podiumResults.prizeAmount ? `${podiumResults.prizeCurrency || ''}${podiumResults.prizeAmount}`.trim() : (podiumResults.prizeMoney || ''),
+          winner: podiumResults.placement === 'champions' ? (podiumResults.teamName || 'Geekay Esports') : (podiumResults.winner || ''),
+          runnerUp: podiumResults.placement === 'second' ? (podiumResults.teamName || 'Geekay Esports') : (podiumResults.runnerUp || '')
+        }),
         media: JSON.stringify(mediaList),
         social: JSON.stringify(socialList)
       };
@@ -754,23 +826,41 @@ const AdminSchedule = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Start Date</label>
+                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                      <Calendar size={11} className="text-[#FFC400]" />
+                      <span>Start Date</span>
+                    </label>
                     <input 
                       type="date" 
                       value={editingItem.start_date || ''}
                       onChange={e => setEditingItem({...editingItem, start_date: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                      className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">End Date</label>
+                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                      <Calendar size={11} className="text-slate-400" />
+                      <span>End Date</span>
+                    </label>
                     <input 
                       type="date" 
                       value={editingItem.end_date || ''}
                       onChange={e => setEditingItem({...editingItem, end_date: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                      className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="font-syncopate text-[8px] text-[#FFC400] font-black uppercase tracking-widest flex items-center gap-1.5">
+                      <Clock size={11} className="text-[#FFC400]" />
+                      <span>Event Start Time</span>
+                    </label>
+                    <input 
+                      type="time" 
+                      value={editingItem.time || '18:00'}
+                      onChange={e => setEditingItem({...editingItem, time: e.target.value})}
+                      className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -779,10 +869,34 @@ const AdminSchedule = () => {
                       type="text" 
                       value={editingItem.location || editingItem.venue || ''}
                       onChange={e => setEditingItem({...editingItem, location: e.target.value, venue: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                      className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                       placeholder="e.g. Copper Box Arena, London"
                     />
                   </div>
+                </div>
+
+                {/* Admin Timezone Configuration & Automatic Local Time Conversion */}
+                <div className="p-4 bg-[#040E1E] border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Globe size={18} className="text-[#FFC400] shrink-0" />
+                    <div>
+                      <span className="font-syncopate text-[9px] font-black text-white uppercase tracking-wider block">
+                        Admin Entry Timezone
+                      </span>
+                      <span className="font-inter text-[11px] text-slate-400">
+                        Enter dates & times in your timezone. Visitors will automatically see them in their local timezone.
+                      </span>
+                    </div>
+                  </div>
+                  <select
+                    value={editingItem.timezone || getDetectedBrowserTimezone()}
+                    onChange={e => setEditingItem({ ...editingItem, timezone: e.target.value })}
+                    className="bg-[#081B3A] border border-slate-700 text-white font-syncopate text-xs p-2.5 focus:border-[#FFC400] focus:outline-none"
+                  >
+                    {TIMEZONE_OPTIONS.map(tz => (
+                      <option key={tz.value} value={tz.value}>{tz.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="pt-2">
@@ -989,53 +1103,98 @@ const AdminSchedule = () => {
                   title="Match Fixtures"
                   items={matchesList}
                   onItemsChange={setMatchesList}
-                  createDefaultItem={() => ({ date: '2026-02-10', teams: 'Geekay Esports vs Opponent', score: '', status: 'upcoming', link: '' })}
+                  createDefaultItem={() => ({ 
+                    date: editingItem?.start_date || new Date().toISOString().split('T')[0], 
+                    time: editingItem?.time || '18:00',
+                    timezone: editingItem?.timezone || getDetectedBrowserTimezone(),
+                    teams: 'Geekay Esports vs Opponent', 
+                    score: '', 
+                    status: 'upcoming', 
+                    link: '' 
+                  })}
                   itemTitle={(item) => item.teams || 'Match Fixture'}
-                  renderItemFields={(item, idx, onChange) => (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Date / Time</label>
-                          <input 
-                            type="text" 
-                            value={item.date || ''} 
-                            onChange={e => onChange({ ...item, date: e.target.value })}
-                            placeholder="2026-02-10" 
-                            className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Match Title / Teams</label>
-                          <input 
-                            type="text" 
-                            value={item.teams || ''} 
-                            onChange={e => onChange({ ...item, teams: e.target.value })}
-                            placeholder="Geekay vs Sentinels" 
-                            className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Score & Status</label>
-                          <div className="flex gap-2">
+                  renderItemFields={(item, idx, onChange) => {
+                    const localPreview = formatMatchDateTimeForVisitor(item.date, item.time, item.timezone || editingItem?.timezone);
+                    return (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-4">
+                          {/* Match Date */}
+                          <div className="space-y-1.5 lg:col-span-3">
+                            <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                              <Calendar size={11} className="text-[#FFC400]" />
+                              <span>Match Date</span>
+                            </label>
+                            <input 
+                              type="date" 
+                              value={item.date || ''} 
+                              onChange={e => onChange({ ...item, date: e.target.value })}
+                              className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                            />
+                          </div>
+
+                          {/* Dedicated Match Time Input */}
+                          <div className="space-y-1.5 lg:col-span-3">
+                            <label className="font-syncopate text-[8px] text-[#FFC400] font-black uppercase tracking-widest flex items-center gap-1.5">
+                              <Clock size={11} className="text-[#FFC400]" />
+                              <span>Match Time</span>
+                            </label>
+                            <input 
+                              type="time" 
+                              value={item.time || '18:00'} 
+                              onChange={e => onChange({ ...item, time: e.target.value })}
+                              className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                            />
+                          </div>
+
+                          {/* Match Title / Teams */}
+                          <div className="space-y-1.5 lg:col-span-3">
+                            <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                              <Swords size={11} className="text-[#FFC400]" />
+                              <span>Match Title / Teams</span>
+                            </label>
                             <input 
                               type="text" 
-                              value={item.score || ''} 
-                              onChange={e => onChange({ ...item, score: e.target.value })}
-                              placeholder="3 - 2" 
-                              className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                              value={item.teams || ''} 
+                              onChange={e => onChange({ ...item, teams: e.target.value })}
+                              placeholder="Geekay vs Sentinels" 
+                              className="w-full bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                             />
-                            <select 
-                              value={item.status || 'upcoming'}
-                              onChange={e => onChange({ ...item, status: e.target.value })}
-                              className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] appearance-none"
-                            >
-                              <option value="upcoming">UPCOMING</option>
-                              <option value="live">LIVE</option>
-                              <option value="completed">COMPLETED</option>
-                            </select>
+                          </div>
+
+                          {/* Score & Status */}
+                          <div className="space-y-1.5 lg:col-span-3">
+                            <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Score & Status</label>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                value={item.score || ''} 
+                                onChange={e => onChange({ ...item, score: e.target.value })}
+                                placeholder="3 - 2" 
+                                className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                              />
+                              <select 
+                                value={item.status || 'upcoming'}
+                                onChange={e => onChange({ ...item, status: e.target.value })}
+                                className="w-1/2 bg-[#040E1E] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] appearance-none"
+                              >
+                                <option value="upcoming">UPCOMING</option>
+                                <option value="live">LIVE</option>
+                                <option value="completed">COMPLETED</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
-                      </div>
+
+                        {/* Automatic Timezone Display Helper */}
+                        <div className="flex flex-wrap items-center justify-between text-[9px] text-slate-400 bg-[#020A16] px-3 py-1.5 border border-slate-800/80 font-mono">
+                          <span className="flex items-center gap-1.5">
+                            <Globe size={11} className="text-[#FFC400]" />
+                            <span>Input Timezone: <strong className="text-white">{item.timezone || editingItem?.timezone || 'Admin Timezone'}</strong></span>
+                          </span>
+                          <span className="text-emerald-400 font-bold">
+                            Visitor Local Preview: {localPreview.formattedDate} @ {localPreview.formattedTime} ({localPreview.timezoneLabel})
+                          </span>
+                        </div>
 
                       {/* Individual Match Link */}
                       <div className="pt-2 border-t border-slate-800/60">
@@ -1076,42 +1235,141 @@ const AdminSchedule = () => {
                         </div>
                       </div>
                     </div>
-                  )}
+                  );
+                }}
                 />
               </FormSection>
 
-              {/* SECTION 6: PODIUM RESULTS */}
-              <FormSection title="6. FINALS PODIUM RESULTS" subtitle="Championship winners, runner up, and MVP">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-[#FFC400] font-bold uppercase tracking-widest">1st Place / Winner</label>
-                    <input 
-                      type="text" 
-                      value={podiumResults.winner}
-                      onChange={e => setPodiumResults({ ...podiumResults, winner: e.target.value })}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. Geekay Esports"
-                    />
+              {/* SECTION 6: FINAL PLACEMENT */}
+              <FormSection title="6. FINAL PLACEMENT" subtitle="Tournament placement and prize money earned">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6">
+                    {/* 1. Placement Dropdown */}
+                    <div className="space-y-2 lg:col-span-4">
+                      <label className="font-syncopate text-[8px] text-[#FFC400] font-black uppercase tracking-widest flex items-center gap-1.5">
+                        <Trophy size={11} className="text-[#FFC400]" />
+                        <span>Placement</span>
+                      </label>
+                      <select
+                        value={podiumResults.placement || 'champions'}
+                        onChange={e => setPodiumResults({ ...podiumResults, placement: e.target.value })}
+                        className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                      >
+                        <option value="champions">🏆 Champions (Trophy Icon)</option>
+                        <option value="second">🥈 Second place (Silver Medal)</option>
+                        <option value="third">🥉 Third place (Bronze Medal)</option>
+                        <option value="custom">✍️ Custom (4th place, Top 8, Top 12... - No Icon)</option>
+                      </select>
+                    </div>
+
+                    {/* Custom Placement Text Field */}
+                    {podiumResults.placement === 'custom' ? (
+                      <div className="space-y-2 lg:col-span-4">
+                        <label className="font-syncopate text-[8px] text-[#FFC400] font-bold uppercase tracking-widest">
+                          Custom Place Text
+                        </label>
+                        <input
+                          type="text"
+                          value={podiumResults.customPlacement || ''}
+                          onChange={e => setPodiumResults({ ...podiumResults, customPlacement: e.target.value })}
+                          placeholder="e.g. 4th Place, Top 8, Top 12..."
+                          className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2 lg:col-span-4">
+                        <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                          Team Name
+                        </label>
+                        <input
+                          type="text"
+                          value={podiumResults.teamName || 'Geekay Esports'}
+                          onChange={e => setPodiumResults({ ...podiumResults, teamName: e.target.value })}
+                          placeholder="e.g. Geekay Esports"
+                          className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                        />
+                      </div>
+                    )}
+
+                    {/* Team Name if Custom */}
+                    {podiumResults.placement === 'custom' && (
+                      <div className="space-y-2 lg:col-span-4">
+                        <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">
+                          Team Name
+                        </label>
+                        <input
+                          type="text"
+                          value={podiumResults.teamName || 'Geekay Esports'}
+                          onChange={e => setPodiumResults({ ...podiumResults, teamName: e.target.value })}
+                          placeholder="e.g. Geekay Esports"
+                          className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                        />
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">2nd Place / Runner Up</label>
-                    <input 
-                      type="text" 
-                      value={podiumResults.runnerUp}
-                      onChange={e => setPodiumResults({ ...podiumResults, runnerUp: e.target.value })}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. Vitality"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-400 font-bold uppercase tracking-widest">Tournament MVP</label>
-                    <input 
-                      type="text" 
-                      value={podiumResults.mvp}
-                      onChange={e => setPodiumResults({ ...podiumResults, mvp: e.target.value })}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. TRK511"
-                    />
+
+                  {/* 2. Prize Money Earned */}
+                  <div className="p-4 sm:p-5 bg-[#040E1E] border border-slate-800/80">
+                    <span className="font-syncopate text-[8px] text-[#FFC400] font-black uppercase tracking-widest block mb-3 flex items-center gap-1.5">
+                      <Coins size={12} className="text-[#FFC400]" />
+                      <span>Prize Money Earned</span>
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-center">
+                      {/* Currency Input / Selection */}
+                      <div className="sm:col-span-4 space-y-1.5">
+                        <label className="font-syncopate text-[7px] text-slate-400 font-bold uppercase tracking-wider">
+                          Currency
+                        </label>
+                        <div className="flex gap-2">
+                          <select
+                            value={['€', '$', '£', 'SAR', 'AED', 'USD'].includes(podiumResults.prizeCurrency || '') ? podiumResults.prizeCurrency : 'custom'}
+                            onChange={e => {
+                              if (e.target.value !== 'custom') {
+                                setPodiumResults({ ...podiumResults, prizeCurrency: e.target.value });
+                              }
+                            }}
+                            className="bg-[#081B3A] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400] shrink-0"
+                          >
+                            <option value="€">€ (EUR)</option>
+                            <option value="$">$ (USD)</option>
+                            <option value="SAR">SAR</option>
+                            <option value="AED">AED</option>
+                            <option value="£">£ (GBP)</option>
+                            <option value="custom">Other</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={podiumResults.prizeCurrency || ''}
+                            onChange={e => setPodiumResults({ ...podiumResults, prizeCurrency: e.target.value })}
+                            placeholder="e.g. € or USD"
+                            className="w-full bg-[#081B3A] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Prize Amount */}
+                      <div className="sm:col-span-5 space-y-1.5">
+                        <label className="font-syncopate text-[7px] text-slate-400 font-bold uppercase tracking-wider">
+                          Amount Earned
+                        </label>
+                        <input
+                          type="text"
+                          value={podiumResults.prizeAmount || ''}
+                          onChange={e => setPodiumResults({ ...podiumResults, prizeAmount: e.target.value })}
+                          placeholder="e.g. 15,000 or 50,000"
+                          className="w-full bg-[#081B3A] border border-slate-800 p-3 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
+                        />
+                      </div>
+
+                      {/* Live Preview Display */}
+                      <div className="sm:col-span-3 bg-[#020A16] border border-slate-800 p-3 text-center">
+                        <span className="font-syncopate text-[7px] text-slate-500 uppercase block mb-1">Prize Display</span>
+                        <span className="font-syncopate text-sm font-black text-[#FFC400] block truncate">
+                          {podiumResults.prizeAmount ? `${podiumResults.prizeCurrency || ''}${podiumResults.prizeAmount}` : 'No prize entered'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </FormSection>

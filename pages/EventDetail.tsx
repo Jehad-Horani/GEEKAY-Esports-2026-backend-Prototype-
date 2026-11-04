@@ -3,13 +3,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, MapPin, Gamepad2, Award, Users, Trophy, ExternalLink, ShieldAlert,
-  Clock, Tv, Tag, Radio, ChevronLeft, ChevronRight, Image as ImageIcon, 
-  Twitter, Instagram, PlayCircle, Star, ArrowRight, Sparkles, Swords, Globe, Shield, CheckCircle2
+  Clock, Tag, ChevronLeft, ChevronRight, Image as ImageIcon, 
+  Twitter, Instagram, PlayCircle, Star, ArrowRight, Sparkles, Swords, Globe, Shield, CheckCircle2,
+  Medal, Coins
 } from 'lucide-react';
 import { getEventSlug } from './Schedule';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
 import { getDynamicStatus, getMatchDynamicStatus } from '../src/utils/dateStatus';
+import { formatMatchDateTimeForVisitor } from '../src/utils/timezone';
 
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -320,31 +322,20 @@ const EventDetail = () => {
         <section className="bg-[#081B3A]/90 border border-slate-800 p-5 sm:p-8 md:p-12 mb-12 sm:mb-16 relative backdrop-blur-md">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-[#FFC400]" />
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             <div className="lg:col-span-7">
               <span className="font-syncopate text-[#FFC400] text-[8px] sm:text-[9px] tracking-[0.3em] sm:tracking-[0.4em] font-black mb-3 sm:mb-4 block uppercase">EVENT OVERVIEW</span>
               <h2 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter mb-4 sm:mb-6">{matchedEvent.overview_title || 'TACTICAL INTELLIGENCE'}</h2>
-              <p className="text-slate-300 font-inter text-sm sm:text-base leading-relaxed font-light mb-6 sm:mb-8">
+              <p className="text-slate-300 font-inter text-sm sm:text-base leading-relaxed font-light">
                 {matchedEvent.description || `Geekay Esports deploys their tactical division for the highly anticipated ${matchedEvent.title}. This operation demands peak coordination, dynamic tactical flexibility, and top mechanical skill. Watch us make history.`}
               </p>
-              
-              <div className="border-t border-slate-900 pt-5 sm:pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">ORGANIZER</span>
-                  <p className="text-white font-syncopate text-xs font-bold uppercase">{matchedEvent.organizer || 'GEEKAY ESPORTS'}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block mb-1">VENUE & REGION</span>
-                  <p className="text-[#FFC400] font-syncopate text-xs font-bold uppercase">{matchedEvent.venue || matchedEvent.location || 'EMEA CENTER'}</p>
-                </div>
-              </div>
             </div>
 
-            {/* Side summary details card */}
+            {/* Side summary details cards */}
             <div className="lg:col-span-5 grid grid-cols-2 gap-3 sm:gap-4">
-              <div className="bg-[#040E1E] border border-slate-900 p-4 sm:p-6 flex flex-col justify-between">
+              <div className="col-span-2 bg-[#040E1E] border border-slate-900 p-4 sm:p-6 flex flex-col justify-between">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">PRIZE POOL</span>
-                <span className="font-syncopate text-base sm:text-xl md:text-2xl font-black text-[#FFC400] mt-3 sm:mt-4 break-words">{matchedEvent.prize_pool || matchedEvent.prizePool || '$100,000'}</span>
+                <span className="font-syncopate text-xl sm:text-2xl md:text-3xl font-black text-[#FFC400] mt-3 sm:mt-4 break-words">{matchedEvent.prize_pool || matchedEvent.prizePool || '$100,000'}</span>
               </div>
               <div className="bg-[#040E1E] border border-slate-900 p-4 sm:p-6 flex flex-col justify-between">
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">TOTAL TEAMS</span>
@@ -357,54 +348,6 @@ const EventDetail = () => {
                 <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">REGION</span>
                 <span className="font-syncopate text-base sm:text-xl md:text-2xl font-black text-white mt-3 sm:mt-4">{matchedEvent.region || 'EMEA'}</span>
               </div>
-              <div className="bg-[#040E1E] border border-slate-900 p-4 sm:p-6 flex flex-col justify-between">
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest uppercase">BROADCAST</span>
-                <span className="font-syncopate text-[10px] sm:text-xs md:text-sm font-black text-[#FFC400] mt-3 sm:mt-4 leading-normal break-words">{matchedEvent.broadcast || 'TWITCH / YOUTUBE'}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ====================================================
-            3) EVENT DETAILS SECTION
-            ==================================================== */}
-        <section className="mb-14 sm:mb-20">
-          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-            <h2 className="font-syncopate text-base sm:text-lg font-black text-white tracking-widest uppercase">EVENT DETAILS</h2>
-            <div className="h-[1px] flex-grow bg-slate-800" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-[#081B3A] border border-slate-800 p-4 sm:p-6 relative group hover:border-[#FFC400] transition-all">
-              <Clock size={20} className="text-[#FFC400] mb-3 sm:mb-4" />
-              <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">TIMELINE</span>
-              <p className="text-white font-syncopate text-[9px] sm:text-[10px] font-black uppercase break-words">{matchedEvent.timeline || `${matchedEvent.start_date}${matchedEvent.time ? ` | ${matchedEvent.time}` : ''}`}</p>
-            </div>
-
-            <div className="bg-[#081B3A] border border-slate-800 p-4 sm:p-6 relative group hover:border-[#FFC400] transition-all">
-              <MapPin size={20} className="text-[#FFC400] mb-3 sm:mb-4" />
-              <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">VENUE</span>
-              <p className="text-white font-syncopate text-[9px] sm:text-[10px] font-black uppercase break-words">{matchedEvent.venue || matchedEvent.location || 'EMEA CENTER'}</p>
-            </div>
-
-            <div className="bg-[#081B3A] border border-slate-800 p-4 sm:p-6 relative group hover:border-[#FFC400] transition-all">
-              <Tv size={20} className="text-[#FFC400] mb-3 sm:mb-4" />
-              <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">BROADCAST PLATFORMS</span>
-              <p className="text-white font-syncopate text-[9px] sm:text-[10px] font-black uppercase break-words">{matchedEvent.broadcast_platforms || 'LIVE TWITCH.TV/GEEKAY'}</p>
-            </div>
-
-            <div className="bg-[#081B3A] border border-slate-800 p-4 sm:p-6 relative group hover:border-[#FFC400] transition-all">
-              <Radio size={20} className="text-[#FFC400] mb-3 sm:mb-4" />
-              <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">OFFICIAL LINKS</span>
-              <a 
-                href={matchedEvent.link || 'https://x.com/geekay_esports'} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-[#FFC400] hover:text-white font-syncopate text-[9px] sm:text-[10px] font-black uppercase flex items-center gap-1.5"
-              >
-                <span>OPEN LOGS CHANNEL</span>
-                <ExternalLink size={12} />
-              </a>
             </div>
           </div>
         </section>
@@ -488,41 +431,15 @@ const EventDetail = () => {
                 const team1Logo = findLogo(team1Name);
                 const team2Logo = findLogo(team2Name);
 
-                // Date and time formatting
+                // Date and time formatting with automatic visitor local timezone conversion
+                const sourceTz = match.timezone || matchedEvent.timezone || 'Asia/Riyadh';
                 const rawDate = match.date || matchedEvent.start_date || '';
-                let formattedDate = 'TBD';
-                if (rawDate) {
-                  const cleanDate = rawDate.split('T')[0].split(' ')[0];
-                  try {
-                    const parsed = new Date(cleanDate);
-                    if (!isNaN(parsed.getTime())) {
-                      formattedDate = parsed.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-                    } else {
-                      formattedDate = cleanDate;
-                    }
-                  } catch (e) {
-                    formattedDate = cleanDate;
-                  }
-                }
+                const rawTime = match.time || (typeof match.date === 'string' && match.date.includes(' ') ? match.date.split(' ')[1] : '') || matchedEvent.time || '18:00';
 
-                // Time extraction
-                let matchTime = match.time ? String(match.time).trim() : '';
-                if (!matchTime && rawDate.includes(' ')) {
-                  matchTime = rawDate.split(' ')[1] || '';
-                }
-                if (!matchTime) {
-                  matchTime = matchedEvent.time || '18:00';
-                }
-
-                // Timezone label
-                let timezoneLabel = 'AST (UTC+3)';
-                try {
-                  const resolvedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                  if (resolvedTz) {
-                    const city = resolvedTz.split('/').pop()?.replace(/_/g, ' ');
-                    timezoneLabel = `${city?.toUpperCase() || 'LOCAL'}`;
-                  }
-                } catch (e) {}
+                const timeInfo = formatMatchDateTimeForVisitor(rawDate, rawTime, sourceTz);
+                const formattedDate = timeInfo.formattedDate;
+                const matchTime = timeInfo.formattedTime;
+                const timezoneLabel = timeInfo.timezoneLabel;
 
                 // Score validation
                 const rawScore = String(match.score || '').trim();
@@ -688,7 +605,7 @@ const EventDetail = () => {
                             ? 'Official Match Result Recorded' 
                             : (matchIsLive 
                               ? 'Live broadcast currently streaming' 
-                              : `Scheduled for ${formattedDate} at ${matchTime}`)}
+                              : `Scheduled for ${formattedDate} at ${matchTime} (${timezoneLabel})`)}
                         </span>
                       </div>
 
@@ -716,37 +633,153 @@ const EventDetail = () => {
         {/* ====================================================
             6) RESULTS SECTION
             ==================================================== */}
-        {isCompleted && results && results.winner && (
+        {/* ====================================================
+            6) FINAL PLACEMENT SECTION
+            ==================================================== */}
+        {results && (results.placement || results.winner || results.customPlacement || results.prizeAmount || results.prizeMoney) && (
           <section className="mb-14 sm:mb-20">
             <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-              <h2 className="font-syncopate text-base sm:text-lg font-black text-white tracking-widest uppercase">FINALS PODIUM RESULTS</h2>
+              <h2 className="font-syncopate text-base sm:text-lg font-black text-white tracking-widest uppercase">FINAL PLACEMENT</h2>
               <div className="h-[1px] flex-grow bg-slate-800" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {/* Winner podium card */}
-              <div className="bg-[#081B3A] border-2 border-[#FFC400] p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden group">
-                <div className="absolute top-0 right-0 bg-[#FFC400] text-black font-syncopate text-[7px] sm:text-[8px] font-black px-3 sm:px-4 py-1.5 uppercase skew-x-[-15deg] translate-x-3 translate-y-2">
-                  <span className="block skew-x-[15deg] flex items-center gap-1"><Sparkles size={10} /> CHAMPION</span>
+              {/* Placement Card */}
+              {(() => {
+                const placementType = results.placement || (
+                  results.winner?.toLowerCase().includes('geekay') ? 'champions' :
+                  results.runnerUp?.toLowerCase().includes('geekay') ? 'second' :
+                  results.winner ? 'champions' : 'champions'
+                );
+                const teamName = results.teamName || results.winner || results.runnerUp || 'GEEKAY ESPORTS';
+                const prizeString = results.prizeAmount 
+                  ? `${results.prizeCurrency || ''}${results.prizeAmount}`.trim()
+                  : (results.prizeMoney || '');
+
+                if (placementType === 'champions') {
+                  return (
+                    <div className="bg-[#081B3A] border-2 border-[#FFC400] p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden group shadow-[0_0_25px_rgba(255,196,0,0.1)]">
+                      <div className="absolute top-0 right-0 bg-[#FFC400] text-black font-syncopate text-[7px] sm:text-[8px] font-black px-3 sm:px-4 py-1.5 uppercase skew-x-[-15deg] translate-x-3 translate-y-2">
+                        <span className="block skew-x-[15deg] flex items-center gap-1"><Sparkles size={10} /> CHAMPION</span>
+                      </div>
+                      
+                      <Trophy size={44} className="text-[#FFC400] mb-4 sm:mb-6 sm:w-12 sm:h-12 drop-shadow-[0_0_12px_rgba(255,196,0,0.4)]" />
+                      <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">1ST PLACE</span>
+                      <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter mb-1">{teamName}</h3>
+                      <p className="text-[#FFC400] font-syncopate text-[8px] sm:text-[9px] font-black tracking-widest">🏆 GOLD MEDALISTS</p>
+
+                      {prizeString && (
+                        <div className="mt-5 pt-4 border-t border-slate-800/80 w-full flex flex-col items-center">
+                          <span className="text-slate-400 font-syncopate text-[7px] font-bold tracking-widest uppercase flex items-center gap-1.5 mb-1">
+                            <Coins size={11} className="text-[#FFC400]" />
+                            <span>PRIZE MONEY EARNED</span>
+                          </span>
+                          <span className="font-syncopate text-lg sm:text-xl font-black text-[#FFC400] font-mono tracking-wider">
+                            {prizeString}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (placementType === 'second') {
+                  return (
+                    <div className="bg-[#081B3A] border-2 border-slate-400/80 p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden group shadow-[0_0_20px_rgba(226,232,240,0.06)]">
+                      <div className="absolute top-0 right-0 bg-slate-300 text-slate-900 font-syncopate text-[7px] sm:text-[8px] font-black px-3 sm:px-4 py-1.5 uppercase skew-x-[-15deg] translate-x-3 translate-y-2">
+                        <span className="block skew-x-[15deg]">2ND PLACE</span>
+                      </div>
+
+                      <Medal size={44} className="text-slate-300 mb-4 sm:mb-6 sm:w-12 sm:h-12 drop-shadow-[0_0_10px_rgba(226,232,240,0.3)]" />
+                      <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">2ND PLACE</span>
+                      <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter mb-1">{teamName}</h3>
+                      <p className="text-slate-300 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest">🥈 SILVER MEDALISTS</p>
+
+                      {prizeString && (
+                        <div className="mt-5 pt-4 border-t border-slate-800/80 w-full flex flex-col items-center">
+                          <span className="text-slate-400 font-syncopate text-[7px] font-bold tracking-widest uppercase flex items-center gap-1.5 mb-1">
+                            <Coins size={11} className="text-[#FFC400]" />
+                            <span>PRIZE MONEY EARNED</span>
+                          </span>
+                          <span className="font-syncopate text-lg sm:text-xl font-black text-white font-mono tracking-wider">
+                            {prizeString}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (placementType === 'third') {
+                  return (
+                    <div className="bg-[#081B3A] border-2 border-amber-600/70 p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden group shadow-[0_0_20px_rgba(217,119,6,0.1)]">
+                      <div className="absolute top-0 right-0 bg-amber-600 text-white font-syncopate text-[7px] sm:text-[8px] font-black px-3 sm:px-4 py-1.5 uppercase skew-x-[-15deg] translate-x-3 translate-y-2">
+                        <span className="block skew-x-[15deg]">3RD PLACE</span>
+                      </div>
+
+                      <Medal size={44} className="text-amber-500 mb-4 sm:mb-6 sm:w-12 sm:h-12 drop-shadow-[0_0_10px_rgba(217,119,6,0.3)]" />
+                      <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">3RD PLACE</span>
+                      <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter mb-1">{teamName}</h3>
+                      <p className="text-amber-400 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest">🥉 BRONZE MEDALISTS</p>
+
+                      {prizeString && (
+                        <div className="mt-5 pt-4 border-t border-slate-800/80 w-full flex flex-col items-center">
+                          <span className="text-slate-400 font-syncopate text-[7px] font-bold tracking-widest uppercase flex items-center gap-1.5 mb-1">
+                            <Coins size={11} className="text-[#FFC400]" />
+                            <span>PRIZE MONEY EARNED</span>
+                          </span>
+                          <span className="font-syncopate text-lg sm:text-xl font-black text-white font-mono tracking-wider">
+                            {prizeString}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Custom placement (NO ICON as requested)
+                return (
+                  <div className="bg-[#081B3A] border border-slate-700 hover:border-[#FFC400]/40 p-6 sm:p-8 flex flex-col items-center justify-between text-center relative overflow-hidden group transition-colors">
+                    <div className="absolute top-0 right-0 bg-white/10 text-[#FFC400] font-syncopate text-[7px] sm:text-[8px] font-black px-3 sm:px-4 py-1.5 uppercase skew-x-[-15deg] translate-x-3 translate-y-2 border border-white/10">
+                      <span className="block skew-x-[15deg]">PLACEMENT</span>
+                    </div>
+
+                    <div className="w-full my-auto py-4">
+                      <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-2">FINAL PLACEMENT</span>
+                      <h3 className="font-syncopate text-2xl sm:text-3xl font-black text-[#FFC400] uppercase tracking-tight mb-2">
+                        {results.customPlacement || 'CUSTOM PLACE'}
+                      </h3>
+                      <p className="text-white font-syncopate text-xs sm:text-sm font-bold tracking-wider uppercase">{teamName}</p>
+                    </div>
+
+                    {prizeString && (
+                      <div className="mt-5 pt-4 border-t border-slate-800/80 w-full flex flex-col items-center">
+                        <span className="text-slate-400 font-syncopate text-[7px] font-bold tracking-widest uppercase flex items-center gap-1.5 mb-1">
+                          <Coins size={11} className="text-[#FFC400]" />
+                          <span>PRIZE MONEY EARNED</span>
+                        </span>
+                        <span className="font-syncopate text-lg sm:text-xl font-black text-white font-mono tracking-wider">
+                          {prizeString}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Legacy 2nd place card if both winner and runnerUp were saved and not placementType */}
+              {!results.placement && results.winner && results.runnerUp && (
+                <div className="bg-[#081B3A] border border-slate-800 p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden">
+                  <Medal size={44} className="text-slate-300 mb-4 sm:mb-6 sm:w-12 sm:h-12" />
+                  <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">2ND PLACE</span>
+                  <h3 className="font-syncopate text-lg sm:text-xl font-black text-white uppercase tracking-tighter mb-1">{results.runnerUp}</h3>
+                  <p className="text-slate-400 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest">🥈 SILVER RUNNERS</p>
                 </div>
-                
-                <Trophy size={40} className="text-[#FFC400] mb-4 sm:mb-6 sm:w-12 sm:h-12" />
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">1ST PLACE</span>
-                <h3 className="font-syncopate text-xl sm:text-2xl font-black text-white uppercase tracking-tighter mb-1">{results.winner}</h3>
-                <p className="text-[#FFC400] font-syncopate text-[8px] sm:text-[9px] font-black tracking-widest">🏆 GOLD MEDALISTS</p>
-              </div>
+              )}
 
-              {/* Runner up podium card */}
-              <div className="bg-[#081B3A] border border-slate-800 p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden">
-                <Award size={40} className="text-slate-400 mb-4 sm:mb-6 sm:w-12 sm:h-12" />
-                <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">2ND PLACE</span>
-                <h3 className="font-syncopate text-lg sm:text-xl font-black text-white uppercase tracking-tighter mb-1">{results.runnerUp}</h3>
-                <p className="text-slate-400 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest">🥈 SILVER RUNNERS</p>
-              </div>
-
-              {/* MVP podium card */}
+              {/* MVP card if exists */}
               {results.mvp && (
-                <div className="bg-[#081B3A] border border-slate-800 p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden sm:col-span-2 lg:col-span-1">
+                <div className="bg-[#081B3A] border border-slate-800 p-6 sm:p-8 flex flex-col items-center text-center relative overflow-hidden">
                   <Star size={40} className="text-purple-400 mb-4 sm:mb-6 sm:w-12 sm:h-12" />
                   <span className="text-slate-500 font-syncopate text-[8px] tracking-widest block uppercase mb-1">TOURNAMENT MVP</span>
                   <h3 className="font-syncopate text-lg sm:text-xl font-black text-white uppercase tracking-tighter mb-1">{results.mvp}</h3>
