@@ -826,7 +826,7 @@ const AdminSchedule = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
                       <Calendar size={11} className="text-[#FFC400]" />
@@ -848,18 +848,6 @@ const AdminSchedule = () => {
                       type="date" 
                       value={editingItem.end_date || ''}
                       onChange={e => setEditingItem({...editingItem, end_date: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-[#FFC400] font-black uppercase tracking-widest flex items-center gap-1.5">
-                      <Clock size={11} className="text-[#FFC400]" />
-                      <span>Event Start Time</span>
-                    </label>
-                    <input 
-                      type="time" 
-                      value={editingItem.time || '18:00'}
-                      onChange={e => setEditingItem({...editingItem, time: e.target.value})}
                       className="w-full bg-[#040E1E] border border-slate-800 p-3.5 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
                     />
                   </div>
@@ -928,8 +916,8 @@ const AdminSchedule = () => {
               </FormSection>
 
               {/* SECTION 2: EVENT OVERVIEW */}
-              <FormSection title="2. EVENT OVERVIEW" subtitle="Format, Prize Pool, Broadcast, and Event Intel">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormSection title="2. EVENT OVERVIEW" subtitle="Prize Pool, Contenders, and Tactical Intel">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Overview Title</label>
                     <input 
@@ -950,9 +938,6 @@ const AdminSchedule = () => {
                       placeholder="e.g. $100,000 USD"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Total Teams</label>
                     <input 
@@ -963,37 +948,6 @@ const AdminSchedule = () => {
                       placeholder="e.g. 16 TEAMS"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Broadcast</label>
-                    <input 
-                      type="text" 
-                      value={editingItem.broadcast || ''}
-                      onChange={e => setEditingItem({...editingItem, broadcast: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. TWITCH / YOUTUBE"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Purpose</label>
-                    <input 
-                      type="text" 
-                      value={editingItem.purpose || ''}
-                      onChange={e => setEditingItem({...editingItem, purpose: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. CHAMPIONSHIP QUALIFICATION"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Tournament Format</label>
-                  <input 
-                    type="text" 
-                    value={editingItem.format || ''}
-                    onChange={e => setEditingItem({...editingItem, format: e.target.value})}
-                    className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                    placeholder="e.g. DOUBLE ELIMINATION BRACKET (BO5/BO7)"
-                  />
                 </div>
 
                 <div className="space-y-2">
@@ -1008,54 +962,8 @@ const AdminSchedule = () => {
                 </div>
               </FormSection>
 
-              {/* SECTION 3: EVENT DETAILS */}
-              <FormSection title="3. EVENT DETAILS & BROADCAST" subtitle="Timeline, Venue, Platforms, and External Links">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Timeline</label>
-                    <input 
-                      type="text" 
-                      value={editingItem.timeline || ''}
-                      onChange={e => setEditingItem({...editingItem, timeline: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. FEB 10 - FEB 15, 2026"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Venue / Location</label>
-                    <input 
-                      type="text" 
-                      value={editingItem.venue || editingItem.location || ''}
-                      onChange={e => setEditingItem({...editingItem, venue: e.target.value, location: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. EMEA CENTER"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Broadcast Platforms</label>
-                    <input 
-                      type="text" 
-                      value={editingItem.broadcast_platforms || ''}
-                      onChange={e => setEditingItem({...editingItem, broadcast_platforms: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="e.g. LIVE TWITCH.TV/GEEKAY & YOUTUBE"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-syncopate text-[8px] text-slate-500 font-bold uppercase tracking-widest">Official External Link</label>
-                    <input 
-                      type="text" 
-                      value={editingItem.link || ''}
-                      onChange={e => setEditingItem({...editingItem, link: e.target.value})}
-                      className="w-full bg-[#040E1E] border border-slate-800 p-4 text-white font-syncopate text-xs focus:outline-none focus:border-[#FFC400]"
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-              </FormSection>
-
-              {/* SECTION 4: PARTICIPATING TEAMS REPEATER */}
-              <FormSection title="4. PARTICIPATING TEAMS" subtitle="Manage dynamic roster of competing esports teams">
+              {/* SECTION 3: PARTICIPATING TEAMS REPEATER */}
+              <FormSection title="3. PARTICIPATING TEAMS" subtitle="Manage dynamic roster of competing esports teams">
                 <FormRepeater
                   title="Team Roster"
                   items={teamsList}
@@ -1097,8 +1005,8 @@ const AdminSchedule = () => {
                 />
               </FormSection>
 
-              {/* SECTION 5: TACTICAL SCHEDULE & MATCHES REPEATER */}
-              <FormSection title="5. TACTICAL SCHEDULE & MATCHES" subtitle="Round-by-round fixture timeline">
+              {/* SECTION 4: TACTICAL SCHEDULE & MATCHES REPEATER */}
+              <FormSection title="4. TACTICAL SCHEDULE & MATCHES" subtitle="Round-by-round fixture timeline">
                 <FormRepeater
                   title="Match Fixtures"
                   items={matchesList}
@@ -1240,8 +1148,8 @@ const AdminSchedule = () => {
                 />
               </FormSection>
 
-              {/* SECTION 6: FINAL PLACEMENT */}
-              <FormSection title="6. FINAL PLACEMENT" subtitle="Tournament placement and prize money earned">
+              {/* SECTION 5: FINAL PLACEMENT */}
+              <FormSection title="5. FINAL PLACEMENT" subtitle="Tournament placement and prize money earned">
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6">
                     {/* 1. Placement Dropdown */}
@@ -1374,8 +1282,8 @@ const AdminSchedule = () => {
                 </div>
               </FormSection>
 
-              {/* SECTION 7: MEDIA FILES REPEATER */}
-              <FormSection title="7. MEDIA FILES" subtitle="Photos and highlight clip assets">
+              {/* SECTION 6: MEDIA FILES REPEATER */}
+              <FormSection title="6. MEDIA FILES" subtitle="Photos and highlight clip assets">
                 <FormRepeater
                   title="Event Gallery & Highlights"
                   items={mediaList}
@@ -1421,8 +1329,8 @@ const AdminSchedule = () => {
                 />
               </FormSection>
 
-              {/* SECTION 8: SOCIAL POSTS REPEATER */}
-              <FormSection title="8. SOCIAL POSTS" subtitle="Official press updates and announcements">
+              {/* SECTION 7: SOCIAL POSTS REPEATER */}
+              <FormSection title="7. SOCIAL POSTS" subtitle="Official press updates and announcements">
                 <FormRepeater
                   title="Social Stream Updates"
                   items={socialList}

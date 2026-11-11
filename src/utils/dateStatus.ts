@@ -331,7 +331,7 @@ export function formatMatchLocalDateTime(
     };
   }
 
-  const converted = formatMatchDateTimeForVisitor(dateStr, timeStr, sourceTz || 'Asia/Riyadh');
+  const converted = formatMatchDateTimeForVisitor(dateStr, timeStr, sourceTz);
   const hasTime = Boolean(timeStr && timeStr.trim());
 
   return {
@@ -339,7 +339,7 @@ export function formatMatchLocalDateTime(
     formattedTime: converted.formattedTime,
     fullDisplay: hasTime ? `${converted.formattedDate} • ${converted.formattedTime} (${converted.timezoneLabel})` : converted.formattedDate,
     timeZoneAbbr: converted.timezoneLabel,
-    timestamp: new Date().getTime(),
+    timestamp: converted.timestamp,
     hasTime
   };
 }

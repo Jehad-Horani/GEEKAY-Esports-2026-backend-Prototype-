@@ -346,11 +346,18 @@ const CalendarInterface = () => {
         });
       });
 
-      eventsList.push({
-        event,
-        color,
-        matchCount
-      });
+      // Filter legend chips: display ONLY events marked as live or upcoming to avoid clutter
+      const dynStatus = getDynamicStatus(eventDate, (event as any).end_date, event.time, event.status, (event as any).matches);
+      const isLiveOrUpcoming = dynStatus === 'live' || dynStatus === 'upcoming' || 
+                               String(event.status || '').toLowerCase() === 'live' || 
+                               String(event.status || '').toLowerCase() === 'upcoming';
+      if (isLiveOrUpcoming) {
+        eventsList.push({
+          event,
+          color,
+          matchCount
+        });
+      }
     });
 
     return { allItems: items, eventColorMap: colorMap, activeEventsList: eventsList };

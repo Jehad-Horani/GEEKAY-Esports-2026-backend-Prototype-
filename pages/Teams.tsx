@@ -799,11 +799,15 @@ const Teams = () => {
                   globalRank: t.global_rank || t.globalRank || '#1 GLOBAL',
                   championships: (t.championships !== undefined && t.championships !== null && String(t.championships).trim() !== '') ? t.championships : 'N/A',
                   seasonRecord: t.season_record || t.seasonRecord || '18-4',
+                  prize_money: t.prize_money || t.prizeMoney,
+                  prizeMoney: t.prize_money || t.prizeMoney,
                   stats: {
                     winRate: t.win_rate || t.winRate || '75%',
                     rank: t.global_rank || t.globalRank || '#1 GLOBAL',
                     championships: (t.championships !== undefined && t.championships !== null && String(t.championships).trim() !== '') ? t.championships : 'N/A',
-                    seasonRecord: t.season_record || t.seasonRecord || '18-4'
+                    seasonRecord: t.season_record || t.seasonRecord || '18-4',
+                    prizeMoney: t.prize_money || t.prizeMoney,
+                    prize_money: t.prize_money || t.prizeMoney
                   }
                 };
               });

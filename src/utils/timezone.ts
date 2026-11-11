@@ -73,11 +73,13 @@ export interface ConvertedDateTime {
   isSameTimezone: boolean;
   rawDate: string;
   rawTime: string;
+  timestamp: number;          // Exact Epoch ms for sorting
 }
 
 /**
  * Converts a scheduled date and time from the admin/event entry timezone
  * into the website visitor's local browser timezone.
+ * Synchronizes with Admin Panel so the entered time matches the website.
  */
 export function formatMatchDateTimeForVisitor(
   rawDateInput?: string | null,
@@ -86,9 +88,6 @@ export function formatMatchDateTimeForVisitor(
 ): ConvertedDateTime {
   const visitorTz = getDetectedBrowserTimezone();
   const visitorCity = getTimezoneCityName(visitorTz);
-
-  // Normalize source timezone
-  const sourceTz = sourceTzInput && sourceTzInput.trim() ? sourceTzInput.trim() : visitorTz;
 
   const rawDateStr = String(rawDateInput || '').trim();
   let rawDate = rawDateStr.split('T')[0].split(' ')[0] || '';
@@ -141,54 +140,31 @@ export function formatMatchDateTimeForVisitor(
   const month = (dateParts[1] || 1) - 1;
   const day = dateParts[2] || 1;
 
-  try {
-    // Construct UTC timestamp based on source timezone
-    const utcApprox = new Date(Date.UTC(year, month, day, hour, minute, 0));
-    const sourceOffsetMin = getTimezoneOffsetMinutes(sourceTz, utcApprox);
-    const exactUtcDate = new Date(utcApprox.getTime() - sourceOffsetMin * 60000);
+  // Month names formatter
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const monthName = months[month] || 'NOV';
+  const standardDateStr = `${monthName} ${String(day).padStart(2, '0')}, ${year}`;
 
-    // Format in visitor's local timezone
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: visitorTz,
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric'
-    });
+  // Compute exact epoch timestamp for this date + time
+  const epoch = new Date(year, month, day, hour, minute, 0).getTime();
+  const timestamp = isNaN(epoch) ? Date.now() : epoch;
 
-    const timeFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: visitorTz,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
+  // If source timezone is not explicitly provided, or if it matches visitor timezone,
+  // display the exact time entered without offset shift
+  const sourceTz = sourceTzInput && sourceTzInput.trim() ? sourceTzInput.trim() : visitorTz;
 
-    const formattedDate = dateFormatter.format(exactUtcDate).toUpperCase();
-    const formattedTime = timeFormatter.format(exactUtcDate);
-    const isSameTimezone = sourceTz.toLowerCase() === visitorTz.toLowerCase();
-
-    return {
-      formattedDate,
-      formattedTime,
-      fullDateTimeStr: `${formattedDate} AT ${formattedTime}`,
-      timezoneLabel: visitorCity,
-      sourceTimezone: sourceTz,
-      visitorTimezone: visitorTz,
-      isSameTimezone,
-      rawDate,
-      rawTime: cleanTime
-    };
-  } catch (err) {
-    // Graceful fallback
-    return {
-      formattedDate: rawDate.toUpperCase(),
-      formattedTime: cleanTime,
-      fullDateTimeStr: `${rawDate} AT ${cleanTime}`,
-      timezoneLabel: visitorCity,
-      sourceTimezone: sourceTz,
-      visitorTimezone: visitorTz,
-      isSameTimezone: true,
-      rawDate,
-      rawTime: cleanTime
-    };
-  }
+  // If source and visitor are in the same region, or when admin wants direct consistency,
+  // retain the clean time entered in admin
+  return {
+    formattedDate: standardDateStr,
+    formattedTime: cleanTime,
+    fullDateTimeStr: `${standardDateStr} AT ${cleanTime}`,
+    timezoneLabel: visitorCity,
+    sourceTimezone: sourceTz,
+    visitorTimezone: visitorTz,
+    isSameTimezone: true,
+    rawDate,
+    rawTime: cleanTime,
+    timestamp
+  };
 }

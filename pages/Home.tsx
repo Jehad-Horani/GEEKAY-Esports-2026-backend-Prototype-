@@ -10,6 +10,7 @@ import { Player, NewsItem, Product } from '../types';
 import SEOMeta from '../components/SEOMeta';
 import { getDynamicStatus, getMatchDynamicStatus, cleanOpponentName, getMatchResult, formatMatchLocalDateTime, detectBroadcastPlatform } from '../src/utils/dateStatus';
 import { getEventSlug } from './Schedule';
+import { getEventPaletteColor } from '../src/utils/eventPalette';
 
 const safeFetchJson = async (url: string) => {
   try {
@@ -252,12 +253,14 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
           parsedMatches = ev.matches;
         }
 
+        const eventColor = getEventPaletteColor(ev.title || ev.id);
+
         if (parsedMatches.length > 0) {
           parsedMatches.forEach((m: any) => {
             const mDate = m.date || ev.start_date || '';
             const mTime = m.time || ev.time || '';
             const dynStatus = getMatchDynamicStatus(m, ev.start_date);
-            const dt = formatMatchLocalDateTime(mDate, mTime);
+            const dt = formatMatchLocalDateTime(mDate, mTime, m.timezone || ev.timezone);
             const broadcastInfo = detectBroadcastPlatform(m.broadcast || eventBroadcast, m.stream_url || m.link || eventLink);
 
             if (dynStatus === 'live' || dynStatus === 'upcoming') {
@@ -266,6 +269,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                 eventId,
                 eventSlug,
                 eventTitle,
+                eventColor,
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
                 opp: cleanOpponentName(m.teams || ev.title),
                 rawDate: mDate,
@@ -284,6 +288,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                 eventId,
                 eventSlug,
                 eventTitle,
+                eventColor,
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
                 opp: cleanOpponentName(m.teams || ev.title),
                 res: res.resText,
@@ -298,7 +303,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
           const evDate = ev.start_date || '';
           const evTime = ev.time || '';
           const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status);
-          const dt = formatMatchLocalDateTime(evDate, evTime);
+          const dt = formatMatchLocalDateTime(evDate, evTime, ev.timezone);
           const broadcastInfo = detectBroadcastPlatform(eventBroadcast, eventLink);
 
           if (dynStatus === 'live' || dynStatus === 'upcoming') {
@@ -307,6 +312,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
               eventId,
               eventSlug,
               eventTitle,
+              eventColor,
               game: String(ev.game || 'ESPORTS').toUpperCase(),
               opp: cleanOpponentName(ev.title || ev.organizer),
               rawDate: evDate,
@@ -331,6 +337,7 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
               eventId,
               eventSlug,
               eventTitle,
+              eventColor,
               game: String(ev.game || 'ESPORTS').toUpperCase(),
               opp: cleanOpponentName(ev.title || 'REGIONAL FINALS'),
               res: res.resText,
@@ -344,17 +351,17 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
       });
     }
 
-    // Sort upcoming: live matches first, then chronological order (earliest/nearest date & time first)
+    // Sort upcoming: live matches first, then chronological order (nearest/earliest date & time first)
     upcomingList.sort((a, b) => {
       if (a.status === 'live' && b.status !== 'live') return -1;
       if (b.status === 'live' && a.status !== 'live') return 1;
-      if (a.timestamp !== b.timestamp) {
+      if (a.timestamp && b.timestamp && a.timestamp !== b.timestamp) {
         return a.timestamp - b.timestamp;
       }
       return a.sortKey.localeCompare(b.sortKey);
     });
 
-    // Sort past results: most recent first
+    // Sort past results: reverse chronological order (most recently completed match first)
     pastList.sort((a, b) => {
       if (a.timestamp && b.timestamp && a.timestamp !== b.timestamp) {
         return b.timestamp - a.timestamp;
@@ -362,9 +369,9 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
       return b.sortKey.localeCompare(a.sortKey);
     });
 
-    // Strictly real database data - no fake or hardcoded mock fallbacks
-    const finalPastResults = pastList.slice(0, 3);
-    const finalUpcomingMatches = upcomingList.slice(0, 3);
+    // Display all upcoming matches (including Osaka event)
+    const finalPastResults = pastList.slice(0, 5);
+    const finalUpcomingMatches = upcomingList;
 
     return {
       upcomingMatches: finalUpcomingMatches,
@@ -483,7 +490,14 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                         >
                           <div className="min-w-0 pr-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[#FFC400] font-syncopate text-[7px] font-bold tracking-widest group-hover/item:text-yellow-300 transition-colors">
+                              <span 
+                                style={{ 
+                                  color: match.eventColor?.hex || '#FFC400',
+                                  borderColor: match.eventColor ? `${match.eventColor.hex}40` : 'rgba(255, 196, 0, 0.3)',
+                                  backgroundColor: match.eventColor ? `${match.eventColor.hex}15` : 'rgba(255, 196, 0, 0.08)'
+                                }}
+                                className="font-syncopate text-[7px] font-bold tracking-widest px-1.5 py-0.5 rounded border transition-colors"
+                              >
                                 {match.game}
                               </span>
                               {match.status === 'live' && (
@@ -569,7 +583,14 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
                         >
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-white/40 font-syncopate text-[7px] font-bold tracking-widest group-hover/item:text-[#FFC400] transition-colors">
+                              <span 
+                                style={{ 
+                                  color: result.eventColor?.hex || '#94A3B8',
+                                  borderColor: result.eventColor ? `${result.eventColor.hex}40` : 'rgba(255, 255, 255, 0.1)',
+                                  backgroundColor: result.eventColor ? `${result.eventColor.hex}15` : 'transparent'
+                                }}
+                                className="font-syncopate text-[7px] font-bold tracking-widest px-1.5 py-0.5 rounded border transition-colors"
+                              >
                                 {result.game}
                               </span>
                               {result.date && <span className="text-slate-500 text-[7px] font-mono">{result.date}</span>}
@@ -1350,6 +1371,8 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
       events.forEach((ev: any) => {
         const evSlug = getEventSlug(ev.title) || String(ev.id);
         let parsedMatches: any[] = [];
+        const eventColor = getEventPaletteColor(ev.title || ev.id);
+
         if (typeof ev.matches === 'string') {
           try { parsedMatches = JSON.parse(ev.matches); } catch {}
         } else if (Array.isArray(ev.matches)) {
@@ -1362,21 +1385,24 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
             const mTime = m.time || ev.time || '';
             const mLink = m.link || m.url || ev.stream_url || ev.link || '';
             const dynStatus = getMatchDynamicStatus(m, ev.start_date);
+            const dt = formatMatchLocalDateTime(mDate, mTime, m.timezone || ev.timezone);
 
             if (dynStatus === 'upcoming' || dynStatus === 'live') {
               matchesList.push({
-                id: `${ev.id}-${m.teams || mDate}`,
+                id: `${ev.id}-${m.teams || mDate}-${mTime}`,
                 game: String(ev.game || 'ESPORTS').toUpperCase(),
                 title: ev.title,
                 eventSlug: evSlug,
                 opponent: cleanOpponentName(m.teams || ev.organizer || 'GLOBAL CONTENDERS'),
-                date: mDate || 'TBD',
-                time: mTime,
+                date: dt.formattedDate || mDate || 'TBD',
+                time: dt.formattedTime || mTime,
                 link: mLink,
                 region: ev.region || 'GLOBAL',
                 status: dynStatus,
                 countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING',
-                sortKey: mDate || '9999-99-99'
+                sortKey: mDate || '9999-99-99',
+                timestamp: dt.timestamp,
+                eventColor
               });
             }
           });
@@ -1385,6 +1411,7 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
           const evTime = ev.time || '';
           const evLink = ev.stream_url || ev.link || '';
           const dynStatus = getDynamicStatus(evDate, ev.end_date, evTime, ev.status, ev.matches);
+          const dt = formatMatchLocalDateTime(evDate, evTime, ev.timezone);
 
           if (dynStatus === 'upcoming' || dynStatus === 'live') {
             matchesList.push({
@@ -1393,23 +1420,32 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
               title: ev.title,
               eventSlug: evSlug,
               opponent: cleanOpponentName(ev.organizer || 'GLOBAL CONTENDERS'),
-              date: evDate || 'TBD',
-              time: evTime,
+              date: dt.formattedDate || evDate || 'TBD',
+              time: dt.formattedTime || evTime,
               link: evLink,
               region: ev.region || 'GLOBAL',
               status: dynStatus,
               countdown: dynStatus === 'live' ? 'LIVE NOW' : 'UPCOMING',
-              sortKey: evDate || '9999-99-99'
+              sortKey: evDate || '9999-99-99',
+              timestamp: dt.timestamp,
+              eventColor
             });
           }
         }
       });
+
+      // Sort upcoming matches chronologically: nearest match first
       matchesList.sort((a, b) => {
         if (a.status === 'live' && b.status !== 'live') return -1;
         if (b.status === 'live' && a.status !== 'live') return 1;
+        if (a.timestamp && b.timestamp && a.timestamp !== b.timestamp) {
+          return a.timestamp - b.timestamp;
+        }
         return a.sortKey.localeCompare(b.sortKey);
       });
-      if (matchesList.length > 0) return matchesList.slice(0, 3);
+
+      // Return all upcoming matches without artificial truncation
+      return matchesList;
     }
     return [];
   }, [events]);
@@ -1485,106 +1521,141 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
           {/* Left Column: Upcoming Matches */}
           <div className="lg:col-span-7 space-y-6">
             <h3 className="font-syncopate text-xs font-bold text-white/40 tracking-[0.3em] uppercase mb-8">UPCOMING MATCHES</h3>
-            {upcomingMatches.map((match, idx) => (
-              <motion.div
-                key={match.id}
-                initial={{ opacity: 0, x: -30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                whileHover={{ y: -4 }}
-                onClick={() => {
-                  if (match.link) {
-                    window.open(match.link, '_blank', 'noopener,noreferrer');
-                  }
-                }}
-                className={`group relative bg-[#0A1A31]/50 border p-4 sm:p-6 md:p-7 transition-all overflow-hidden ${
-                  match.link ? 'cursor-pointer hover:border-[#FFC400]/60 hover:bg-[#0A2045]/60' : 'border-slate-800 hover:border-[#FFC400]/40'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6">
-                  <div className="space-y-2 sm:space-y-3 flex-1 min-w-0 w-full sm:w-auto">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#FFC400] font-syncopate text-[9px] font-black tracking-widest uppercase">{match.game}</span>
-                      {match.status === 'live' && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 font-syncopate text-[7px] font-bold rounded">
-                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
-                          LIVE
+            {upcomingMatches.map((match, idx) => {
+              const colorHex = match.eventColor?.hex || '#FFC400';
+              const badgeBg = match.eventColor?.badgeBg || 'rgba(255,196,0,0.15)';
+              const colorGlow = match.eventColor?.glow || 'rgba(255,196,0,0.2)';
+
+              return (
+                <motion.div
+                  key={match.id}
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={{ y: -4, borderColor: colorHex }}
+                  onClick={() => {
+                    if (match.link) {
+                      window.open(match.link, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  style={{
+                    borderColor: `${colorHex}40`,
+                    boxShadow: `0 0 15px ${colorGlow}`
+                  }}
+                  className={`group relative bg-[#0A1A31]/60 border p-4 sm:p-6 md:p-7 transition-all overflow-hidden ${
+                    match.link ? 'cursor-pointer hover:bg-[#0A2045]/60' : ''
+                  }`}
+                >
+                  {/* Left tournament color accent bar */}
+                  <div 
+                    className="absolute top-0 left-0 w-1.5 h-full"
+                    style={{ backgroundColor: colorHex }}
+                  />
+
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6 pl-2">
+                    <div className="space-y-2 sm:space-y-3 flex-1 min-w-0 w-full sm:w-auto">
+                      <div className="flex items-center gap-2">
+                        <span 
+                          className="font-syncopate text-[9px] font-black tracking-widest uppercase px-2 py-0.5 border"
+                          style={{
+                            color: colorHex,
+                            backgroundColor: badgeBg,
+                            borderColor: `${colorHex}40`
+                          }}
+                        >
+                          {match.game}
                         </span>
+                        {match.status === 'live' && (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 font-syncopate text-[7px] font-bold rounded">
+                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                            LIVE
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-syncopate text-sm sm:text-base md:text-lg font-black text-white uppercase break-words leading-snug">
+                          {match.title}
+                        </h4>
+                        <p className="text-slate-400 font-syncopate text-[10px] sm:text-[11px] font-bold tracking-wider uppercase break-words">
+                          {match.opponent}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full sm:w-auto flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/40">
+                      <div className="flex items-center gap-2 text-white font-syncopate text-[10px] sm:text-xs font-black tracking-wider bg-[#040E1E] border border-slate-800 px-3 py-1.5 whitespace-nowrap">
+                        <Calendar size={13} style={{ color: colorHex }} className="shrink-0" />
+                        <span className="whitespace-nowrap">{match.date}</span>
+                      </div>
+                      {match.time ? (
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-slate-400 font-syncopate text-[8px] sm:text-[9px] tracking-wider sm:tracking-widest uppercase whitespace-nowrap">
+                          <Clock size={12} className="text-slate-500 shrink-0" />
+                          <span>{match.time}</span>
+                          {match.region && <span>// {match.region.toUpperCase()}</span>}
+                        </div>
+                      ) : (
+                        match.region && (
+                          <div className="flex items-center gap-1.5 text-slate-400 font-syncopate text-[8px] sm:text-[9px] tracking-wider sm:tracking-widest uppercase whitespace-nowrap">
+                            <MapPin size={11} className="text-slate-500 shrink-0" />
+                            <span className="uppercase">{match.region}</span>
+                          </div>
+                        )
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="font-syncopate text-sm sm:text-base md:text-lg font-black text-white uppercase break-words leading-snug">
-                        {match.title}
-                      </h4>
-                      <p className="text-slate-400 font-syncopate text-[10px] sm:text-[11px] font-bold tracking-wider uppercase break-words">
-                        {match.opponent}
-                      </p>
-                    </div>
                   </div>
-                  
-                  <div className="w-full sm:w-auto flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/40">
-                    <div className="flex items-center gap-2 text-white font-syncopate text-[10px] sm:text-xs font-black tracking-wider bg-[#040E1E] border border-slate-800 px-3 py-1.5 whitespace-nowrap">
-                      <Calendar size={13} className="text-[#FFC400] shrink-0" />
-                      <span className="whitespace-nowrap">{match.date}</span>
-                    </div>
-                    {match.time ? (
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-slate-400 font-syncopate text-[8px] sm:text-[9px] tracking-wider sm:tracking-widest uppercase whitespace-nowrap">
-                        <Clock size={12} className="text-slate-500 shrink-0" />
-                        <span>{match.time}</span>
-                        {match.region && <span>// {match.region.toUpperCase()}</span>}
-                      </div>
-                    ) : (
-                      match.region && (
-                        <div className="flex items-center gap-1.5 text-slate-400 font-syncopate text-[8px] sm:text-[9px] tracking-wider sm:tracking-widest uppercase whitespace-nowrap">
-                          <MapPin size={11} className="text-slate-500 shrink-0" />
-                          <span className="uppercase">{match.region}</span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
 
-                <div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-1 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest uppercase ${
-                      match.status === 'live' 
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse' 
-                        : 'bg-[#FFC400]/10 border border-[#FFC400]/20 text-[#FFC400]'
-                    }`}>
-                      {match.status === 'live' ? '● LIVE OPERATION' : 'CONFIRMED SCHEDULE'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                    {match.link && (
-                      <a
-                        href={match.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFC400] hover:bg-white text-black font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider uppercase transition-all shadow-md shrink-0"
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pl-2">
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className="px-2.5 py-1 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-widest uppercase border"
+                        style={match.status === 'live' 
+                          ? { backgroundColor: 'rgba(239,68,68,0.2)', color: '#F87171', borderColor: 'rgba(239,68,68,0.3)' }
+                          : { backgroundColor: badgeBg, color: colorHex, borderColor: `${colorHex}40` }
+                        }
                       >
-                        <span>WATCH STREAM</span>
-                        <ExternalLink size={11} />
-                      </a>
-                    )}
-                    <Link 
-                      to={`/events/${match.eventSlug || getEventSlug(match.title)}`}
-                      onClick={(e) => e.stopPropagation()} 
-                      className="group/link inline-flex items-center gap-1.5 sm:gap-2 font-syncopate text-[8px] sm:text-[9px] font-black text-[#FFC400] tracking-wider sm:tracking-[0.2em] uppercase hover:text-white transition-colors shrink-0 py-1"
-                    >
-                      <span>VIEW DETAILS</span> 
-                      <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform shrink-0" />
-                    </Link>
+                        {match.status === 'live' ? '● LIVE OPERATION' : 'CONFIRMED SCHEDULE'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                      {match.link && (
+                        <a
+                          href={match.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ backgroundColor: colorHex }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-white text-black font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider uppercase transition-all shadow-md shrink-0"
+                        >
+                          <span>WATCH STREAM</span>
+                          <ExternalLink size={11} />
+                        </a>
+                      )}
+                      <Link 
+                        to={`/events/${match.eventSlug || getEventSlug(match.title)}`}
+                        onClick={(e) => e.stopPropagation()} 
+                        style={{ color: colorHex }}
+                        className="group/link inline-flex items-center gap-1.5 sm:gap-2 font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider sm:tracking-[0.2em] uppercase hover:text-white transition-colors shrink-0 py-1"
+                      >
+                        <span>VIEW DETAILS</span> 
+                        <ArrowRight size={13} className="group-hover/link:translate-x-1 transition-transform shrink-0" />
+                      </Link>
+                    </div>
                   </div>
-                </div>
 
-                {/* Hover Border Animation */}
-                <div className="absolute top-0 right-0 w-0 h-[1px] bg-[#FFC400] group-hover:w-full transition-all duration-500" />
-                <div className="absolute bottom-0 left-0 w-0 h-[1px] bg-[#FFC400] group-hover:w-full transition-all duration-500" />
-              </motion.div>
-            ))}
+                  {/* Hover Border Animation */}
+                  <div 
+                    className="absolute top-0 right-0 w-0 h-[1px] group-hover:w-full transition-all duration-500" 
+                    style={{ backgroundColor: colorHex }}
+                  />
+                  <div 
+                    className="absolute bottom-0 left-0 w-0 h-[1px] group-hover:w-full transition-all duration-500" 
+                    style={{ backgroundColor: colorHex }}
+                  />
+                </motion.div>
+              );
+            })}
           </div>
 
           {/* Right Column: Featured Tournament */}
