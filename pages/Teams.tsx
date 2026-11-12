@@ -90,6 +90,81 @@ export const formatPrizeMoney = (val?: string | number | null, fallbackTeamName?
   return '$250,000';
 };
 
+// Helper to return clean, standardized esports game abbreviations
+export const getGameAbbreviation = (game?: string | null): string => {
+
+  if (!game) return 'ESPORTS';
+  const g = String(game).trim();
+  const lower = g.toLowerCase();
+
+  // Standard esports abbreviations
+  if (lower.includes('overwatch')) {
+    return lower.includes('2') ? 'OW2' : 'OW';
+  }
+  if (lower.includes('rocket league') || lower === 'rl') {
+    return 'RL';
+  }
+  if (lower.includes('rainbow') || lower.includes('r6') || lower.includes('siege')) {
+    return 'R6';
+  }
+  if (lower.includes('honor of kings') || lower === 'hok') {
+    return 'HOK';
+  }
+  if (lower.includes('fortnite') || lower === 'fn') {
+    return 'FN';
+  }
+  if (lower.includes('pubg mobile') || lower === 'pubgm') {
+    return 'PUBGM';
+  }
+  if (lower.includes('pubg')) {
+    return 'PUBG';
+  }
+  if (lower.includes('mobile legends') || lower.includes('bang bang') || lower === 'mlbb') {
+    return 'MLBB';
+  }
+  if (lower.includes('valorant') || lower === 'val') {
+    return 'VAL';
+  }
+  if (lower.includes('league of legends') || lower === 'lol') {
+    return 'LOL';
+  }
+  if (lower.includes('counter-strike') || lower.includes('cs:go') || lower === 'cs2' || lower === 'cs') {
+    return 'CS2';
+  }
+  if (lower.includes('apex')) {
+    return 'APEX';
+  }
+  if (lower.includes('dota')) {
+    return 'DOTA 2';
+  }
+  if (lower.includes('call of duty') || lower === 'cod' || lower.includes('warzone')) {
+    return 'COD';
+  }
+  if (lower.includes('free fire')) {
+    return 'FF';
+  }
+  if (lower.includes('brawl stars')) {
+    return 'BS';
+  }
+  if (lower.includes('fifa') || lower.includes('fc 24') || lower.includes('ea fc')) {
+    return 'FC';
+  }
+
+  // If already short (e.g. <= 5 chars), keep as uppercase
+  if (g.length <= 5) {
+    return g.toUpperCase();
+  }
+
+  // If multi-word, derive acronym (e.g. "World of Tanks" -> "WOT")
+  const words = g.split(/[\s-]+/).filter(Boolean);
+  if (words.length > 1 && words.length <= 4) {
+    return words.map(w => w[0]).join('').toUpperCase();
+  }
+
+  return g.length > 8 ? g.slice(0, 8).toUpperCase() : g.toUpperCase();
+};
+
+
 // --- Upgraded Team Detail Component ---
 const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, onSwitchTeam: (id: string) => void }> = ({ team, allTeams = [], onBack, onSwitchTeam }) => {
   const [selectedMedia, setSelectedMedia] = useState<{ url: string; title?: string } | null>(null);
@@ -494,8 +569,8 @@ const TeamDetail: React.FC<{ team: Team, allTeams?: Team[], onBack: () => void, 
                 <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] to-transparent" />
                 
                 <div className="relative z-10">
-                  <span className="bg-[#FFC400] text-black px-2 py-0.5 font-syncopate text-[8px] font-black tracking-widest uppercase inline-block mb-2 max-w-full truncate">
-                    {otherTeam.game}
+                  <span className="bg-[#FFC400] text-black px-2 py-0.5 font-syncopate text-[8px] font-black tracking-wider uppercase inline-flex items-center justify-center leading-none mb-2 whitespace-nowrap">
+                    {getGameAbbreviation(otherTeam.game)}
                   </span>
                   <div className="min-h-[2.5rem] flex items-end mb-3">
                     <h3 className={`font-syncopate font-black text-white uppercase tracking-tight leading-tight ${
@@ -546,12 +621,13 @@ const DivisionCard: React.FC<{ team: Team; onClick: () => void; index: number }>
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#040E1E] via-[#040E1E]/60 to-transparent opacity-90 group-hover:opacity-80 transition-opacity duration-300" />
       
-      <div className="absolute top-6 left-6 flex flex-col gap-2">
-        <div className="bg-[#FFC400] text-black px-3 py-1 font-syncopate text-[9px] font-black tracking-widest uppercase inline-block max-w-[calc(100%-2rem)] truncate">
-          {team.game}
+      {/* Game Abbreviation & Region Badges */}
+      <div className="absolute top-5 left-5 sm:top-6 sm:left-6 flex flex-col items-start gap-1.5 z-10 max-w-[calc(100%-2.5rem)] pointer-events-none">
+        <div className="bg-[#FFC400] text-black px-2.5 py-1 font-syncopate text-[9px] font-black tracking-wider uppercase inline-flex items-center justify-center leading-none rounded-none shadow-sm whitespace-nowrap">
+          {getGameAbbreviation(team.game)}
         </div>
         {team.region && (
-          <div className="bg-white/10 backdrop-blur-sm text-white px-3 py-1 font-syncopate text-[9px] font-bold tracking-widest uppercase inline-block w-max border border-white/10">
+          <div className="bg-white/10 backdrop-blur-md text-white px-2.5 py-1 font-syncopate text-[9px] font-bold tracking-wider uppercase inline-flex items-center justify-center leading-none border border-white/15 rounded-none shadow-sm whitespace-nowrap">
             {team.region}
           </div>
         )}

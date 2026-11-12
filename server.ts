@@ -320,6 +320,8 @@ db.exec(`
     results TEXT,
     media TEXT,
     social TEXT,
+    event_type TEXT DEFAULT 'regular',
+    stages TEXT,
     published INTEGER DEFAULT 1,
     display_order INTEGER DEFAULT 0
   );
@@ -558,6 +560,8 @@ addColumnSafely('events', 'timeline', 'TEXT');
 addColumnSafely('events', 'venue', 'TEXT');
 addColumnSafely('events', 'location', 'TEXT');
 addColumnSafely('events', 'broadcast_platforms', 'TEXT');
+addColumnSafely('events', 'event_type', 'TEXT DEFAULT "regular"');
+addColumnSafely('events', 'stages', 'TEXT');
 
 addColumnSafely('jobs', 'email', 'TEXT');
 addColumnSafely('jobs', 'application_email', 'TEXT');

@@ -1,9 +1,10 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit2, Trash2, X, Calendar, Filter, Search, ExternalLink, FileSpreadsheet, Upload, CheckCircle2, AlertCircle, Star, Clock, Globe, Swords, Trophy, Medal, Coins } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Calendar, Filter, Search, ExternalLink, FileSpreadsheet, Upload, CheckCircle2, AlertCircle, Star, Clock, Globe, Swords, Trophy, Medal, Coins, Crosshair, Layers } from 'lucide-react';
 import ArenaButton from '../../components/ui/ArenaButton';
 import ImageUploader from '../components/ImageUploader';
+import BREventEditor from './components/BREventEditor';
 import * as XLSX from 'xlsx';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import useConfirmDialog from './utils/useConfirmDialog';
@@ -21,6 +22,7 @@ const AdminSchedule = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number | string; name?: string } | null>(null);
   const [filterGame, setFilterGame] = useState('ALL');
+  const [isEventTypeModalOpen, setIsEventTypeModalOpen] = useState(false);
   const { confirmDialog, requestConfirm, closeConfirm } = useConfirmDialog();
 
   // Parsed sub-structures for repeater management
@@ -88,12 +90,24 @@ const AdminSchedule = () => {
 
   // Open modal handler with safe JSON parsing
   const handleOpenEdit = (item: any) => {
+    const isBR = item?.event_type === 'battle_royale' || item?.type === 'battle_royale' || Boolean(item?.stages);
     const detectedTz = getDetectedBrowserTimezone();
-    const eventTz = item.timezone || detectedTz;
-    const defaultTime = item.time || (item.start_date && item.start_date.includes(' ') ? item.start_date.split(' ')[1] : '18:00');
+    const eventTz = item?.timezone || detectedTz;
+    const defaultTime = item?.time || (item?.start_date && item?.start_date.includes(' ') ? item?.start_date.split(' ')[1] : '18:00');
+
+    if (isBR) {
+      setEditingItem({
+        ...item,
+        event_type: 'battle_royale',
+        timezone: eventTz,
+        time: defaultTime
+      });
+      return;
+    }
 
     setEditingItem({
       ...item,
+      event_type: 'regular',
       time: defaultTime,
       timezone: eventTz,
       featured: Number(item.featured) === 1 || item.featured === true ? 1 : 0,
@@ -345,6 +359,44 @@ const AdminSchedule = () => {
     }
   };
 
+  const handleSaveBREvent = async (brData: any) => {
+    setSaving(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const payload = {
+        ...brData,
+        event_type: 'battle_royale'
+      };
+      if (!payload.id) {
+        delete payload.id;
+      }
+      const method = payload.id ? 'PUT' : 'POST';
+      const url = payload.id ? `/api/events/${payload.id}` : '/api/events';
+      const res = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save Battle Royale event');
+      }
+      setEditingItem(null);
+      fetchItems();
+      notifyScheduleUpdated();
+    } catch (err: any) {
+      console.error('Save BR event error:', err);
+      alert(err.message || 'Failed to save event');
+    } finally {
+      setSaving(false);
+      clearTimeout(timeoutId);
+    }
+  };
+
   const notifyScheduleUpdated = () => {
     try {
       window.dispatchEvent(new CustomEvent('geekay:events_updated'));
@@ -513,7 +565,7 @@ const AdminSchedule = () => {
               GAME TITLES
             </ArenaButton>
           </div>
-          <ArenaButton onClick={() => handleOpenEdit({ title: '', game: 'RL', type: 'match', start_date: '', end_date: '', time: '', region: 'GLOBAL', status: 'upcoming', link: '', featured: 0, description: '', banner: '', organizer: '', location: '', venue: '', overview_title: 'TACTICAL INTELLIGENCE', prize_pool: '$100,000', total_teams: '16', broadcast: 'TWITCH / YOUTUBE', purpose: 'CHAMPIONSHIP VICTORY', format: 'DOUBLE ELIMINATION BRACKET', timeline: 'FEBRUARY 2026', broadcast_platforms: 'LIVE TWITCH.TV/GEEKAY', published: 1 })}>
+          <ArenaButton onClick={() => setIsEventTypeModalOpen(true)}>
             <Plus size={18} className="mr-2" /> ADD_EVENT
           </ArenaButton>
         </div>
@@ -667,9 +719,15 @@ const AdminSchedule = () => {
             {filteredItems.map((item) => (
               <tr key={item.id} className="group hover:bg-white/[0.02] transition-colors">
                 <td className="p-8">
-                  <div className="flex items-center gap-4 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="bg-[#FFC400] text-black px-2 py-0.5 font-syncopate text-[6px] font-black tracking-widest uppercase skew-x-[-10deg]">{item.game}</span>
-                    <span className="text-slate-600 font-syncopate text-[6px] font-bold tracking-widest uppercase">{item.type}</span>
+                    {item.event_type === 'battle_royale' || item.type === 'battle_royale' || item.stages ? (
+                      <span className="bg-[#FFC400]/15 text-[#FFC400] border border-[#FFC400]/40 px-2 py-0.5 font-syncopate text-[6px] font-black tracking-widest uppercase flex items-center gap-1">
+                        <Crosshair size={9} /> BATTLE ROYALE
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 font-syncopate text-[6px] font-bold tracking-widest uppercase">{item.type || 'REGULAR'}</span>
+                    )}
                   </div>
                   <p className="font-bold text-white text-sm">{item.title}</p>
                 </td>
@@ -722,8 +780,18 @@ const AdminSchedule = () => {
         </table>
       </div>
 
-      {/* Modal */}
-      {editingItem && (
+      {/* Battle Royale Modal Editor */}
+      {editingItem && editingItem.event_type === 'battle_royale' && (
+        <BREventEditor
+          initialData={editingItem}
+          onSave={handleSaveBREvent}
+          onCancel={() => setEditingItem(null)}
+          saving={saving}
+        />
+      )}
+
+      {/* Regular Event Modal */}
+      {editingItem && editingItem.event_type !== 'battle_royale' && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
           <motion.div 
@@ -1402,6 +1470,153 @@ const AdminSchedule = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Event Type Selection Modal */}
+      <AnimatePresence>
+        {isEventTypeModalOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#081B3A] border border-[#FFC400]/40 p-6 sm:p-8 max-w-2xl w-full relative shadow-[0_0_50px_rgba(255,196,0,0.15)] overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-[#FFC400]" />
+              
+              <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#FFC400]/10 border border-[#FFC400]/40 flex items-center justify-center text-[#FFC400]">
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <span className="font-syncopate text-[8px] text-[#FFC400] font-black tracking-widest uppercase block">
+                      CREATE TOURNAMENT // ARCHITECTURE
+                    </span>
+                    <h3 className="font-syncopate text-base sm:text-lg font-black text-white uppercase tracking-tight">
+                      SELECT EVENT TYPE
+                    </h3>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setIsEventTypeModalOpen(false)} 
+                  className="text-slate-400 hover:text-white p-1"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* Option 1: Regular Event */}
+                <div 
+                  onClick={() => {
+                    setIsEventTypeModalOpen(false);
+                    handleOpenEdit({ 
+                      title: '', 
+                      game: 'RL', 
+                      type: 'match', 
+                      event_type: 'regular',
+                      start_date: '', 
+                      end_date: '', 
+                      time: '', 
+                      region: 'GLOBAL', 
+                      status: 'upcoming', 
+                      link: '', 
+                      featured: 0, 
+                      description: '', 
+                      banner: '', 
+                      organizer: '', 
+                      location: '', 
+                      venue: '', 
+                      overview_title: 'TACTICAL INTELLIGENCE', 
+                      prize_pool: '$100,000', 
+                      total_teams: '16', 
+                      broadcast: 'TWITCH / YOUTUBE', 
+                      purpose: 'CHAMPIONSHIP VICTORY', 
+                      format: 'DOUBLE ELIMINATION BRACKET', 
+                      timeline: 'FEBRUARY 2026', 
+                      broadcast_platforms: 'LIVE TWITCH.TV/GEEKAY', 
+                      published: 1 
+                    });
+                  }}
+                  className="bg-[#040E1E] border border-slate-800 hover:border-[#FFC400] p-5 cursor-pointer group transition-all duration-300 relative flex flex-col justify-between hover:shadow-[0_0_25px_rgba(255,196,0,0.1)]"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-10 h-10 bg-white/5 border border-white/10 group-hover:border-[#FFC400] flex items-center justify-center text-slate-300 group-hover:text-[#FFC400] transition-colors">
+                        <Swords size={20} />
+                      </div>
+                      <span className="font-syncopate text-[7px] font-black text-slate-500 uppercase tracking-widest group-hover:text-[#FFC400]">
+                        OPTION 1
+                      </span>
+                    </div>
+                    <h4 className="font-syncopate text-xs sm:text-sm font-black text-white uppercase tracking-wider mb-2 group-hover:text-[#FFC400] transition-colors">
+                      REGULAR EVENT
+                    </h4>
+                    <p className="font-inter text-xs text-slate-400 leading-relaxed mb-4">
+                      Traditional head-to-head match fixtures with 1v1 scores and tournament podium (Rocket League, R6 Siege, Overwatch 2, Valorant, MLBB).
+                    </p>
+                  </div>
+                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                    <span className="font-syncopate text-[8px] font-black text-[#FFC400] uppercase tracking-wider">
+                      CHOOSE REGULAR EVENT &rarr;
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option 2: Battle Royale Event */}
+                <div 
+                  onClick={() => {
+                    setIsEventTypeModalOpen(false);
+                    setEditingItem({ 
+                      title: '', 
+                      game: 'FORTNITE', 
+                      event_type: 'battle_royale',
+                      type: 'tournament',
+                      start_date: new Date().toISOString().split('T')[0], 
+                      end_date: '', 
+                      time: '18:00', 
+                      region: 'GLOBAL', 
+                      status: 'upcoming', 
+                      link: '', 
+                      featured: 0, 
+                      description: '', 
+                      banner: '', 
+                      organizer: 'EPIC GAMES', 
+                      prize_pool: '$500,000', 
+                      published: 1,
+                      stages: []
+                    });
+                  }}
+                  className="bg-[#040E1E] border border-slate-800 hover:border-[#FFC400] p-5 cursor-pointer group transition-all duration-300 relative flex flex-col justify-between hover:shadow-[0_0_25px_rgba(255,196,0,0.15)]"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-10 h-10 bg-[#FFC400]/10 border border-[#FFC400]/30 group-hover:border-[#FFC400] flex items-center justify-center text-[#FFC400] transition-colors">
+                        <Crosshair size={20} />
+                      </div>
+                      <span className="font-syncopate text-[7px] font-black text-[#FFC400] uppercase tracking-widest bg-[#FFC400]/10 px-2 py-0.5 border border-[#FFC400]/30">
+                        NEW // OPTION 2
+                      </span>
+                    </div>
+                    <h4 className="font-syncopate text-xs sm:text-sm font-black text-white uppercase tracking-wider mb-2 group-hover:text-[#FFC400] transition-colors">
+                      BATTLE ROYALE (BR)
+                    </h4>
+                    <p className="font-inter text-xs text-slate-400 leading-relaxed mb-4">
+                      Multi-stage championship system (Group Stages, Semifinals, Grand Finals), multiple rounds/lobbies, points leaderboards, and placements (Fortnite, PUBG, Apex Legends).
+                    </p>
+                  </div>
+                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                    <span className="font-syncopate text-[8px] font-black text-[#FFC400] uppercase tracking-wider">
+                      CHOOSE BATTLE ROYALE &rarr;
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Manage Game Titles Modal */}
       <AnimatePresence>

@@ -5,13 +5,15 @@ import {
   Calendar, MapPin, Gamepad2, Award, Users, Trophy, ExternalLink, ShieldAlert,
   Clock, Tag, ChevronLeft, ChevronRight, Image as ImageIcon, 
   Twitter, Instagram, PlayCircle, Star, ArrowRight, Sparkles, Swords, Globe, Shield, CheckCircle2,
-  Medal, Coins
+  Medal, Coins, Crosshair, Layers
 } from 'lucide-react';
 import { getEventSlug } from './Schedule';
 import Breadcrumbs from '../components/Breadcrumbs';
 import SEOMeta from '../components/SEOMeta';
 import { getDynamicStatus, getMatchDynamicStatus } from '../src/utils/dateStatus';
 import { formatMatchDateTimeForVisitor } from '../src/utils/timezone';
+import { BRStage, BRRound, BRPlacement } from '../types';
+import BRTournamentView from '../src/components/BRTournamentView';
 
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -71,6 +73,8 @@ const EventDetail = () => {
   const navigate = useNavigate();
   const [dbEvents, setDbEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeBRStageIdx, setActiveBRStageIdx] = useState(0);
+  const [activeBRViewMode, setActiveBRViewMode] = useState<'standings' | 'matches'>('standings');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -161,8 +165,13 @@ const EventDetail = () => {
     const results = safeParse(matchedEvent.results, {});
     const media = safeParse(matchedEvent.media, []);
     const social = safeParse(matchedEvent.social, []);
+    const stages: BRStage[] = safeParse(matchedEvent.stages, []);
+    const isBattleRoyale = matchedEvent.event_type === 'battle_royale' || 
+      matchedEvent.type === 'battle_royale' || 
+      matchedEvent.type === 'br' || 
+      Boolean(stages && stages.length > 0);
 
-    return { teams, matches, results, media, social };
+    return { teams, matches, results, media, social, stages, isBattleRoyale };
   }, [matchedEvent]);
 
   // Related events calculation - strictly from database
@@ -211,7 +220,7 @@ const EventDetail = () => {
     );
   }
 
-  const { teams, matches, results, media, social } = fallbackDetails;
+  const { teams, matches, results, media, social, stages, isBattleRoyale } = fallbackDetails;
   const isUpcoming = matchedEvent.status.toLowerCase() === 'upcoming';
   const isLive = matchedEvent.status.toLowerCase() === 'live';
   const isCompleted = matchedEvent.status.toLowerCase() === 'finished' || matchedEvent.status.toLowerCase() === 'completed';
@@ -269,6 +278,12 @@ const EventDetail = () => {
             <span className="bg-white/10 backdrop-blur-sm text-white px-2.5 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[8px] sm:text-[9px] font-bold tracking-wider sm:tracking-[0.2em] uppercase border border-white/10">
               <span>{matchedEvent.region || 'GLOBAL'}</span>
             </span>
+            {isBattleRoyale && (
+              <span className="bg-[#FFC400]/20 text-[#FFC400] px-2.5 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider sm:tracking-[0.2em] uppercase border border-[#FFC400]/50 flex items-center gap-1.5">
+                <Crosshair size={12} />
+                <span>BATTLE ROYALE</span>
+              </span>
+            )}
             <span className={`px-2.5 sm:px-4 py-1 sm:py-1.5 font-syncopate text-[8px] sm:text-[9px] font-black tracking-wider sm:tracking-[0.2em] uppercase border ${
               isLive ? 'bg-red-500 text-white border-red-500 animate-pulse' :
               isUpcoming ? 'bg-[#FFC400]/10 text-[#FFC400] border-[#FFC400]' :
@@ -353,14 +368,21 @@ const EventDetail = () => {
         </section>
 
         {/* ====================================================
-            4) PARTICIPATING TEAMS
+            4, 5, 6) TOURNAMENT STRUCTURE & RESULTS
             ==================================================== */}
-        {teams && teams.length > 0 && (
-          <section className="mb-14 sm:mb-20">
-            <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-              <h2 className="font-syncopate text-base sm:text-lg font-black text-white tracking-widest uppercase">PARTICIPATING TEAMS</h2>
-              <div className="h-[1px] flex-grow bg-slate-800" />
-            </div>
+        {isBattleRoyale ? (
+          <BRTournamentView stages={stages} event={matchedEvent} />
+        ) : (
+          <>
+            {/* ====================================================
+                4) PARTICIPATING TEAMS
+                ==================================================== */}
+            {teams && teams.length > 0 && (
+              <section className="mb-14 sm:mb-20">
+                <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <h2 className="font-syncopate text-base sm:text-lg font-black text-white tracking-widest uppercase">PARTICIPATING TEAMS</h2>
+                  <div className="h-[1px] flex-grow bg-slate-800" />
+                </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
               {teams.map((team: any, i: number) => (
@@ -788,6 +810,8 @@ const EventDetail = () => {
               )}
             </div>
           </section>
+        )}
+          </>
         )}
 
         {/* ====================================================

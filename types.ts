@@ -123,6 +123,40 @@ export interface Creator {
   focus: string; // Streaming / Gameplay / Commentary / Entertainment
 }
 
+export interface BRPlacement {
+  id?: string;
+  placement: number | string; // e.g. 1 or "1st"
+  participant: string; // Team or Player Name
+  points?: number | string; // e.g. 45 or 12
+  kills?: number | string; // e.g. 8
+  prize?: string; // e.g. "$10,000" or "€5,000"
+  is_geekay?: boolean; // Highlight Geekay Esports squad
+}
+
+export interface BRRound {
+  id: string;
+  name?: string; // e.g. "Match 1 - Erangel" or "Round 2"
+  round_number?: number | string;
+  date?: string;
+  time?: string;
+  timezone?: string;
+  map?: string; // e.g. "Erangel", "Miramar", "Storm Point"
+  status?: 'upcoming' | 'live' | 'completed';
+  stream_link?: string;
+  placements?: BRPlacement[];
+}
+
+export interface BRStage {
+  id: string;
+  name: string; // e.g. "Group Stage – Day 1", "Upper Bracket Semifinal", "Grand Finals"
+  status?: 'upcoming' | 'live' | 'completed';
+  order?: number;
+  prize_money?: string;
+  date?: string;
+  standings?: BRPlacement[];
+  rounds?: BRRound[];
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -130,10 +164,19 @@ export interface Event {
   date: string;
   time?: string;
   type?: 'MATCH' | 'TOURNAMENT';
+  event_type?: 'regular' | 'battle_royale';
   location: string;
   prizePool: string;
+  prize_pool?: string;
   status: 'LIVE' | 'UPCOMING' | 'FINISHED';
   image: string;
+  banner?: string;
+  stages?: BRStage[] | string;
+  description?: string;
+  organizer?: string;
+  region?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface Job {

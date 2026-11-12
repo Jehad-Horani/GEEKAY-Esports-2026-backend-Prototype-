@@ -253,6 +253,31 @@ const Hero = ({ events = [] }: { events?: any[] }) => {
           parsedMatches = ev.matches;
         }
 
+        // If no 1v1 matches but event has Battle Royale stages with rounds
+        if (parsedMatches.length === 0 && ev.stages) {
+          try {
+            const parsedStages = typeof ev.stages === 'string' ? JSON.parse(ev.stages) : ev.stages;
+            if (Array.isArray(parsedStages)) {
+              parsedStages.forEach((st: any) => {
+                if (Array.isArray(st.rounds)) {
+                  st.rounds.forEach((rnd: any) => {
+                    parsedMatches.push({
+                      title: `${st.name || 'Stage'} - ${rnd.name || 'Round'}`,
+                      teams: `${st.name || 'Stage'} - ${rnd.name || 'Round'}`,
+                      date: rnd.date || ev.start_date,
+                      time: rnd.time || ev.time,
+                      timezone: rnd.timezone || ev.timezone,
+                      status: rnd.status || 'upcoming',
+                      stream_url: rnd.stream_link,
+                      link: rnd.stream_link
+                    });
+                  });
+                }
+              });
+            }
+          } catch {}
+        }
+
         const eventColor = getEventPaletteColor(ev.title || ev.id);
 
         if (parsedMatches.length > 0) {
@@ -1377,6 +1402,30 @@ const LiveOperationsHighlight = ({ events = [] }: { events?: any[] }) => {
           try { parsedMatches = JSON.parse(ev.matches); } catch {}
         } else if (Array.isArray(ev.matches)) {
           parsedMatches = ev.matches;
+        }
+
+        if (parsedMatches.length === 0 && ev.stages) {
+          try {
+            const parsedStages = typeof ev.stages === 'string' ? JSON.parse(ev.stages) : ev.stages;
+            if (Array.isArray(parsedStages)) {
+              parsedStages.forEach((st: any) => {
+                if (Array.isArray(st.rounds)) {
+                  st.rounds.forEach((rnd: any) => {
+                    parsedMatches.push({
+                      title: `${st.name || 'Stage'} - ${rnd.name || 'Round'}`,
+                      teams: `${st.name || 'Stage'} - ${rnd.name || 'Round'}`,
+                      date: rnd.date || ev.start_date,
+                      time: rnd.time || ev.time,
+                      timezone: rnd.timezone || ev.timezone,
+                      status: rnd.status || 'upcoming',
+                      stream_url: rnd.stream_link,
+                      link: rnd.stream_link
+                    });
+                  });
+                }
+              });
+            }
+          } catch {}
         }
 
         if (parsedMatches.length > 0) {

@@ -260,7 +260,9 @@ const CalendarInterface = () => {
               social: safeJsonParse(e.social, {}),
               broadcast: e.broadcast || e.broadcast_platforms || '',
               venue: e.venue || e.location || 'EMEA CENTER',
-              end_date: e.end_date || ''
+              end_date: e.end_date || '',
+              event_type: e.event_type || 'regular',
+              stages: safeJsonParse(e.stages, [])
             } as any;
           });
           setDbEvents(mapped);
@@ -343,6 +345,37 @@ const CalendarInterface = () => {
           parentEvent: parentInfo,
           rawMatch: match,
           rawEvent: event
+        });
+      });
+
+      // 2b. Add Battle Royale rounds belonging to this event if it is a BR event
+      const rawStages = Array.isArray((event as any).stages) ? (event as any).stages : [];
+      rawStages.forEach((stage: any, sIdx: number) => {
+        const rounds = Array.isArray(stage.rounds) ? stage.rounds : [];
+        rounds.forEach((rnd: any, rIdx: number) => {
+          if (!rnd) return;
+          matchCount++;
+          const converted = formatMatchDateTimeForVisitor(rnd.date || eventDate, rnd.time || event.time, rnd.timezone || (event as any).timezone);
+          const matchDateStr = parseStandardDate(converted.rawDate) || eventDate;
+          const matchTime = converted.formattedTime;
+          const rndStatus: 'LIVE' | 'UPCOMING' | 'FINISHED' = 
+            rnd.status === 'live' ? 'LIVE' : (rnd.status === 'completed' ? 'FINISHED' : 'UPCOMING');
+
+          items.push({
+            id: `br-match-${event.id}-${sIdx}-${rIdx}`,
+            type: 'MATCH',
+            dateStr: matchDateStr,
+            timeStr: matchTime,
+            title: `${stage.name || 'Stage'} - ${rnd.name || `Round ${rIdx + 1}`}`,
+            game: event.game,
+            status: rndStatus,
+            score: rnd.map ? `🗺️ ${rnd.map}` : '',
+            link: rnd.stream_link || (event as any).link || '',
+            eventColor: color,
+            parentEvent: parentInfo,
+            rawMatch: rnd,
+            rawEvent: event
+          });
         });
       });
 
